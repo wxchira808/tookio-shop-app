@@ -41,6 +41,8 @@ export default function Sales() {
     { item_id: "", quantity: 1, unit_price: "" },
   ]);
   const [submitting, setSubmitting] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedSale, setSelectedSale] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -117,6 +119,11 @@ export default function Sales() {
     setNotes("");
     setSaleItems([{ item_id: "", quantity: 1, unit_price: "" }]);
     setShowAddModal(true);
+  };
+
+  const handleSalePress = (sale) => {
+    setSelectedSale(sale);
+    setShowDetailsModal(true);
   };
 
   const handleAddSale = async () => {
@@ -957,6 +964,238 @@ export default function Sales() {
                     Record Sale
                   </Text>
                 )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sale Details Modal */}
+      <Modal
+        visible={showDetailsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDetailsModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              maxHeight: "80%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#E5E7EB",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "bold",
+                  color: "#1F2937",
+                }}
+              >
+                Sale Details
+              </Text>
+              <Pressable
+                onPress={() => setShowDetailsModal(false)}
+                style={{ padding: 4 }}
+              >
+                <X size={24} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <ScrollView style={{ maxHeight: 500 }}>
+              {selectedSale && (
+                <View style={{ padding: 20, gap: 20 }}>
+                  {/* Sale Info */}
+                  <View
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          fontWeight: "500",
+                        }}
+                      >
+                        Sale #{selectedSale.id}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontWeight: "bold",
+                          color: "#10B981",
+                        }}
+                      >
+                        {formatCurrency(selectedSale.total_amount)}
+                      </Text>
+                    </View>
+
+                    <View style={{ gap: 8 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                          Shop:
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "600",
+                            color: "#1F2937",
+                          }}
+                        >
+                          {selectedSale.shop_name}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                          Date:
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "600",
+                            color: "#1F2937",
+                          }}
+                        >
+                          {formatDate(selectedSale.sale_date)}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                          Items:
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "600",
+                            color: "#1F2937",
+                          }}
+                        >
+                          {selectedSale.items_count}
+                        </Text>
+                      </View>
+
+                      {selectedSale.notes && (
+                        <View style={{ marginTop: 8 }}>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#6B7280",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Notes:
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#1F2937",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            {selectedSale.notes}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Summary Message */}
+                  <View
+                    style={{
+                      backgroundColor: "#EFF6FF",
+                      borderRadius: 12,
+                      padding: 16,
+                      alignItems: "center",
+                    }}
+                  >
+                    <ShoppingCart size={32} color="#357AFF" />
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        color: "#1F2937",
+                        marginTop: 12,
+                        textAlign: "center",
+                        fontWeight: "500",
+                      }}
+                    >
+                      This sale has been completed and stock has been updated.
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            <View
+              style={{
+                padding: 20,
+                borderTopWidth: 1,
+                borderTopColor: "#E5E7EB",
+              }}
+            >
+              <Pressable
+                onPress={() => setShowDetailsModal(false)}
+                style={({ pressed }) => ({
+                  backgroundColor: "#357AFF",
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#fff",
+                  }}
+                >
+                  Close
+                </Text>
               </Pressable>
             </View>
           </View>
