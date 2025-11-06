@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, Modal } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -10,13 +10,19 @@ import {
   LogOut,
   ArrowLeft,
   Settings,
+  X,
+  Info,
+  Shield,
+  HelpCircle,
 } from "lucide-react-native";
 import { router } from "expo-router";
+import { useState } from "react";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const { data: user, loading } = useUser();
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -283,9 +289,7 @@ export default function Profile() {
                 borderBottomColor: "#F3F4F6",
                 opacity: pressed ? 0.7 : 1,
               })}
-              onPress={() => {
-                Alert.alert("Settings", "Settings page coming soon!");
-              }}
+              onPress={() => setShowSettingsModal(true)}
             >
               <View
                 style={{
@@ -348,6 +352,422 @@ export default function Profile() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Settings Modal */}
+      <Modal
+        visible={showSettingsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              maxHeight: "80%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#E5E7EB",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "bold",
+                  color: "#1F2937",
+                }}
+              >
+                Account Settings
+              </Text>
+              <Pressable
+                onPress={() => setShowSettingsModal(false)}
+                style={{ padding: 4 }}
+              >
+                <X size={24} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <ScrollView style={{ maxHeight: 500 }}>
+              <View style={{ padding: 20, gap: 16 }}>
+                {/* App Information */}
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#1F2937",
+                      marginBottom: 12,
+                    }}
+                  >
+                    App Information
+                  </Text>
+
+                  <View
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 16,
+                      gap: 12,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 8,
+                          backgroundColor: "#357AFF15",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Info size={20} color="#357AFF" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: "#6B7280",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Version
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "500",
+                            color: "#1F2937",
+                          }}
+                        >
+                          1.0.0
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View
+                      style={{
+                        height: 1,
+                        backgroundColor: "#E5E7EB",
+                        marginVertical: 4,
+                      }}
+                    />
+
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 8,
+                          backgroundColor: "#10B98115",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Shield size={20} color="#10B981" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: "#6B7280",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Account Status
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "500",
+                            color: "#10B981",
+                          }}
+                        >
+                          Active
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Subscription Details */}
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#1F2937",
+                      marginBottom: 12,
+                    }}
+                  >
+                    Subscription Details
+                  </Text>
+
+                  <View
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: "#6B7280",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Current Plan
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            fontWeight: "600",
+                            color: getSubscriptionColor(getSubscriptionTier()),
+                          }}
+                        >
+                          {getSubscriptionLabel(getSubscriptionTier())}
+                        </Text>
+                      </View>
+                      <Crown
+                        size={28}
+                        color={getSubscriptionColor(getSubscriptionTier())}
+                      />
+                    </View>
+
+                    <View
+                      style={{
+                        backgroundColor: "#fff",
+                        borderRadius: 8,
+                        padding: 12,
+                        marginTop: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          lineHeight: 20,
+                        }}
+                      >
+                        {getSubscriptionTier() === "free" &&
+                          "You're on the free plan. Upgrade to unlock more shops and items!"}
+                        {getSubscriptionTier() === "starter" &&
+                          "Starter plan includes 1 shop and up to 100 items."}
+                        {getSubscriptionTier() === "pro" &&
+                          "Pro plan includes up to 5 shops and unlimited items!"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Help & Support */}
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#1F2937",
+                      marginBottom: 12,
+                    }}
+                  >
+                    Help & Support
+                  </Text>
+
+                  <Pressable
+                    style={({ pressed }) => ({
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 16,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                    onPress={() => {
+                      Alert.alert(
+                        "Help Center",
+                        "For support and documentation, visit our help center or contact support@tookio.com"
+                      );
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        backgroundColor: "#F59E0B15",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <HelpCircle size={20} color="#F59E0B" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "500",
+                          color: "#1F2937",
+                        }}
+                      >
+                        Help Center
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          marginTop: 2,
+                        }}
+                      >
+                        Get help and support
+                      </Text>
+                    </View>
+                  </Pressable>
+                </View>
+
+                {/* Account Info */}
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#1F2937",
+                      marginBottom: 12,
+                    }}
+                  >
+                    Your Account
+                  </Text>
+
+                  <View
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 16,
+                      gap: 12,
+                    }}
+                  >
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Email
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "500",
+                          color: "#1F2937",
+                        }}
+                      >
+                        {user?.email}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        height: 1,
+                        backgroundColor: "#E5E7EB",
+                        marginVertical: 4,
+                      }}
+                    />
+
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Name
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "500",
+                          color: "#1F2937",
+                        }}
+                      >
+                        {user?.name || "User"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+
+            <View
+              style={{
+                padding: 20,
+                borderTopWidth: 1,
+                borderTopColor: "#E5E7EB",
+              }}
+            >
+              <Pressable
+                onPress={() => setShowSettingsModal(false)}
+                style={({ pressed }) => ({
+                  backgroundColor: "#357AFF",
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#fff",
+                  }}
+                >
+                  Close
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
