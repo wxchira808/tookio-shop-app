@@ -23,7 +23,7 @@ import {
   Package,
 } from "lucide-react-native";
 import { router } from "expo-router";
-import { getPurchases, createPurchase, getShops, getItems } from "@/utils/api";
+import { getPurchases, createPurchase, getShops, getItems } from "@/utils/frappeApi";
 
 export default function Purchases() {
   useRequireAuth();

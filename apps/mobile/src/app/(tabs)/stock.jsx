@@ -27,7 +27,7 @@ import {
   getStockTransactions,
   createStockTransaction,
   getItems,
-} from "@/utils/api";
+} from "@/utils/frappeApi";
 
 export default function Stock() {
   useRequireAuth();

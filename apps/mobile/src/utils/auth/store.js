@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
 
-export const authKey = `${process.env.EXPO_PUBLIC_PROJECT_GROUP_ID}-jwt`;
+export const authKey = `tookio-frappe-auth`;
 
 /**
  * This store manages the authentication state of the application.

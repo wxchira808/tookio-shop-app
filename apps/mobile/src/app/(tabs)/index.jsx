@@ -14,7 +14,7 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getShops, getItems, getSales } from "@/utils/api";
+import { getShops, getItems, getSales } from "@/utils/frappeApi";
 
 export default function Dashboard() {
   useRequireAuth();

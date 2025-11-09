@@ -15,7 +15,7 @@ import { useRequireAuth } from "@/utils/auth/useAuth";
 import { Package, Plus, Edit, Trash2, X } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getItems, createItem, getShops, updateItem, deleteItem } from "@/utils/api";
+import { getItems, createItem, getShops, updateItem, deleteItem } from "@/utils/frappeApi";
 import { getActiveShop } from "@/utils/storage";
 
 export default function Items() {

@@ -28,7 +28,7 @@ import {
   createShop,
   updateShop,
   deleteShop,
-} from "@/utils/api";
+} from "@/utils/frappeApi";
 import {
   getActiveShop,
   setActiveShop as saveActiveShop,

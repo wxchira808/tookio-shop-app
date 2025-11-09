@@ -48,9 +48,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="purchases" // Add purchases tab
+        name="purchases"
         options={{
           title: "Purchases",
+          href: null, // Hide tab - Coming Soon feature
           tabBarIcon: ({ color, size }) => (
             <ShoppingCart color={color} size={24} />
           ),
