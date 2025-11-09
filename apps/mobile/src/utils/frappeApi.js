@@ -48,6 +48,17 @@ async function frappeRequest(endpoint, options = {}) {
     }
 
     if (!response.ok) {
+      // Handle session expiry (401 Unauthorized or 403 Forbidden)
+      if (response.status === 401 || response.status === 403) {
+        console.log('🔒 Session expired, logging out...');
+        await SecureStore.deleteItemAsync(AUTH_KEY);
+
+        // Throw a special error to indicate session expiry
+        const sessionError = new Error('Your session has expired. Please login again.');
+        sessionError.sessionExpired = true;
+        throw sessionError;
+      }
+
       if (data.exception || data._server_messages) {
         const errorMsg = data.exception || data._server_messages;
         let parsedError = errorMsg;
