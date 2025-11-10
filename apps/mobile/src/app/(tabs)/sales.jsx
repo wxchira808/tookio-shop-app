@@ -1134,7 +1134,8 @@ export default function Sales() {
                     </Text>
                   </View>
                 </View>
-              </ScrollView>
+              </View>
+            </ScrollView>
 
               <View
                 style={{
