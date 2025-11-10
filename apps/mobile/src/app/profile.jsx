@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, Alert, Modal } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, Modal, Linking } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -289,7 +289,11 @@ export default function Profile() {
                 borderBottomColor: "#F3F4F6",
                 opacity: pressed ? 0.7 : 1,
               })}
-              onPress={() => setShowSettingsModal(true)}
+              onPress={() => {
+                Linking.openURL('https://shop.tookio.co.ke/app/user').catch((err) => {
+                  Alert.alert("Error", "Could not open account settings");
+                });
+              }}
             >
               <View
                 style={{

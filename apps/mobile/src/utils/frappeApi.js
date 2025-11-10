@@ -106,13 +106,33 @@ export async function login(usr, pwd) {
 
   if (response.message === 'Logged In') {
     const userInfo = await getCurrentUser();
+    const username = userInfo.message;
+
+    // Fetch full user details from User doctype
+    let userDetails = null;
+    try {
+      const userDoc = await frappeRequest(`/api/resource/User/${username}?fields=["email","full_name","name"]`, {}, true);
+      userDetails = {
+        email: userDoc.data.email,
+        name: userDoc.data.full_name || userDoc.data.name,
+        username: userDoc.data.name,
+      };
+    } catch (e) {
+      console.log('Could not fetch user details, using username:', e.message);
+      // Fallback: use username as both email and name
+      userDetails = {
+        email: username,
+        name: username,
+        username: username,
+      };
+    }
 
     // Try to get API keys for token auth
     let apiKeys = null;
     try {
       const keysResponse = await frappeRequest('/api/method/frappe.core.doctype.user.user.generate_keys', {
         method: 'POST',
-        body: JSON.stringify({ user: userInfo.message }),
+        body: JSON.stringify({ user: username }),
       }, true);  // skipSessionCheck = true
       apiKeys = keysResponse.message;
     } catch (e) {
@@ -120,13 +140,13 @@ export async function login(usr, pwd) {
     }
 
     await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify({
-      user: userInfo.message,
+      user: userDetails,
       logged_in: true,
       api_key: apiKeys?.api_key,
       api_secret: apiKeys?.api_secret,
     }));
 
-    return { success: true, user: userInfo.message };
+    return { success: true, user: userDetails };
   }
 
   throw new Error('Login failed');
