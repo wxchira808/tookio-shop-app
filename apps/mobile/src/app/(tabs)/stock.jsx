@@ -100,14 +100,22 @@ export default function Stock() {
       return;
     }
 
+    // Find the selected item to get its shop_id
+    const selectedItem = items.find(item => item.id.toString() === selectedItemId);
+    if (!selectedItem) {
+      Alert.alert("Error", "Selected item not found");
+      return;
+    }
+
     try {
       setSubmitting(true);
       let finalQuantity = parseInt(quantity);
-      
+
       // For 'out' transactions, quantity should be negative in the request
       // But we keep it positive in the UI for clarity
       const result = await createStockTransaction({
         item_id: parseInt(selectedItemId),
+        shop_id: selectedItem.shop_id,
         transaction_type: modalType,
         quantity: finalQuantity,
         reason: reason || null,
@@ -581,7 +589,7 @@ export default function Stock() {
               <ScrollView
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
               >
                 <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
                   {/* Item Selection */}

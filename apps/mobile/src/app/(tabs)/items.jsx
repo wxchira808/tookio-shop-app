@@ -118,7 +118,7 @@ export default function Items() {
     try {
       setSubmitting(true);
       const result = await createItem({
-        shop_id: parseInt(selectedShopId),
+        shop_id: selectedShopId,  // Pass as string (shop name), not integer
         item_name: itemName.trim(),
         description: description.trim() || null,
         unit_price: parseFloat(sellingPrice),  // Frappe field name
@@ -689,7 +689,7 @@ export default function Items() {
               <ScrollView
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
               >
                 <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
                 {/* Shop Selection */}

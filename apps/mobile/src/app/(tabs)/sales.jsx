@@ -172,9 +172,9 @@ export default function Sales() {
     try {
       setSubmitting(true);
       const result = await createSale({
-        shop_id: parseInt(selectedShopId),
+        shop_id: selectedShopId,  // Pass as string (shop name)
         items: saleItems.map((item) => ({
-          item_id: parseInt(item.item_id),
+          item_id: item.item_id,  // Pass as string (item name)
           quantity: parseInt(item.quantity),
           unit_price: parseFloat(item.unit_price),
         })),
@@ -687,7 +687,7 @@ export default function Sales() {
               <ScrollView
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
               >
                 <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
                   {/* Shop Selection */}
@@ -905,7 +905,7 @@ export default function Sales() {
                         {items
                           .filter((product) => {
                             const matchesShop = selectedShopId
-                              ? product.shop_id === parseInt(selectedShopId)
+                              ? product.shop_id === selectedShopId
                               : true;
                             const matchesSearch = itemSearchQuery
                               ? product.item_name.toLowerCase().includes(itemSearchQuery.toLowerCase())
@@ -1225,7 +1225,7 @@ export default function Sales() {
               </Pressable>
             </View>
 
-            <ScrollView style={{ maxHeight: 500 }}>
+            <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={true}>
               {selectedSale && (
                 <View style={{ padding: 20, gap: 20 }}>
                   {/* Sale Info */}

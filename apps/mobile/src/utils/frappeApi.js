@@ -237,7 +237,7 @@ export async function getShops() {
 export async function createShop(shopData) {
   const frappeData = {
     shop_name: shopData.shop_name,
-    location: shopData.description || 'Main Location',
+    location: shopData.location || shopData.description || 'Main Location',
     address: shopData.address || '',
     mobile_number: shopData.mobile_number || '0700000000',
     email_address: shopData.email_address || 'shop@example.com',
@@ -445,7 +445,7 @@ export async function createStockTransaction(transactionData) {
     shop: transactionData.shop_id,
     date: new Date().toISOString().split('T')[0],
     purpose: purpose,
-    products: [{
+    prodcuts: [{  // Note: Backend field name has typo "prodcuts" instead of "products"
       doctype: 'Tookio Product Stock Item',  // Required for child table
       product: transactionData.item_id,
       quantity: Math.abs(parseFloat(transactionData.quantity) || 0),

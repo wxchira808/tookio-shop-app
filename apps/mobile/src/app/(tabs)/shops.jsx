@@ -56,6 +56,10 @@ export default function Shops() {
   // Form states
   const [shopName, setShopName] = useState("");
   const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+  const [address, setAddress] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -106,12 +110,20 @@ export default function Shops() {
       const result = await createShop({
         shop_name: shopName.trim(),
         description: description.trim() || null,
+        location: location.trim() || null,
+        address: address.trim() || null,
+        mobile_number: mobileNumber.trim() || null,
+        email_address: emailAddress.trim() || null,
       });
 
       if (result && result.shop) {
         Alert.alert("Success", "Shop created successfully!");
         setShopName("");
         setDescription("");
+        setLocation("");
+        setAddress("");
+        setMobileNumber("");
+        setEmailAddress("");
         setShowAddModal(false);
         
         // Set as active shop if it's the first one
@@ -141,12 +153,20 @@ export default function Shops() {
       const result = await updateShop(editingShop.id, {
         shop_name: shopName.trim(),
         description: description.trim() || null,
+        location: location.trim() || null,
+        address: address.trim() || null,
+        mobile_number: mobileNumber.trim() || null,
+        email_address: emailAddress.trim() || null,
       });
 
       if (result && result.shop) {
         Alert.alert("Success", "Shop updated successfully!");
         setShopName("");
         setDescription("");
+        setLocation("");
+        setAddress("");
+        setMobileNumber("");
+        setEmailAddress("");
         setShowEditModal(false);
         setEditingShop(null);
         await loadData();
@@ -203,12 +223,20 @@ export default function Shops() {
     setEditingShop(shop);
     setShopName(shop.shop_name);
     setDescription(shop.description || "");
+    setLocation(shop.location || "");
+    setAddress(shop.address || "");
+    setMobileNumber(shop.mobile_number || "");
+    setEmailAddress(shop.email_address || "");
     setShowEditModal(true);
   };
 
   const openAddModal = () => {
     setShopName("");
     setDescription("");
+    setLocation("");
+    setAddress("");
+    setMobileNumber("");
+    setEmailAddress("");
     setShowAddModal(true);
   };
 
@@ -693,7 +721,7 @@ export default function Shops() {
               <ScrollView
                 style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
               >
                 <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
                   <View>
@@ -749,6 +777,120 @@ export default function Shops() {
                     fontSize: 16,
                     backgroundColor: "#fff",
                     textAlignVertical: "top",
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Location
+                </Text>
+                <TextInput
+                  value={location}
+                  onChangeText={setLocation}
+                  placeholder="Enter location (e.g., Downtown, Mall)"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Address
+                </Text>
+                <TextInput
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholder="Enter full address"
+                  multiline
+                  numberOfLines={2}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
+                    textAlignVertical: "top",
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Mobile Number
+                </Text>
+                <TextInput
+                  value={mobileNumber}
+                  onChangeText={setMobileNumber}
+                  placeholder="Enter mobile number"
+                  keyboardType="phone-pad"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Email Address
+                </Text>
+                <TextInput
+                  value={emailAddress}
+                  onChangeText={setEmailAddress}
+                  placeholder="Enter email address"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
                   }}
                 />
               </View>
@@ -837,7 +979,7 @@ export default function Shops() {
               </Pressable>
             </View>
 
-            <ScrollView style={{ flex: 1 }}>
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true}>
               {selectedShop && (
                 <View style={{ padding: 20 }}>
                   {/* Shop Information */}
