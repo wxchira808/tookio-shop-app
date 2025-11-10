@@ -279,25 +279,6 @@ export default function Stock() {
               Remove Stock
             </Text>
           </Pressable>
-
-          <Pressable
-            onPress={handleStockAdjustment}
-            style={({ pressed }) => ({
-              flex: 1,
-              backgroundColor: "#F59E0B",
-              paddingVertical: 12,
-              borderRadius: 8,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Edit size={16} color="#fff" />
-            <Text style={{ color: "#fff", marginLeft: 4, fontWeight: "600" }}>
-              Adjust
-            </Text>
-          </Pressable>
         </View>
       </View>
 
@@ -385,7 +366,7 @@ export default function Stock() {
                       <Text
                         style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}
                       >
-                        {transaction.shop_name} • {transaction.items_count} item{transaction.items_count !== 1 ? 's' : ''}
+                        {transaction.shop_name}
                       </Text>
 
                       <View

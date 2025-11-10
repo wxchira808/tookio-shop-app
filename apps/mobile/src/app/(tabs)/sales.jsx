@@ -497,8 +497,7 @@ export default function Sales() {
                       <Text
                         style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}
                       >
-                        {sale.shop_name} • {sale.items_count} item
-                        {sale.items_count !== 1 ? "s" : ""}
+                        {sale.shop_name}
                       </Text>
 
                       <View
