@@ -14,8 +14,9 @@ const AUTH_KEY = 'tookio-frappe-auth';
 
 /**
  * Make an authenticated API request to Frappe
+ * @param {boolean} skipSessionCheck - Skip session expiry handling (for login/signup)
  */
-async function frappeRequest(endpoint, options = {}) {
+async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
   try {
     const authData = await SecureStore.getItemAsync(AUTH_KEY);
     const auth = authData ? JSON.parse(authData) : null;
@@ -49,7 +50,8 @@ async function frappeRequest(endpoint, options = {}) {
 
     if (!response.ok) {
       // Handle session expiry (401 Unauthorized or 403 Forbidden)
-      if (response.status === 401 || response.status === 403) {
+      // BUT NOT during login/signup flows
+      if ((response.status === 401 || response.status === 403) && !skipSessionCheck) {
         console.log('🔒 Session expired, logging out...');
         await SecureStore.deleteItemAsync(AUTH_KEY);
 
@@ -93,13 +95,14 @@ export async function login(usr, pwd) {
   formData.append('usr', usr);
   formData.append('pwd', pwd);
 
+  // Skip session check during login
   const response = await frappeRequest('/api/method/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: formData.toString(),
-  });
+  }, true);  // skipSessionCheck = true
 
   if (response.message === 'Logged In') {
     const userInfo = await getCurrentUser();
@@ -110,7 +113,7 @@ export async function login(usr, pwd) {
       const keysResponse = await frappeRequest('/api/method/frappe.core.doctype.user.user.generate_keys', {
         method: 'POST',
         body: JSON.stringify({ user: userInfo.message }),
-      });
+      }, true);  // skipSessionCheck = true
       apiKeys = keysResponse.message;
     } catch (e) {
       console.log('Could not get API keys, using session auth');
@@ -139,7 +142,7 @@ export async function signup(email, username, password, full_name) {
         full_name: full_name || username,
         redirect_to: '/',
       }),
-    });
+    }, true);  // skipSessionCheck = true
 
     // Try to login immediately after signup
     try {
@@ -165,7 +168,8 @@ export async function logout() {
 }
 
 export async function getCurrentUser() {
-  return await frappeRequest('/api/method/frappe.auth.get_logged_user');
+  // Skip session check when getting user during login flow
+  return await frappeRequest('/api/method/frappe.auth.get_logged_user', {}, true);
 }
 
 export async function isAuthenticated() {
