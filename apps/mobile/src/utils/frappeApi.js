@@ -369,11 +369,21 @@ export async function getSales() {
     console.log('📊 First sale data structure:', JSON.stringify(response.data[0], null, 2));
   }
 
-  // Get shops and items to map IDs to names
-  const [shopsResponse, itemsResponse] = await Promise.all([
+  // Fetch child table items, shops, and products in parallel
+  const [saleItemsResponse, shopsResponse, itemsResponse] = await Promise.all([
+    frappeRequest('/api/resource/Tookio Sales Invoice Item?fields=["*"]&limit_page_length=9999'),
     frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
     frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
   ]);
+
+  // Create a map of sale items by parent (sale invoice)
+  const saleItemsMap = {};
+  (saleItemsResponse.data || []).forEach(item => {
+    if (!saleItemsMap[item.parent]) {
+      saleItemsMap[item.parent] = [];
+    }
+    saleItemsMap[item.parent].push(item);
+  });
 
   const shopsMap = {};
   (shopsResponse.data || []).forEach(shop => {
@@ -385,25 +395,30 @@ export async function getSales() {
     itemsMap[item.name] = item.item_name;
   });
 
-  const sales = (response.data || []).map(sale => ({
-    id: sale.name,
-    total_amount: sale.total || 0,
-    sale_date: sale.posting_date,
-    customer_name: sale.customer_name || '',
-    customer_mobile_number: sale.customer_mobile_number || '',
-    payment_method: sale.payment_method || '',
-    delivery_location: sale.delivery_location || '',
-    notes: sale.notes || '',
-    shop_name: shopsMap[sale.shop] || sale.shop,
-    shop_id: sale.shop,
-    items: (sale.items || []).map(item => ({
-      ...item,
-      product_name: itemsMap[item.product] || item.product,
-    })),
-    items_count: sale.items?.length || 0,
-    created_at: sale.creation,
-    updated_at: sale.modified,
-  }));
+  const sales = (response.data || []).map(sale => {
+    const saleItems = saleItemsMap[sale.name] || [];
+    return {
+      id: sale.name,
+      total_amount: sale.total || 0,
+      sale_date: sale.posting_date,
+      customer_name: sale.customer_name || '',
+      customer_mobile_number: sale.customer_mobile_number || '',
+      payment_method: sale.payment_method || '',
+      delivery_location: sale.delivery_location || '',
+      notes: sale.notes || '',
+      shop_name: shopsMap[sale.shop] || sale.shop,
+      shop_id: sale.shop,
+      items: saleItems.map(item => ({
+        product: item.product,
+        product_name: itemsMap[item.product] || item.product,
+        quantity: item.quantity || 0,
+        item_price: item.item_price || 0,
+      })),
+      items_count: saleItems.length,
+      created_at: sale.creation,
+      updated_at: sale.modified,
+    };
+  });
 
   console.log('📊 Mapped sales (first item):', JSON.stringify(sales[0], null, 2));
 
@@ -462,11 +477,21 @@ export async function getStockTransactions() {
     console.log('📦 First stock transaction data structure:', JSON.stringify(response.data[0], null, 2));
   }
 
-  // Get shops and items for mapping names
-  const [shopsResponse, itemsResponse] = await Promise.all([
+  // Fetch child table items, shops, and products in parallel
+  const [stockItemsResponse, shopsResponse, itemsResponse] = await Promise.all([
+    frappeRequest('/api/resource/Tookio Product Stock Item?fields=["*"]&limit_page_length=9999'),
     frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
     frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
   ]);
+
+  // Create a map of stock items by parent (product stock)
+  const stockItemsMap = {};
+  (stockItemsResponse.data || []).forEach(item => {
+    if (!stockItemsMap[item.parent]) {
+      stockItemsMap[item.parent] = [];
+    }
+    stockItemsMap[item.parent].push(item);
+  });
 
   const shopsMap = {};
   (shopsResponse.data || []).forEach(shop => {
@@ -479,9 +504,10 @@ export async function getStockTransactions() {
   });
 
   const transactions = (response.data || []).map(trans => {
+    const transItems = stockItemsMap[trans.name] || [];
     // Calculate total quantity from child items
-    const totalQty = (trans.prodcuts || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const itemsList = (trans.prodcuts || []).map(item => ({
+    const totalQty = transItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const itemsList = transItems.map(item => ({
       product_id: item.product,
       product_name: itemsMap[item.product] || item.product,
       quantity: item.quantity || 0,
