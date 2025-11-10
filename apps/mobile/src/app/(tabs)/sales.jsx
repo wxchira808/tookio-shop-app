@@ -25,7 +25,7 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getSales, createSale, getShops, getItems } from "@/utils/frappeApi";
+import { getSales, getSaleById, createSale, getShops, getItems } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
 
 export default function Sales() {
@@ -144,9 +144,18 @@ export default function Sales() {
     setShowAddModal(true);
   };
 
-  const handleSalePress = (sale) => {
-    setSelectedSale(sale);
-    setShowDetailsModal(true);
+  const handleSalePress = async (sale) => {
+    try {
+      // Fetch full sale details with child tables (items)
+      const fullSale = await getSaleById(sale.id);
+      // Include shop_name from list data
+      fullSale.shop_name = sale.shop_name;
+      setSelectedSale(fullSale);
+      setShowDetailsModal(true);
+    } catch (error) {
+      console.error('Error fetching sale details:', error);
+      Alert.alert('Error', 'Failed to load sale details. Please try again.');
+    }
   };
 
   const handleAddSale = async () => {

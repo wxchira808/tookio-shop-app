@@ -440,6 +440,40 @@ export async function getSales() {
   return { sales };
 }
 
+export async function getSaleById(saleId) {
+  // Fetch single sale document - this will include child tables
+  const response = await frappeRequest(`/api/resource/Sale Invoice/${saleId}`);
+
+  // Fetch product names for mapping
+  const itemsResponse = await frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999');
+  const itemsMap = {};
+  (itemsResponse.data || []).forEach(item => {
+    itemsMap[item.name] = item.item_name;
+  });
+
+  const sale = response.data;
+  return {
+    id: sale.name,
+    total_amount: sale.total || 0,
+    sale_date: sale.posting_date,
+    customer_name: sale.customer_name || '',
+    customer_mobile_number: sale.customer_mobile_number || sale.customer_phone_number || '',
+    payment_method: sale.payment_method || '',
+    delivery_location: sale.delivery_location || '',
+    notes: sale.notes || '',
+    shop_id: sale.shop,
+    items: (sale.items || []).map(item => ({
+      product: item.product,
+      product_name: itemsMap[item.product] || item.product,
+      quantity: item.quantity || 0,
+      item_price: item.item_price || 0,
+    })),
+    items_count: (sale.items || []).length,
+    created_at: sale.creation,
+    updated_at: sale.modified,
+  };
+}
+
 export async function createSale(saleData) {
   // Map mobile app sale items to Frappe format
   // IMPORTANT: Frappe child tables require the 'doctype' field
@@ -561,6 +595,39 @@ export async function getStockTransactions() {
   console.log('📦 Mapped transactions (first item):', JSON.stringify(transactions[0], null, 2));
 
   return { transactions };
+}
+
+export async function getStockTransactionById(transactionId) {
+  // Fetch single stock transaction document - this will include child tables
+  const response = await frappeRequest(`/api/resource/Product Stock/${transactionId}`);
+
+  // Fetch product names for mapping
+  const itemsResponse = await frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999');
+  const itemsMap = {};
+  (itemsResponse.data || []).forEach(item => {
+    itemsMap[item.name] = item.item_name;
+  });
+
+  const trans = response.data;
+  // Note: Backend field name has typo "prodcuts" instead of "products"
+  const transItems = trans.prodcuts || trans.products || [];
+  const totalQty = transItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+  return {
+    id: trans.name,
+    transaction_type: trans.purpose === 'Add Stock' ? 'in' : 'out',
+    quantity: trans.purpose === 'Add Stock' ? totalQty : -totalQty,
+    purpose: trans.purpose,
+    items: transItems.map(item => ({
+      product_id: item.product,
+      product_name: itemsMap[item.product] || item.product,
+      quantity: item.quantity || 0,
+    })),
+    items_count: transItems.length,
+    date: trans.date,
+    created_at: trans.creation,
+    shop_id: trans.shop,
+  };
 }
 
 export async function createStockTransaction(transactionData) {

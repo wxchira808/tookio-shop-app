@@ -27,6 +27,7 @@ import { router } from "expo-router";
 import { useState, useEffect } from "react";
 import {
   getStockTransactions,
+  getStockTransactionById,
   createStockTransaction,
   getItems,
 } from "@/utils/frappeApi";
@@ -306,9 +307,18 @@ export default function Stock() {
             {stockTransactions.map((transaction) => (
               <Pressable
                 key={transaction.id}
-                onPress={() => {
-                  setSelectedTransaction(transaction);
-                  setShowDetailsModal(true);
+                onPress={async () => {
+                  try {
+                    // Fetch full transaction details with child tables (items)
+                    const fullTransaction = await getStockTransactionById(transaction.id);
+                    // Include shop_name from list data
+                    fullTransaction.shop_name = transaction.shop_name;
+                    setSelectedTransaction(fullTransaction);
+                    setShowDetailsModal(true);
+                  } catch (error) {
+                    console.error('Error fetching transaction details:', error);
+                    Alert.alert('Error', 'Failed to load transaction details. Please try again.');
+                  }
                 }}
                 style={({ pressed }) => ({
                   backgroundColor: "#fff",
