@@ -792,34 +792,6 @@ export default function Items() {
                   />
                 </View>
 
-                {/* SKU */}
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#374151",
-                      marginBottom: 8,
-                    }}
-                  >
-                    SKU (Optional)
-                  </Text>
-                  <TextInput
-                    value={sku}
-                    onChangeText={setSku}
-                    placeholder="Enter SKU"
-                    style={{
-                      borderWidth: 1,
-                      borderColor: "#E5E7EB",
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      fontSize: 16,
-                      backgroundColor: "#fff",
-                    }}
-                  />
-                </View>
-
                 {/* Pricing Row */}
                 <View style={{ flexDirection: "row", gap: 12 }}>
                   <View style={{ flex: 1 }}>
@@ -831,11 +803,11 @@ export default function Items() {
                         marginBottom: 8,
                       }}
                     >
-                      Unit Price * ($)
+                      Selling Price *
                     </Text>
                     <TextInput
-                      value={unitPrice}
-                      onChangeText={setUnitPrice}
+                      value={sellingPrice}
+                      onChangeText={setSellingPrice}
                       placeholder="0.00"
                       keyboardType="decimal-pad"
                       style={{
@@ -859,11 +831,11 @@ export default function Items() {
                         marginBottom: 8,
                       }}
                     >
-                      Cost Price * ($)
+                      Buying Price *
                     </Text>
                     <TextInput
-                      value={costPrice}
-                      onChangeText={setCostPrice}
+                      value={buyingPrice}
+                      onChangeText={setBuyingPrice}
                       placeholder="0.00"
                       keyboardType="decimal-pad"
                       style={{
