@@ -40,6 +40,8 @@ export default function Stock() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [modalType, setModalType] = useState("in"); // 'in', 'out', 'adjustment'
   const [selectedItemId, setSelectedItemId] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -321,9 +323,13 @@ export default function Stock() {
             </Text>
 
             {stockTransactions.map((transaction) => (
-              <View
+              <Pressable
                 key={transaction.id}
-                style={{
+                onPress={() => {
+                  setSelectedTransaction(transaction);
+                  setShowDetailsModal(true);
+                }}
+                style={({ pressed }) => ({
                   backgroundColor: "#fff",
                   borderRadius: 12,
                   padding: 16,
@@ -333,7 +339,8 @@ export default function Stock() {
                   shadowOpacity: 0.05,
                   shadowRadius: 4,
                   elevation: 2,
-                }}
+                  opacity: pressed ? 0.7 : 1,
+                })}
               >
                 <View
                   style={{
@@ -373,12 +380,12 @@ export default function Stock() {
                           color: "#1F2937",
                         }}
                       >
-                        {transaction.item_name}
+                        {transaction.purpose}
                       </Text>
                       <Text
                         style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}
                       >
-                        {transaction.shop_name}
+                        {transaction.shop_name} • {transaction.items_count} item{transaction.items_count !== 1 ? 's' : ''}
                       </Text>
 
                       <View
@@ -388,47 +395,10 @@ export default function Stock() {
                           marginTop: 8,
                         }}
                       >
-                        <View
-                          style={{
-                            backgroundColor:
-                              getTransactionColor(
-                                transaction.transaction_type,
-                              ) + "15",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                            marginRight: 8,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              color: getTransactionColor(
-                                transaction.transaction_type,
-                              ),
-                              fontWeight: "600",
-                            }}
-                          >
-                            {getTransactionText(transaction.transaction_type)}
-                          </Text>
-                        </View>
-
                         <Text style={{ fontSize: 12, color: "#6B7280" }}>
                           {formatDate(transaction.created_at)}
                         </Text>
                       </View>
-
-                      {transaction.reason && (
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            color: "#6B7280",
-                            marginTop: 4,
-                          }}
-                        >
-                          {transaction.reason}
-                        </Text>
-                      )}
                     </View>
                   </View>
 
@@ -445,12 +415,9 @@ export default function Stock() {
                       {transaction.quantity > 0 ? "+" : ""}
                       {transaction.quantity}
                     </Text>
-                    <Text style={{ fontSize: 12, color: "#6B7280" }}>
-                      units
-                    </Text>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         ) : (
@@ -809,6 +776,128 @@ export default function Stock() {
             </Pressable>
           </View>
         </KeyboardAvoidingView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Transaction Details Modal */}
+      <Modal
+        visible={showDetailsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowDetailsModal(false);
+          setSelectedTransaction(null);
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              maxHeight: "80%",
+              paddingBottom: insets.bottom,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#E5E7EB",
+              }}
+            >
+              <Text style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}>
+                Transaction Details
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setShowDetailsModal(false);
+                  setSelectedTransaction(null);
+                }}
+                style={{ padding: 4 }}
+              >
+                <X size={24} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={true}>
+              {selectedTransaction && (
+                <View style={{ padding: 20, gap: 20 }}>
+                  {/* Transaction Info */}
+                  <View
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      padding: 16,
+                      borderRadius: 12,
+                      gap: 12,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 14, color: "#6B7280" }}>Type</Text>
+                      <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
+                        {selectedTransaction.purpose}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 14, color: "#6B7280" }}>Shop</Text>
+                      <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
+                        {selectedTransaction.shop_name}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 14, color: "#6B7280" }}>Date</Text>
+                      <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
+                        {formatDate(selectedTransaction.created_at)}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 14, color: "#6B7280" }}>Total Quantity</Text>
+                      <Text style={{ fontSize: 14, fontWeight: "600", color: getTransactionColor(selectedTransaction.transaction_type) }}>
+                        {selectedTransaction.quantity > 0 ? "+" : ""}{selectedTransaction.quantity}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Items List */}
+                  <View>
+                    <Text style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", marginBottom: 12 }}>
+                      Items ({selectedTransaction.items_count})
+                    </Text>
+                    {selectedTransaction.items && selectedTransaction.items.map((item, index) => (
+                      <View
+                        key={index}
+                        style={{
+                          backgroundColor: "#F9FAFB",
+                          padding: 12,
+                          borderRadius: 8,
+                          marginBottom: 8,
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, color: "#1F2937", flex: 1 }}>
+                          {item.product_name}
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: getTransactionColor(selectedTransaction.transaction_type) }}>
+                          {selectedTransaction.transaction_type === 'in' ? '+' : '-'}{item.quantity}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>

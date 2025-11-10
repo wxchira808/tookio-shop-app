@@ -364,13 +364,37 @@ export async function deleteItem(itemId) {
 export async function getSales() {
   const response = await frappeRequest('/api/resource/Sale Invoice?fields=["*"]&limit_page_length=999&order_by=creation desc');
 
+  // Get shops and items to map IDs to names
+  const [shopsResponse, itemsResponse] = await Promise.all([
+    frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
+    frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
+  ]);
+
+  const shopsMap = {};
+  (shopsResponse.data || []).forEach(shop => {
+    shopsMap[shop.name] = shop.shop_name;
+  });
+
+  const itemsMap = {};
+  (itemsResponse.data || []).forEach(item => {
+    itemsMap[item.name] = item.item_name;
+  });
+
   const sales = (response.data || []).map(sale => ({
     id: sale.name,
     total_amount: sale.total || 0,
     sale_date: sale.posting_date,
-    notes: sale.delivery_location || '',
-    shop_name: sale.shop,
+    customer_name: sale.customer_name || '',
+    customer_mobile_number: sale.customer_mobile_number || '',
+    payment_method: sale.payment_method || '',
+    delivery_location: sale.delivery_location || '',
+    notes: sale.notes || '',
+    shop_name: shopsMap[sale.shop] || sale.shop,
     shop_id: sale.shop,
+    items: (sale.items || []).map(item => ({
+      ...item,
+      product_name: itemsMap[item.product] || item.product,
+    })),
     items_count: sale.items?.length || 0,
     created_at: sale.creation,
     updated_at: sale.modified,
@@ -392,14 +416,16 @@ export async function createSale(saleData) {
   const frappeData = {
     doctype: 'Sale Invoice',
     shop: saleData.shop_id,
-    posting_date: saleData.sale_date || new Date().toISOString().split('T')[0],
+    posting_date: new Date().toISOString().split('T')[0],  // Format: YYYY-MM-DD
     customer_name: saleData.customer_name || 'Walk-in Customer',
     customer_mobile_number: saleData.customer_mobile_number || '',
-    payment_method: saleData.payment_method || 'cash',
+    payment_method: saleData.payment_method || 'Cash',
     delivery_location: saleData.delivery_location || '',
     notes: saleData.notes || '',
     items: items,
   };
+
+  console.log('📤 Creating sale with data:', JSON.stringify(frappeData, null, 2));
 
   const response = await frappeRequest('/api/resource/Sale Invoice', {
     method: 'POST',
@@ -424,15 +450,44 @@ export async function createSale(saleData) {
 export async function getStockTransactions() {
   const response = await frappeRequest('/api/resource/Product Stock?fields=["*"]&limit_page_length=999&order_by=creation desc');
 
-  const transactions = (response.data || []).map(trans => ({
-    id: trans.name,
-    transaction_type: trans.purpose === 'Add Stock' ? 'in' : 'out',
-    quantity: 0, // Will need to sum from child table
-    reason: trans.purpose,
-    created_at: trans.creation,
-    shop_id: trans.shop,
-    shop_name: trans.shop,
-  }));
+  // Get shops and items for mapping names
+  const [shopsResponse, itemsResponse] = await Promise.all([
+    frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
+    frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
+  ]);
+
+  const shopsMap = {};
+  (shopsResponse.data || []).forEach(shop => {
+    shopsMap[shop.name] = shop.shop_name;
+  });
+
+  const itemsMap = {};
+  (itemsResponse.data || []).forEach(item => {
+    itemsMap[item.name] = item.item_name;
+  });
+
+  const transactions = (response.data || []).map(trans => {
+    // Calculate total quantity from child items
+    const totalQty = (trans.prodcuts || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const itemsList = (trans.prodcuts || []).map(item => ({
+      product_id: item.product,
+      product_name: itemsMap[item.product] || item.product,
+      quantity: item.quantity || 0,
+    }));
+
+    return {
+      id: trans.name,
+      transaction_type: trans.purpose === 'Add Stock' ? 'in' : 'out',
+      quantity: trans.purpose === 'Add Stock' ? totalQty : -totalQty,
+      purpose: trans.purpose,
+      items: itemsList,
+      items_count: itemsList.length,
+      date: trans.date,
+      created_at: trans.creation,
+      shop_id: trans.shop,
+      shop_name: shopsMap[trans.shop] || trans.shop,
+    };
+  });
 
   return { transactions };
 }

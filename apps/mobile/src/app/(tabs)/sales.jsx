@@ -1273,7 +1273,7 @@ export default function Sales() {
                         }}
                       >
                         <Text style={{ fontSize: 14, color: "#6B7280" }}>
-                          Shop:
+                          Shop
                         </Text>
                         <Text
                           style={{
@@ -1293,7 +1293,7 @@ export default function Sales() {
                         }}
                       >
                         <Text style={{ fontSize: 14, color: "#6B7280" }}>
-                          Date:
+                          Date
                         </Text>
                         <Text
                           style={{
@@ -1306,25 +1306,93 @@ export default function Sales() {
                         </Text>
                       </View>
 
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <Text style={{ fontSize: 14, color: "#6B7280" }}>
-                          Items:
-                        </Text>
-                        <Text
+                      {selectedSale.customer_name && (
+                        <View
                           style={{
-                            fontSize: 14,
-                            fontWeight: "600",
-                            color: "#1F2937",
+                            flexDirection: "row",
+                            justifyContent: "space-between",
                           }}
                         >
-                          {selectedSale.items_count}
-                        </Text>
-                      </View>
+                          <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                            Customer
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "600",
+                              color: "#1F2937",
+                            }}
+                          >
+                            {selectedSale.customer_name}
+                          </Text>
+                        </View>
+                      )}
+
+                      {selectedSale.customer_mobile_number && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                            Mobile
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "600",
+                              color: "#1F2937",
+                            }}
+                          >
+                            {selectedSale.customer_mobile_number}
+                          </Text>
+                        </View>
+                      )}
+
+                      {selectedSale.payment_method && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                            Payment
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "600",
+                              color: "#1F2937",
+                            }}
+                          >
+                            {selectedSale.payment_method}
+                          </Text>
+                        </View>
+                      )}
+
+                      {selectedSale.delivery_location && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                            Delivery
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "600",
+                              color: "#1F2937",
+                            }}
+                          >
+                            {selectedSale.delivery_location}
+                          </Text>
+                        </View>
+                      )}
 
                       {selectedSale.notes && (
                         <View style={{ marginTop: 8 }}>
@@ -1335,7 +1403,7 @@ export default function Sales() {
                               marginBottom: 4,
                             }}
                           >
-                            Notes:
+                            Notes
                           </Text>
                           <Text
                             style={{
@@ -1351,28 +1419,39 @@ export default function Sales() {
                     </View>
                   </View>
 
-                  {/* Summary Message */}
-                  <View
-                    style={{
-                      backgroundColor: "#EFF6FF",
-                      borderRadius: 12,
-                      padding: 16,
-                      alignItems: "center",
-                    }}
-                  >
-                    <ShoppingCart size={32} color="#357AFF" />
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        color: "#1F2937",
-                        marginTop: 12,
-                        textAlign: "center",
-                        fontWeight: "500",
-                      }}
-                    >
-                      This sale has been completed and stock has been updated.
-                    </Text>
-                  </View>
+                  {/* Items List */}
+                  {selectedSale.items && selectedSale.items.length > 0 && (
+                    <View>
+                      <Text style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", marginBottom: 12 }}>
+                        Items ({selectedSale.items_count})
+                      </Text>
+                      {selectedSale.items.map((item, index) => (
+                        <View
+                          key={index}
+                          style={{
+                            backgroundColor: "#F9FAFB",
+                            padding: 12,
+                            borderRadius: 8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
+                                {item.product_name || item.product}
+                              </Text>
+                              <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>
+                                Qty: {item.quantity} × {formatCurrency(item.item_price)}
+                              </Text>
+                            </View>
+                            <Text style={{ fontSize: 14, fontWeight: "600", color: "#10B981" }}>
+                              {formatCurrency(item.quantity * item.item_price)}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               )}
             </ScrollView>
