@@ -541,6 +541,7 @@ export default function Stock() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
+              height: "80%",
               paddingBottom: insets.bottom,
             }}
           >
@@ -578,6 +579,7 @@ export default function Stock() {
               keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
             >
               <ScrollView
+                style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >

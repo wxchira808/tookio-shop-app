@@ -648,6 +648,7 @@ export default function Shops() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
+              height: "70%",
               paddingBottom: insets.bottom,
             }}
           >
@@ -690,6 +691,7 @@ export default function Shops() {
               keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
             >
               <ScrollView
+                style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
@@ -804,7 +806,7 @@ export default function Shops() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              maxHeight: "80%",
+              height: "80%",
               paddingBottom: insets.bottom,
             }}
           >

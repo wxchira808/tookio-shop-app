@@ -646,7 +646,8 @@ export default function Items() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              maxHeight: "90%",
+              height: "90%",
+              paddingBottom: insets.bottom,
             }}
           >
             <View
@@ -686,7 +687,7 @@ export default function Items() {
               keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
             >
               <ScrollView
-                style={{ maxHeight: 500 }}
+                style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
