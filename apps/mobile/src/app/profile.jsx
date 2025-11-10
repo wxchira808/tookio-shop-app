@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, Alert, Modal, Linking } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, Linking } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -10,20 +10,16 @@ import {
   LogOut,
   ArrowLeft,
   Settings,
-  X,
-  Info,
-  Shield,
-  HelpCircle,
   ExternalLink,
+  Calendar,
+  ChevronRight,
 } from "lucide-react-native";
 import { router } from "expo-router";
-import { useState } from "react";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const { data: user, loading } = useUser();
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -40,28 +36,54 @@ export default function Profile() {
   };
 
   const getSubscriptionTier = () => {
-    return user?.subscription_tier || "free";
+    const tier = user?.subscription_tier || "free";
+    return tier.toLowerCase();
   };
 
   const getSubscriptionColor = (tier) => {
-    switch (tier) {
-      case "pro":
-        return "#10B981";
-      case "starter":
-        return "#F59E0B";
-      default:
-        return "#6B7280";
+    const tierLower = tier.toLowerCase();
+    if (tierLower.includes("business") || tierLower.includes("enterprise")) {
+      return "#6366F1"; // Indigo for business/enterprise
     }
+    if (tierLower.includes("pro") || tierLower.includes("premium")) {
+      return "#10B981"; // Green for pro/premium
+    }
+    if (tierLower.includes("starter") || tierLower.includes("basic")) {
+      return "#F59E0B"; // Amber for starter/basic
+    }
+    return "#64748B"; // Slate gray for free
   };
 
   const getSubscriptionLabel = (tier) => {
-    switch (tier) {
-      case "pro":
-        return "Pro - $10/month";
-      case "starter":
-        return "Starter - $4/month";
-      default:
-        return "Free Plan";
+    const tierLower = tier.toLowerCase();
+
+    // Capitalize the tier name properly
+    const capitalize = (str) => {
+      return str.split(' ').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join(' ');
+    };
+
+    // If it's "free", return "Free Plan"
+    if (tierLower === "free") {
+      return "Free Plan";
+    }
+
+    // Otherwise return the tier name capitalized
+    return capitalize(tier);
+  };
+
+  const formatExpiryDate = (dateString) => {
+    if (!dateString) return null;
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return null;
     }
   };
 
@@ -70,20 +92,25 @@ export default function Profile() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "#F8FAFC",
+          backgroundColor: "#FAFAFA",
           paddingTop: insets.top,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <Text style={{ fontSize: 16, color: "#6B7280" }}>Loading...</Text>
+        <Text style={{ fontSize: 16, color: "#64748B" }}>Loading...</Text>
       </View>
     );
   }
 
+  const currentTier = getSubscriptionTier();
+  const subscriptionColor = getSubscriptionColor(currentTier);
+  const subscriptionLabel = getSubscriptionLabel(currentTier);
+  const expiryDate = user?.subscription_expiry;
+
   return (
     <View
-      style={{ flex: 1, backgroundColor: "#F8FAFC", paddingTop: insets.top }}
+      style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}
     >
       <StatusBar style="dark" />
 
@@ -91,11 +118,12 @@ export default function Profile() {
       <View
         style={{
           paddingHorizontal: 20,
-          paddingVertical: 20,
-          backgroundColor: "#fff",
+          paddingVertical: 16,
+          backgroundColor: "#FFFFFF",
           flexDirection: "row",
           alignItems: "center",
-          gap: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: "#F1F5F9",
         }}
       >
         <Pressable
@@ -104,167 +132,169 @@ export default function Profile() {
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: "#F3F4F6",
+            backgroundColor: pressed ? "#F1F5F9" : "transparent",
             alignItems: "center",
             justifyContent: "center",
-            opacity: pressed ? 0.7 : 1,
+            marginRight: 12,
           })}
         >
-          <ArrowLeft size={20} color="#6B7280" />
+          <ArrowLeft size={22} color="#0F172A" />
         </Pressable>
-        <Text style={{ fontSize: 24, fontWeight: "bold", color: "#1F2937" }}>
-          Profile
+        <Text style={{ fontSize: 20, fontWeight: "700", color: "#0F172A", letterSpacing: -0.5 }}>
+          Account
         </Text>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* User Info Card */}
-        <View style={{ padding: 20 }}>
+        {/* Profile Header Card */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 }}>
           <View
             style={{
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              padding: 20,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 8,
-              elevation: 4,
+              backgroundColor: "#FFFFFF",
+              borderRadius: 20,
+              padding: 24,
+              borderWidth: 1,
+              borderColor: "#F1F5F9",
             }}
           >
-            <View
-              style={{
-                alignItems: "center",
-                marginBottom: 20,
-              }}
-            >
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
               <View
                 style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
-                  backgroundColor: "#357AFF15",
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: "#F8FAFC",
                   alignItems: "center",
                   justifyContent: "center",
-                  marginBottom: 12,
+                  borderWidth: 2,
+                  borderColor: subscriptionColor + "20",
                 }}
               >
-                <User size={32} color="#357AFF" />
+                <User size={28} color={subscriptionColor} strokeWidth={2} />
               </View>
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "600",
-                  color: "#1F2937",
-                }}
-              >
-                {user?.name || "User"}
-              </Text>
-            </View>
-
-            {/* User Details */}
-            <View style={{ gap: 16 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <View
+              <View style={{ marginLeft: 16, flex: 1 }}>
+                <Text
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 8,
-                    backgroundColor: "#F3F4F6",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    fontSize: 22,
+                    fontWeight: "700",
+                    color: "#0F172A",
+                    letterSpacing: -0.5,
+                    marginBottom: 4,
                   }}
                 >
-                  <Mail size={18} color="#6B7280" />
-                </View>
-                <View>
+                  {user?.name || "User"}
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Mail size={14} color="#64748B" />
                   <Text
                     style={{
                       fontSize: 14,
-                      color: "#6B7280",
-                      marginBottom: 2,
-                    }}
-                  >
-                    Email
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "500",
-                      color: "#1F2937",
+                      color: "#64748B",
+                      marginLeft: 6,
                     }}
                   >
                     {user?.email}
                   </Text>
                 </View>
               </View>
+            </View>
 
-              <View
+            <View
+              style={{
+                height: 1,
+                backgroundColor: "#F1F5F9",
+                marginBottom: 20,
+              }}
+            />
+
+            {/* Subscription Info */}
+            <View>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Subscription Plan
+                </Text>
+                <Crown size={16} color={subscriptionColor} />
+              </View>
+              <Text
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: subscriptionColor,
+                  marginBottom: expiryDate ? 8 : 0,
                 }}
               >
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 8,
-                    backgroundColor:
-                      getSubscriptionColor(getSubscriptionTier()) + "15",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Crown
-                    size={18}
-                    color={getSubscriptionColor(getSubscriptionTier())}
-                  />
-                </View>
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      color: "#6B7280",
-                      marginBottom: 2,
-                    }}
-                  >
-                    Subscription
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "500",
-                      color: getSubscriptionColor(getSubscriptionTier()),
-                    }}
-                  >
-                    {getSubscriptionLabel(getSubscriptionTier())}
+                {subscriptionLabel}
+              </Text>
+              {expiryDate && (
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+                  <Calendar size={14} color="#64748B" />
+                  <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>
+                    Expires: {formatExpiryDate(expiryDate)}
                   </Text>
                 </View>
-              </View>
+              )}
             </View>
           </View>
         </View>
 
-        {/* Settings Section */}
-        <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+        {/* Manage Subscription Button */}
+        <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+          <Pressable
+            onPress={async () => {
+              try {
+                const url = 'https://shop.tookio.co.ke/subscriptions';
+                const canOpen = await Linking.canOpenURL(url);
+                if (canOpen) {
+                  await Linking.openURL(url);
+                } else {
+                  Alert.alert('Error', 'Unable to open subscription page');
+                }
+              } catch (error) {
+                console.error('Error opening subscription page:', error);
+                Alert.alert('Error', 'Failed to open subscription page');
+              }
+            }}
+            style={({ pressed }) => ({
+              backgroundColor: subscriptionColor,
+              borderRadius: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 20,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.9 : 1,
+            })}
+          >
+            <ExternalLink size={20} color="#FFFFFF" strokeWidth={2} />
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '700',
+                color: '#FFFFFF',
+                marginLeft: 10,
+                letterSpacing: -0.3,
+              }}
+            >
+              Manage Subscription
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Actions */}
+        <View style={{ paddingHorizontal: 20 }}>
           <Text
             style={{
-              fontSize: 18,
+              fontSize: 12,
               fontWeight: "600",
-              color: "#1F2937",
-              marginBottom: 16,
+              color: "#64748B",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: 12,
+              paddingLeft: 4,
             }}
           >
             Settings
@@ -272,23 +302,22 @@ export default function Profile() {
 
           <View
             style={{
-              backgroundColor: "#fff",
-              borderRadius: 12,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 4,
-              elevation: 2,
+              backgroundColor: "#FFFFFF",
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: "#F1F5F9",
+              overflow: "hidden",
             }}
           >
             <Pressable
               style={({ pressed }) => ({
                 flexDirection: "row",
                 alignItems: "center",
-                padding: 16,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
+                backgroundColor: pressed ? "#F8FAFC" : "transparent",
                 borderBottomWidth: 1,
-                borderBottomColor: "#F3F4F6",
-                opacity: pressed ? 0.7 : 1,
+                borderBottomColor: "#F1F5F9",
               })}
               onPress={() => {
                 Linking.openURL('https://shop.tookio.co.ke/app/user').catch((err) => {
@@ -300,33 +329,35 @@ export default function Profile() {
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 8,
-                  backgroundColor: "#F3F4F6",
+                  borderRadius: 12,
+                  backgroundColor: "#F8FAFC",
                   alignItems: "center",
                   justifyContent: "center",
-                  marginRight: 12,
                 }}
               >
-                <Settings size={18} color="#6B7280" />
+                <Settings size={20} color="#0F172A" strokeWidth={2} />
               </View>
               <Text
                 style={{
                   fontSize: 16,
-                  fontWeight: "500",
-                  color: "#1F2937",
+                  fontWeight: "600",
+                  color: "#0F172A",
+                  marginLeft: 16,
                   flex: 1,
                 }}
               >
                 Account Settings
               </Text>
+              <ChevronRight size={20} color="#CBD5E1" />
             </Pressable>
 
             <Pressable
               style={({ pressed }) => ({
                 flexDirection: "row",
                 alignItems: "center",
-                padding: 16,
-                opacity: pressed ? 0.7 : 1,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
+                backgroundColor: pressed ? "#FEF2F2" : "transparent",
               })}
               onPress={handleSignOut}
             >
@@ -334,484 +365,37 @@ export default function Profile() {
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 8,
+                  borderRadius: 12,
                   backgroundColor: "#FEF2F2",
                   alignItems: "center",
                   justifyContent: "center",
-                  marginRight: 12,
                 }}
               >
-                <LogOut size={18} color="#EF4444" />
+                <LogOut size={20} color="#EF4444" strokeWidth={2} />
               </View>
               <Text
                 style={{
                   fontSize: 16,
-                  fontWeight: "500",
+                  fontWeight: "600",
                   color: "#EF4444",
+                  marginLeft: 16,
                   flex: 1,
                 }}
               >
                 Sign Out
               </Text>
+              <ChevronRight size={20} color="#FCA5A5" />
             </Pressable>
           </View>
         </View>
-      </ScrollView>
 
-      {/* Settings Modal */}
-      <Modal
-        visible={showSettingsModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowSettingsModal(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              maxHeight: "80%",
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: "#E5E7EB",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "bold",
-                  color: "#1F2937",
-                }}
-              >
-                Account Settings
-              </Text>
-              <Pressable
-                onPress={() => setShowSettingsModal(false)}
-                style={{ padding: 4 }}
-              >
-                <X size={24} color="#6B7280" />
-              </Pressable>
-            </View>
-
-            <ScrollView style={{ maxHeight: 500 }}>
-              <View style={{ padding: 20, gap: 16 }}>
-                {/* App Information */}
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#1F2937",
-                      marginBottom: 12,
-                    }}
-                  >
-                    App Information
-                  </Text>
-
-                  <View
-                    style={{
-                      backgroundColor: "#F9FAFB",
-                      borderRadius: 12,
-                      padding: 16,
-                      gap: 12,
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 12,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          backgroundColor: "#357AFF15",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Info size={20} color="#357AFF" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color: "#6B7280",
-                            marginBottom: 2,
-                          }}
-                        >
-                          Version
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            fontWeight: "500",
-                            color: "#1F2937",
-                          }}
-                        >
-                          1.0.0
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View
-                      style={{
-                        height: 1,
-                        backgroundColor: "#E5E7EB",
-                        marginVertical: 4,
-                      }}
-                    />
-
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 12,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          backgroundColor: "#10B98115",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Shield size={20} color="#10B981" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color: "#6B7280",
-                            marginBottom: 2,
-                          }}
-                        >
-                          Account Status
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            fontWeight: "500",
-                            color: "#10B981",
-                          }}
-                        >
-                          Active
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Subscription Details */}
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#1F2937",
-                      marginBottom: 12,
-                    }}
-                  >
-                    Subscription Details
-                  </Text>
-
-                  <View
-                    style={{
-                      backgroundColor: "#F9FAFB",
-                      borderRadius: 12,
-                      padding: 16,
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color: "#6B7280",
-                            marginBottom: 4,
-                          }}
-                        >
-                          Current Plan
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 18,
-                            fontWeight: "600",
-                            color: getSubscriptionColor(getSubscriptionTier()),
-                          }}
-                        >
-                          {getSubscriptionLabel(getSubscriptionTier())}
-                        </Text>
-                      </View>
-                      <Crown
-                        size={28}
-                        color={getSubscriptionColor(getSubscriptionTier())}
-                      />
-                    </View>
-
-                    <View
-                      style={{
-                        backgroundColor: "#fff",
-                        borderRadius: 8,
-                        padding: 12,
-                        marginTop: 8,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#6B7280",
-                          lineHeight: 20,
-                        }}
-                      >
-                        {getSubscriptionTier() === "free" &&
-                          "You're on the free plan. Upgrade to unlock more shops and items!"}
-                        {getSubscriptionTier() === "starter" &&
-                          "Starter plan includes 1 shop and up to 100 items."}
-                        {getSubscriptionTier() === "pro" &&
-                          "Pro plan includes up to 5 shops and unlimited items!"}
-                      </Text>
-                    </View>
-
-                    {/* Manage Subscription Button */}
-                    <Pressable
-                      onPress={async () => {
-                        try {
-                          const url = 'https://shop.tookio.co.ke/subscriptions';
-                          const canOpen = await Linking.canOpenURL(url);
-                          if (canOpen) {
-                            await Linking.openURL(url);
-                          } else {
-                            Alert.alert('Error', 'Unable to open subscription page');
-                          }
-                        } catch (error) {
-                          console.error('Error opening subscription page:', error);
-                          Alert.alert('Error', 'Failed to open subscription page');
-                        }
-                      }}
-                      style={({ pressed }) => ({
-                        backgroundColor: getSubscriptionColor(getSubscriptionTier()),
-                        borderRadius: 8,
-                        padding: 14,
-                        marginTop: 12,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: pressed ? 0.8 : 1,
-                      })}
-                    >
-                      <ExternalLink size={18} color="#fff" style={{ marginRight: 8 }} />
-                      <Text
-                        style={{
-                          fontSize: 15,
-                          fontWeight: '600',
-                          color: '#fff',
-                        }}
-                      >
-                        Manage Subscription
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-
-                {/* Help & Support */}
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#1F2937",
-                      marginBottom: 12,
-                    }}
-                  >
-                    Help & Support
-                  </Text>
-
-                  <Pressable
-                    style={({ pressed }) => ({
-                      backgroundColor: "#F9FAFB",
-                      borderRadius: 12,
-                      padding: 16,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 12,
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                    onPress={() => {
-                      Alert.alert(
-                        "Help Center",
-                        "For support and documentation, visit our help center or contact support@tookio.com"
-                      );
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 8,
-                        backgroundColor: "#F59E0B15",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <HelpCircle size={20} color="#F59E0B" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "500",
-                          color: "#1F2937",
-                        }}
-                      >
-                        Help Center
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#6B7280",
-                          marginTop: 2,
-                        }}
-                      >
-                        Get help and support
-                      </Text>
-                    </View>
-                  </Pressable>
-                </View>
-
-                {/* Account Info */}
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#1F2937",
-                      marginBottom: 12,
-                    }}
-                  >
-                    Your Account
-                  </Text>
-
-                  <View
-                    style={{
-                      backgroundColor: "#F9FAFB",
-                      borderRadius: 12,
-                      padding: 16,
-                      gap: 12,
-                    }}
-                  >
-                    <View>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#6B7280",
-                          marginBottom: 4,
-                        }}
-                      >
-                        Email
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "500",
-                          color: "#1F2937",
-                        }}
-                      >
-                        {user?.email}
-                      </Text>
-                    </View>
-
-                    <View
-                      style={{
-                        height: 1,
-                        backgroundColor: "#E5E7EB",
-                        marginVertical: 4,
-                      }}
-                    />
-
-                    <View>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#6B7280",
-                          marginBottom: 4,
-                        }}
-                      >
-                        Name
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "500",
-                          color: "#1F2937",
-                        }}
-                      >
-                        {user?.name || "User"}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </ScrollView>
-
-            <View
-              style={{
-                padding: 20,
-                borderTopWidth: 1,
-                borderTopColor: "#E5E7EB",
-              }}
-            >
-              <Pressable
-                onPress={() => setShowSettingsModal(false)}
-                style={({ pressed }) => ({
-                  backgroundColor: "#357AFF",
-                  borderRadius: 12,
-                  paddingVertical: 16,
-                  alignItems: "center",
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: "#fff",
-                  }}
-                >
-                  Close
-                </Text>
-              </Pressable>
-            </View>
-          </View>
+        {/* App Version */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24, alignItems: "center" }}>
+          <Text style={{ fontSize: 12, color: "#94A3B8" }}>
+            Tookio Shop v1.0.0
+          </Text>
         </View>
-      </Modal>
+      </ScrollView>
     </View>
   );
 }
