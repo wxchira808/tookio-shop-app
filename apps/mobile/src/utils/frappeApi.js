@@ -209,7 +209,8 @@ export async function getShops() {
   const response = await frappeRequest('/api/resource/Shop?fields=["*"]&limit_page_length=999');
 
   // Get all items to calculate counts and values per shop
-  const itemsResponse = await frappeRequest('/api/resource/Product?fields=["shop","unit_price","current_stock"]&limit_page_length=999');
+  // Note: Must fetch all fields (*) due to Frappe field-level permissions
+  const itemsResponse = await frappeRequest('/api/resource/Product?fields=["*"]&limit_page_length=999');
   const items = itemsResponse.data || [];
 
   const shops = (response.data || []).map(shop => {
