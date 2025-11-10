@@ -36,9 +36,8 @@ export default function Items() {
   // Form states
   const [itemName, setItemName] = useState("");
   const [description, setDescription] = useState("");
-  const [sku, setSku] = useState("");
-  const [unitPrice, setUnitPrice] = useState("");
-  const [costPrice, setCostPrice] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [buyingPrice, setBuyingPrice] = useState("");
   const [currentStock, setCurrentStock] = useState("");
   const [lowStockThreshold, setLowStockThreshold] = useState("5");
   const [selectedShopId, setSelectedShopId] = useState("");
@@ -87,9 +86,8 @@ export default function Items() {
   const resetForm = () => {
     setItemName("");
     setDescription("");
-    setSku("");
-    setUnitPrice("");
-    setCostPrice("");
+    setSellingPrice("");
+    setBuyingPrice("");
     setCurrentStock("");
     setLowStockThreshold("5");
   };
@@ -105,13 +103,13 @@ export default function Items() {
       return;
     }
 
-    if (!unitPrice || parseFloat(unitPrice) < 0) {
-      Alert.alert("Error", "Please enter a valid unit price");
+    if (!sellingPrice || parseFloat(sellingPrice) < 0) {
+      Alert.alert("Error", "Please enter a valid selling price");
       return;
     }
 
-    if (!costPrice || parseFloat(costPrice) < 0) {
-      Alert.alert("Error", "Please enter a valid cost price");
+    if (!buyingPrice || parseFloat(buyingPrice) < 0) {
+      Alert.alert("Error", "Please enter a valid buying price");
       return;
     }
 
@@ -121,9 +119,8 @@ export default function Items() {
         shop_id: parseInt(selectedShopId),
         item_name: itemName.trim(),
         description: description.trim() || null,
-        sku: sku.trim() || null,
-        unit_price: parseFloat(unitPrice),
-        cost_price: parseFloat(costPrice),
+        unit_price: parseFloat(sellingPrice),  // Frappe field name
+        cost_price: parseFloat(buyingPrice),    // Frappe field name
         current_stock: currentStock ? parseInt(currentStock) : 0,
         low_stock_threshold: lowStockThreshold ? parseInt(lowStockThreshold) : 5,
       });
@@ -148,13 +145,13 @@ export default function Items() {
       return;
     }
 
-    if (!unitPrice || parseFloat(unitPrice) < 0) {
-      Alert.alert("Error", "Please enter a valid unit price");
+    if (!sellingPrice || parseFloat(sellingPrice) < 0) {
+      Alert.alert("Error", "Please enter a valid selling price");
       return;
     }
 
-    if (!costPrice || parseFloat(costPrice) < 0) {
-      Alert.alert("Error", "Please enter a valid cost price");
+    if (!buyingPrice || parseFloat(buyingPrice) < 0) {
+      Alert.alert("Error", "Please enter a valid buying price");
       return;
     }
 
@@ -163,9 +160,8 @@ export default function Items() {
       const result = await updateItem(editingItem.id, {
         item_name: itemName.trim(),
         description: description.trim() || null,
-        sku: sku.trim() || null,
-        unit_price: parseFloat(unitPrice),
-        cost_price: parseFloat(costPrice),
+        unit_price: parseFloat(sellingPrice),  // Frappe field name
+        cost_price: parseFloat(buyingPrice),    // Frappe field name
         low_stock_threshold: lowStockThreshold ? parseInt(lowStockThreshold) : 5,
       });
 
@@ -215,9 +211,8 @@ export default function Items() {
     setEditingItem(item);
     setItemName(item.item_name);
     setDescription(item.description || "");
-    setSku(item.sku || "");
-    setUnitPrice(item.unit_price.toString());
-    setCostPrice(item.cost_price.toString());
+    setSellingPrice(item.unit_price.toString());
+    setBuyingPrice(item.cost_price.toString());
     setCurrentStock(item.current_stock.toString());
     setLowStockThreshold(item.low_stock_threshold?.toString() || "5");
     setSelectedShopId(item.shop_id.toString());
@@ -340,7 +335,7 @@ export default function Items() {
             fontSize: 16,
             color: "#1F2937",
           }}
-          placeholder="Search items by name, SKU, or description..."
+          placeholder="Search items by name or description..."
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholderTextColor="#9CA3AF"
