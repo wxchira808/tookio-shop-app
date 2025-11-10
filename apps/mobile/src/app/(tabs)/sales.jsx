@@ -8,6 +8,8 @@ import {
   Modal,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -644,9 +646,18 @@ export default function Sales() {
               </Pressable>
             </View>
 
-            <ScrollView style={{ maxHeight: 500 }}>
-              <View style={{ padding: 20, gap: 20 }}>
-                {/* Shop Selection */}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
+              <ScrollView
+                style={{ maxHeight: 500 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
+                  {/* Shop Selection */}
                 <View>
                   <Text
                     style={{
@@ -959,42 +970,42 @@ export default function Sales() {
                     </Text>
                   </View>
                 </View>
-              </View>
-            </ScrollView>
+              </ScrollView>
 
-            <View
-              style={{
-                padding: 20,
-                borderTopWidth: 1,
-                borderTopColor: "#E5E7EB",
-              }}
-            >
-              <Pressable
-                onPress={handleAddSale}
-                disabled={submitting}
-                style={({ pressed }) => ({
-                  backgroundColor: "#EF4444",
-                  borderRadius: 12,
-                  paddingVertical: 16,
-                  alignItems: "center",
-                  opacity: pressed || submitting ? 0.7 : 1,
-                })}
+              <View
+                style={{
+                  padding: 20,
+                  borderTopWidth: 1,
+                  borderTopColor: "#E5E7EB",
+                }}
               >
-                {submitting ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#fff",
-                    }}
-                  >
-                    Record Sale
-                  </Text>
-                )}
-              </Pressable>
-            </View>
+                <Pressable
+                  onPress={handleAddSale}
+                  disabled={submitting}
+                  style={({ pressed }) => ({
+                    backgroundColor: "#EF4444",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    opacity: pressed || submitting ? 0.7 : 1,
+                  })}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#fff",
+                      }}
+                    >
+                      Record Sale
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>

@@ -8,6 +8,8 @@ import {
   Modal,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -568,8 +570,17 @@ export default function Stock() {
               </Pressable>
             </View>
 
-            <View style={{ padding: 20, gap: 20 }}>
-              {/* Item Selection */}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
+                  {/* Item Selection */}
               <View>
                 <Text
                   style={{
@@ -683,42 +694,46 @@ export default function Stock() {
                   }}
                 />
               </View>
-
-              <Pressable
-                onPress={handleStockTransaction}
-                disabled={submitting}
-                style={({ pressed }) => ({
-                  backgroundColor:
-                    modalType === "in"
-                      ? "#10B981"
-                      : modalType === "out"
-                      ? "#EF4444"
-                      : "#F59E0B",
-                  borderRadius: 12,
-                  paddingVertical: 16,
-                  alignItems: "center",
-                  opacity: pressed || submitting ? 0.7 : 1,
-                })}
-              >
-                {submitting ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#fff",
-                    }}
-                  >
-                    {modalType === "in"
-                      ? "Add Stock"
-                      : modalType === "out"
-                      ? "Remove Stock"
-                      : "Adjust Stock"}
-                  </Text>
-                )}
-              </Pressable>
             </View>
+          </ScrollView>
+
+          <View style={{ padding: 20, paddingTop: 0 }}>
+            <Pressable
+              onPress={handleStockTransaction}
+              disabled={submitting}
+              style={({ pressed }) => ({
+                backgroundColor:
+                  modalType === "in"
+                    ? "#10B981"
+                    : modalType === "out"
+                    ? "#EF4444"
+                    : "#F59E0B",
+                borderRadius: 12,
+                paddingVertical: 16,
+                alignItems: "center",
+                opacity: pressed || submitting ? 0.7 : 1,
+              })}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#fff",
+                  }}
+                >
+                  {modalType === "in"
+                    ? "Add Stock"
+                    : modalType === "out"
+                    ? "Remove Stock"
+                    : "Adjust Stock"}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>

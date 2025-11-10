@@ -8,6 +8,8 @@ import {
   Modal,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -632,18 +634,27 @@ export default function Shops() {
             </View>
 
             {/* Form */}
-            <View style={{ padding: 20, gap: 20 }}>
-              <View>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: "#374151",
-                    marginBottom: 8,
-                  }}
-                >
-                  Shop Name *
-                </Text>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
+                  <View>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#374151",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Shop Name *
+                    </Text>
                 <TextInput
                   value={shopName}
                   onChangeText={setShopName}
@@ -689,33 +700,37 @@ export default function Shops() {
                   }}
                 />
               </View>
-
-              <Pressable
-                onPress={showEditModal ? handleEditShop : handleAddShop}
-                disabled={submitting}
-                style={({ pressed }) => ({
-                  backgroundColor: "#357AFF",
-                  borderRadius: 12,
-                  paddingVertical: 16,
-                  alignItems: "center",
-                  opacity: pressed || submitting ? 0.7 : 1,
-                })}
-              >
-                {submitting ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#fff",
-                    }}
-                  >
-                    {showEditModal ? "Update Shop" : "Create Shop"}
-                  </Text>
-                )}
-              </Pressable>
             </View>
+          </ScrollView>
+
+          <View style={{ padding: 20, paddingTop: 0 }}>
+            <Pressable
+              onPress={showEditModal ? handleEditShop : handleAddShop}
+              disabled={submitting}
+              style={({ pressed }) => ({
+                backgroundColor: "#357AFF",
+                borderRadius: 12,
+                paddingVertical: 16,
+                alignItems: "center",
+                opacity: pressed || submitting ? 0.7 : 1,
+              })}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#fff",
+                  }}
+                >
+                  {showEditModal ? "Update Shop" : "Create Shop"}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>

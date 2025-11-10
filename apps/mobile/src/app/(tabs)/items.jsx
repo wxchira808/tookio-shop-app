@@ -8,6 +8,8 @@ import {
   Modal,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -678,8 +680,17 @@ export default function Items() {
               </Pressable>
             </View>
 
-            <ScrollView style={{ maxHeight: 500 }}>
-              <View style={{ padding: 20, gap: 16 }}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+            >
+              <ScrollView
+                style={{ maxHeight: 500 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
                 {/* Shop Selection */}
                 {!showEditModal && (
                   <View>
@@ -910,42 +921,43 @@ export default function Items() {
                   </View>
                 </View>
               </View>
-            </ScrollView>
+              </ScrollView>
 
-            <View
-              style={{
-                padding: 20,
-                paddingBottom: insets.bottom + 20,
-                borderTopWidth: 1,
-                borderTopColor: "#E5E7EB",
-              }}
-            >
-              <Pressable
-                onPress={showEditModal ? handleEditItem : handleAddItem}
-                disabled={submitting}
-                style={({ pressed }) => ({
-                  backgroundColor: "#10B981",
-                  borderRadius: 12,
-                  paddingVertical: 16,
-                  alignItems: "center",
-                  opacity: pressed || submitting ? 0.7 : 1,
-                })}
+              <View
+                style={{
+                  padding: 20,
+                  paddingBottom: insets.bottom + 20,
+                  borderTopWidth: 1,
+                  borderTopColor: "#E5E7EB",
+                }}
               >
-                {submitting ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#fff",
-                    }}
-                  >
-                    {showEditModal ? "Update Item" : "Add Item"}
-                  </Text>
-                )}
-              </Pressable>
-            </View>
+                <Pressable
+                  onPress={showEditModal ? handleEditItem : handleAddItem}
+                  disabled={submitting}
+                  style={({ pressed }) => ({
+                    backgroundColor: "#10B981",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    opacity: pressed || submitting ? 0.7 : 1,
+                  })}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#fff",
+                      }}
+                    >
+                      {showEditModal ? "Update Item" : "Add Item"}
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>
