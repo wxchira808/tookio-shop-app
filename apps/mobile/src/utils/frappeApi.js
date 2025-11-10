@@ -120,18 +120,27 @@ export async function login(usr, pwd) {
 
       // Try to fetch subscription plan from Customer doctype
       try {
-        const customerQuery = await frappeRequest(`/api/resource/Customer?filters=[["email_id","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan"]&limit_page_length=1`, {}, true);
+        const customerQuery = await frappeRequest(`/api/resource/Customer?filters=[["email_id","=","${userDoc.data.email}"]]&fields=["*"]&limit_page_length=1`, {}, true);
+        console.log('📋 Customer query response:', JSON.stringify(customerQuery, null, 2));
+
         if (customerQuery.data && customerQuery.data.length > 0) {
           const customer = customerQuery.data[0];
+          console.log('📋 Customer data:', JSON.stringify(customer, null, 2));
+
           userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
+          userDetails.subscription_expiry = customer.custom_subscription_expiry_date || null;
+
           console.log('📋 Subscription plan:', userDetails.subscription_tier);
+          console.log('📋 Subscription expiry:', userDetails.subscription_expiry);
         } else {
-          console.log('⚠️ No Customer record found, defaulting to free plan');
+          console.log('⚠️ No Customer record found for email:', userDoc.data.email);
           userDetails.subscription_tier = 'free';
+          userDetails.subscription_expiry = null;
         }
       } catch (e) {
-        console.log('Could not fetch subscription plan:', e.message);
+        console.log('❌ Could not fetch subscription plan:', e.message);
         userDetails.subscription_tier = 'free';
+        userDetails.subscription_expiry = null;
       }
     } catch (e) {
       console.log('Could not fetch user details, using username:', e.message);
@@ -232,7 +241,20 @@ export async function getShops() {
 
   const shops = (response.data || []).map(shop => {
     const shopItems = items.filter(item => item.shop === shop.name);
-    const totalValue = shopItems.reduce((sum, item) => sum + ((item.unit_price || 0) * (item.current_stock || 0)), 0);
+
+    // Debug: Log first item to see field structure
+    if (shopItems.length > 0) {
+      console.log('🏪 First shop item for', shop.shop_name, ':', JSON.stringify(shopItems[0], null, 2));
+    }
+
+    // Try different price field names (selling_price, unit_price, price, rate)
+    const totalValue = shopItems.reduce((sum, item) => {
+      const price = item.selling_price || item.unit_price || item.price || item.rate || 0;
+      const stock = item.stock_quantity || item.current_stock || item.stock || 0;
+      return sum + (price * stock);
+    }, 0);
+
+    console.log('🏪 Shop', shop.shop_name, '- Items:', shopItems.length, ', Total Value:', totalValue);
 
     return {
       id: shop.name,
@@ -469,6 +491,12 @@ export async function getSaleById(saleId) {
   });
 
   const sale = response.data;
+
+  // Debug: Log first item to see field structure
+  if (sale.items && sale.items.length > 0) {
+    console.log('📊 First sale item structure:', JSON.stringify(sale.items[0], null, 2));
+  }
+
   return {
     id: sale.name,
     total_amount: sale.total || 0,
@@ -483,7 +511,7 @@ export async function getSaleById(saleId) {
       product: item.product,
       product_name: itemsMap[item.product] || item.product,
       quantity: item.quantity || 0,
-      item_price: item.item_price || 0,
+      item_price: item.item_price || item.price || item.rate || 0,
     })),
     items_count: (sale.items || []).length,
     created_at: sale.creation,

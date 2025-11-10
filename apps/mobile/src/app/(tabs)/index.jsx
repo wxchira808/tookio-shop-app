@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl, Modal } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth } from "@/utils/auth/useAuth";
@@ -12,6 +12,8 @@ import {
   ShoppingCart,
   DollarSign,
   Bell,
+  X,
+  AlertTriangle,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
@@ -32,6 +34,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dateFilter, setDateFilter] = useState("all"); // all, today, week, month
+  const [showLowStockModal, setShowLowStockModal] = useState(false);
+  const [lowStockItems, setLowStockItems] = useState([]);
 
   useEffect(() => {
     loadStats();
@@ -80,16 +84,17 @@ export default function Dashboard() {
         0
       );
 
-      const lowStockCount = items.filter(
+      const lowStock = items.filter(
         (item) => item.current_stock <= (item.low_stock_threshold || 5)
-      ).length;
+      );
 
+      setLowStockItems(lowStock);
       setStats({
         shopsCount: shops.length,
         itemsCount: items.length,
         totalRevenue,
         salesCount: sales.length,
-        lowStockCount,
+        lowStockCount: lowStock.length,
       });
     } catch (error) {
       console.error("Error loading dashboard stats:", error);
@@ -634,8 +639,9 @@ export default function Dashboard() {
 
               {/* Low Stock Alert */}
               {stats.lowStockCount > 0 && (
-                <View
-                  style={{
+                <Pressable
+                  onPress={() => setShowLowStockModal(true)}
+                  style={({ pressed }) => ({
                     backgroundColor: "#FEF2F2",
                     borderRadius: 12,
                     padding: 16,
@@ -646,7 +652,8 @@ export default function Dashboard() {
                     shadowOpacity: 0.05,
                     shadowRadius: 4,
                     elevation: 2,
-                  }}
+                    opacity: pressed ? 0.8 : 1,
+                  })}
                 >
                   <View
                     style={{
@@ -659,7 +666,7 @@ export default function Dashboard() {
                       marginRight: 12,
                     }}
                   >
-                    <BarChart3 size={20} color="#fff" />
+                    <AlertTriangle size={20} color="#fff" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -672,15 +679,99 @@ export default function Dashboard() {
                       {stats.lowStockCount} item{stats.lowStockCount > 1 ? "s" : ""} low on stock
                     </Text>
                     <Text style={{ fontSize: 14, color: "#DC2626", marginTop: 2 }}>
-                      Review and restock soon
+                      Tap to view details
                     </Text>
                   </View>
-                </View>
+                </Pressable>
               )}
             </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Low Stock Items Modal */}
+      <Modal
+        visible={showLowStockModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowLowStockModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "80%", paddingBottom: insets.bottom }}>
+            {/* Header */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <AlertTriangle size={24} color="#EF4444" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}>
+                  Low Stock Items
+                </Text>
+              </View>
+              <Pressable onPress={() => setShowLowStockModal(false)} style={{ padding: 4 }}>
+                <X size={24} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            {/* Items List */}
+            <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={true}>
+              <View style={{ padding: 20, gap: 12 }}>
+                {lowStockItems.map((item, index) => (
+                  <View
+                    key={index}
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 16,
+                      borderLeftWidth: 4,
+                      borderLeftColor: item.current_stock === 0 ? "#EF4444" : "#F59E0B",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                      <Text style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", flex: 1 }}>
+                        {item.item_name}
+                      </Text>
+                      <View style={{
+                        backgroundColor: item.current_stock === 0 ? "#FEE2E2" : "#FEF3C7",
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 6,
+                      }}>
+                        <Text style={{
+                          fontSize: 12,
+                          fontWeight: "600",
+                          color: item.current_stock === 0 ? "#991B1B" : "#92400E",
+                        }}>
+                          {item.current_stock === 0 ? "OUT OF STOCK" : "LOW STOCK"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={{ gap: 4 }}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 14, color: "#6B7280" }}>Shop:</Text>
+                        <Text style={{ fontSize: 14, fontWeight: "500", color: "#1F2937" }}>
+                          {item.shop_name || item.shop}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 14, color: "#6B7280" }}>Current Stock:</Text>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: item.current_stock === 0 ? "#EF4444" : "#F59E0B" }}>
+                          {item.current_stock || 0} units
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 14, color: "#6B7280" }}>Low Stock Alert:</Text>
+                        <Text style={{ fontSize: 14, fontWeight: "500", color: "#1F2937" }}>
+                          {item.low_stock_threshold || 5} units
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
