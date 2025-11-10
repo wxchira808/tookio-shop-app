@@ -365,8 +365,10 @@ export async function createSale(saleData) {
     shop: saleData.shop_id,
     posting_date: saleData.sale_date || new Date().toISOString().split('T')[0],
     customer_name: saleData.customer_name || 'Walk-in Customer',
-    payment_method: saleData.payment_method || 'Cash',
-    delivery_location: saleData.notes || '',
+    customer_mobile_number: saleData.customer_mobile_number || '',
+    payment_method: saleData.payment_method || 'cash',
+    delivery_location: saleData.delivery_location || '',
+    notes: saleData.notes || '',
     items: items,
   };
 
