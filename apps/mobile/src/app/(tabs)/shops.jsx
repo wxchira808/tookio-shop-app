@@ -30,6 +30,7 @@ import {
   createShop,
   updateShop,
   deleteShop,
+  getItems,
 } from "@/utils/frappeApi";
 import {
   getActiveShop,
@@ -48,6 +49,9 @@ export default function Shops() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingShop, setEditingShop] = useState(null);
   const [activeShopId, setActiveShopId] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedShop, setSelectedShop] = useState(null);
+  const [shopItems, setShopItems] = useState([]);
 
   // Form states
   const [shopName, setShopName] = useState("");
@@ -206,6 +210,21 @@ export default function Shops() {
     setShopName("");
     setDescription("");
     setShowAddModal(true);
+  };
+
+  const viewShopDetails = async (shop) => {
+    setSelectedShop(shop);
+    try {
+      const itemsRes = await getItems();
+      if (itemsRes && itemsRes.items) {
+        const filteredItems = itemsRes.items.filter(item => item.shop_id === shop.id);
+        setShopItems(filteredItems);
+      }
+    } catch (error) {
+      console.error("Error loading shop items:", error);
+      setShopItems([]);
+    }
+    setShowDetailsModal(true);
   };
 
   if (loading && shops.length === 0) {
@@ -368,20 +387,38 @@ export default function Shops() {
                             </View>
                           )}
                         </View>
-                        <Text
-                          style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}
-                        >
-                          {shop.description || "No description"}
-                        </Text>
 
-                        <View style={{ flexDirection: "row", marginTop: 8 }}>
+                        {/* Shop Details */}
+                        <View style={{ marginTop: 8, gap: 4 }}>
+                          {shop.location && (
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              📍 {shop.location}
+                            </Text>
+                          )}
+                          {shop.address && (
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              🏠 {shop.address}
+                            </Text>
+                          )}
+                          {shop.mobile_number && (
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              📱 {shop.mobile_number}
+                            </Text>
+                          )}
+                          {shop.email_address && (
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              ✉️ {shop.email_address}
+                            </Text>
+                          )}
+                        </View>
+
+                        <View style={{ flexDirection: "row", marginTop: 8, gap: 8 }}>
                           <View
                             style={{
                               backgroundColor: "#F3F4F6",
                               paddingHorizontal: 8,
                               paddingVertical: 4,
                               borderRadius: 6,
-                              marginRight: 8,
                             }}
                           >
                             <Text style={{ fontSize: 12, color: "#6B7280" }}>
@@ -400,6 +437,19 @@ export default function Shops() {
                               {formatCurrency(shop.total_value || 0)}
                             </Text>
                           </View>
+                          <Pressable
+                            onPress={() => viewShopDetails(shop)}
+                            style={{
+                              backgroundColor: "#357AFF15",
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, color: "#357AFF", fontWeight: "500" }}>
+                              View Items →
+                            </Text>
+                          </Pressable>
                         </View>
                       </View>
                     </View>
@@ -731,6 +781,203 @@ export default function Shops() {
             </Pressable>
           </View>
         </KeyboardAvoidingView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Shop Details Modal */}
+      <Modal
+        visible={showDetailsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDetailsModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              maxHeight: "80%",
+              paddingBottom: insets.bottom,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#E5E7EB",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "bold",
+                  color: "#1F2937",
+                }}
+              >
+                {selectedShop?.shop_name}
+              </Text>
+              <Pressable
+                onPress={() => setShowDetailsModal(false)}
+                style={{ padding: 4 }}
+              >
+                <X size={24} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <ScrollView style={{ flex: 1 }}>
+              {selectedShop && (
+                <View style={{ padding: 20 }}>
+                  {/* Shop Information */}
+                  <View
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#1F2937",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Shop Information
+                    </Text>
+                    <View style={{ gap: 8 }}>
+                      {selectedShop.location && (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                            Location:
+                          </Text>
+                          <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                            {selectedShop.location}
+                          </Text>
+                        </View>
+                      )}
+                      {selectedShop.address && (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                            Address:
+                          </Text>
+                          <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                            {selectedShop.address}
+                          </Text>
+                        </View>
+                      )}
+                      {selectedShop.mobile_number && (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                            Mobile:
+                          </Text>
+                          <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                            {selectedShop.mobile_number}
+                          </Text>
+                        </View>
+                      )}
+                      {selectedShop.email_address && (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                            Email:
+                          </Text>
+                          <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                            {selectedShop.email_address}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: "#6B7280" }}>Items</Text>
+                          <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1F2937" }}>
+                            {selectedShop.item_count}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: "#6B7280" }}>Total Value</Text>
+                          <Text style={{ fontSize: 18, fontWeight: "bold", color: "#10B981" }}>
+                            {formatCurrency(selectedShop.total_value)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Items List */}
+                  <View>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#1F2937",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Items in this Shop ({shopItems.length})
+                    </Text>
+
+                    {shopItems.length > 0 ? (
+                      shopItems.map((item) => (
+                        <View
+                          key={item.id}
+                          style={{
+                            backgroundColor: "#fff",
+                            borderRadius: 8,
+                            padding: 12,
+                            marginBottom: 8,
+                            borderWidth: 1,
+                            borderColor: "#E5E7EB",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "600",
+                              color: "#1F2937",
+                              marginBottom: 4,
+                            }}
+                          >
+                            {item.item_name}
+                          </Text>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              Stock: {item.current_stock} units
+                            </Text>
+                            <Text style={{ fontSize: 12, color: "#10B981", fontWeight: "500" }}>
+                              {formatCurrency(item.unit_price)}
+                            </Text>
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <View
+                        style={{
+                          padding: 40,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, color: "#6B7280", textAlign: "center" }}>
+                          No items in this shop yet
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>

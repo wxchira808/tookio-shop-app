@@ -188,19 +188,27 @@ export async function isAuthenticated() {
 export async function getShops() {
   const response = await frappeRequest('/api/resource/Shop?fields=["*"]&limit_page_length=999');
 
-  const shops = (response.data || []).map(shop => ({
-    id: shop.name,
-    shop_name: shop.shop_name,
-    description: shop.location || '',
-    location: shop.location,
-    address: shop.address,
-    mobile_number: shop.mobile_number,
-    email_address: shop.email_address,
-    created_at: shop.creation,
-    updated_at: shop.modified,
-    item_count: 0,
-    total_value: 0,
-  }));
+  // Get all items to calculate counts and values per shop
+  const itemsResponse = await frappeRequest('/api/resource/Product?fields=["shop","unit_price","current_stock"]&limit_page_length=999');
+  const items = itemsResponse.data || [];
+
+  const shops = (response.data || []).map(shop => {
+    const shopItems = items.filter(item => item.shop === shop.name);
+    const totalValue = shopItems.reduce((sum, item) => sum + ((item.unit_price || 0) * (item.current_stock || 0)), 0);
+
+    return {
+      id: shop.name,
+      shop_name: shop.shop_name,
+      location: shop.location || '',
+      address: shop.address || '',
+      mobile_number: shop.mobile_number || '',
+      email_address: shop.email_address || '',
+      created_at: shop.creation,
+      updated_at: shop.modified,
+      item_count: shopItems.length,
+      total_value: totalValue,
+    };
+  });
 
   return { shops };
 }
