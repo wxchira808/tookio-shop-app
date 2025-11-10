@@ -822,6 +822,7 @@ export default function Items() {
                       onChangeText={setSellingPrice}
                       placeholder="0.00"
                       keyboardType="decimal-pad"
+                      selectTextOnFocus={true}
                       style={{
                         borderWidth: 1,
                         borderColor: "#E5E7EB",
@@ -850,6 +851,7 @@ export default function Items() {
                       onChangeText={setBuyingPrice}
                       placeholder="0.00"
                       keyboardType="decimal-pad"
+                      selectTextOnFocus={true}
                       style={{
                         borderWidth: 1,
                         borderColor: "#E5E7EB",
@@ -881,6 +883,7 @@ export default function Items() {
                       onChangeText={setCurrentStock}
                       placeholder="0"
                       keyboardType="numeric"
+                      selectTextOnFocus={true}
                       style={{
                         borderWidth: 1,
                         borderColor: "#E5E7EB",
@@ -909,6 +912,7 @@ export default function Items() {
                       onChangeText={setLowStockThreshold}
                       placeholder="5"
                       keyboardType="numeric"
+                      selectTextOnFocus={true}
                       style={{
                         borderWidth: 1,
                         borderColor: "#E5E7EB",

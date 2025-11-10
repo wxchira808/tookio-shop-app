@@ -50,7 +50,7 @@ export default function Sales() {
   // New customer fields
   const [customerName, setCustomerName] = useState("");
   const [customerMobile, setCustomerMobile] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [deliveryLocation, setDeliveryLocation] = useState("");
 
   useEffect(() => {
@@ -137,7 +137,7 @@ export default function Sales() {
     setSaleItems([]);
     setCustomerName("");
     setCustomerMobile("");
-    setPaymentMethod("cash");
+    setPaymentMethod("Cash");
     setDeliveryLocation("");
     setItemSearchQuery("");
     setShowAddModal(true);
@@ -197,7 +197,7 @@ export default function Sales() {
         setSaleItems([]);
         setCustomerName("");
         setCustomerMobile("");
-        setPaymentMethod("cash");
+        setPaymentMethod("Cash");
         setDeliveryLocation("");
         loadData();
       }
@@ -780,14 +780,14 @@ export default function Sales() {
                       />
                       <View style={{ flexDirection: "row", gap: 8 }}>
                         <Pressable
-                          onPress={() => setPaymentMethod("cash")}
+                          onPress={() => setPaymentMethod("Cash")}
                           style={{
                             flex: 1,
                             paddingVertical: 10,
                             borderRadius: 8,
                             borderWidth: 1,
-                            borderColor: paymentMethod === "cash" ? "#EF4444" : "#E5E7EB",
-                            backgroundColor: paymentMethod === "cash" ? "#FEF2F2" : "#fff",
+                            borderColor: paymentMethod === "Cash" ? "#EF4444" : "#E5E7EB",
+                            backgroundColor: paymentMethod === "Cash" ? "#FEF2F2" : "#fff",
                             alignItems: "center",
                           }}
                         >
@@ -795,21 +795,21 @@ export default function Sales() {
                             style={{
                               fontSize: 14,
                               fontWeight: "500",
-                              color: paymentMethod === "cash" ? "#EF4444" : "#6B7280",
+                              color: paymentMethod === "Cash" ? "#EF4444" : "#6B7280",
                             }}
                           >
                             Cash
                           </Text>
                         </Pressable>
                         <Pressable
-                          onPress={() => setPaymentMethod("mpesa")}
+                          onPress={() => setPaymentMethod("Mpesa")}
                           style={{
                             flex: 1,
                             paddingVertical: 10,
                             borderRadius: 8,
                             borderWidth: 1,
-                            borderColor: paymentMethod === "mpesa" ? "#EF4444" : "#E5E7EB",
-                            backgroundColor: paymentMethod === "mpesa" ? "#FEF2F2" : "#fff",
+                            borderColor: paymentMethod === "Mpesa" ? "#EF4444" : "#E5E7EB",
+                            backgroundColor: paymentMethod === "Mpesa" ? "#FEF2F2" : "#fff",
                             alignItems: "center",
                           }}
                         >
@@ -817,21 +817,21 @@ export default function Sales() {
                             style={{
                               fontSize: 14,
                               fontWeight: "500",
-                              color: paymentMethod === "mpesa" ? "#EF4444" : "#6B7280",
+                              color: paymentMethod === "Mpesa" ? "#EF4444" : "#6B7280",
                             }}
                           >
                             M-Pesa
                           </Text>
                         </Pressable>
                         <Pressable
-                          onPress={() => setPaymentMethod("card")}
+                          onPress={() => setPaymentMethod("Bank")}
                           style={{
                             flex: 1,
                             paddingVertical: 10,
                             borderRadius: 8,
                             borderWidth: 1,
-                            borderColor: paymentMethod === "card" ? "#EF4444" : "#E5E7EB",
-                            backgroundColor: paymentMethod === "card" ? "#FEF2F2" : "#fff",
+                            borderColor: paymentMethod === "Bank" ? "#EF4444" : "#E5E7EB",
+                            backgroundColor: paymentMethod === "Bank" ? "#FEF2F2" : "#fff",
                             alignItems: "center",
                           }}
                         >
@@ -839,10 +839,10 @@ export default function Sales() {
                             style={{
                               fontSize: 14,
                               fontWeight: "500",
-                              color: paymentMethod === "card" ? "#EF4444" : "#6B7280",
+                              color: paymentMethod === "Bank" ? "#EF4444" : "#6B7280",
                             }}
                           >
-                            Card
+                            Bank
                           </Text>
                         </Pressable>
                       </View>
@@ -1020,6 +1020,7 @@ export default function Sales() {
                                 value={item.quantity.toString()}
                                 onChangeText={(text) => updateItemQuantity(item.item_id, text)}
                                 keyboardType="numeric"
+                                selectTextOnFocus={true}
                                 style={{
                                   borderWidth: 1,
                                   borderColor: "#E5E7EB",

@@ -114,7 +114,7 @@ export default function Stock() {
       // For 'out' transactions, quantity should be negative in the request
       // But we keep it positive in the UI for clarity
       const result = await createStockTransaction({
-        item_id: parseInt(selectedItemId),
+        item_id: selectedItemId,  // Pass as string (item name)
         shop_id: selectedItem.shop_id,
         transaction_type: modalType,
         quantity: finalQuantity,
@@ -721,6 +721,7 @@ export default function Stock() {
                   onChangeText={setQuantity}
                   placeholder={modalType === "adjustment" ? "Enter +/- amount" : "Enter quantity"}
                   keyboardType={modalType === "adjustment" ? "numbers-and-punctuation" : "numeric"}
+                  selectTextOnFocus={true}
                   style={{
                     borderWidth: 1,
                     borderColor: "#E5E7EB",

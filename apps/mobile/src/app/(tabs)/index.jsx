@@ -11,6 +11,7 @@ import {
   User,
   ShoppingCart,
   DollarSign,
+  Bell,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
@@ -141,22 +142,45 @@ export default function Dashboard() {
           </Text>
         </View>
 
-        {/* Profile Button */}
-        <Pressable
-          onPress={() => router.push("/profile")}
-          style={({ pressed }) => ({
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: "#F3F4F6",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: pressed ? 0.7 : 1,
-            transform: [{ scale: pressed ? 0.95 : 1 }],
-          })}
-        >
-          <User size={20} color="#6B7280" />
-        </Pressable>
+        {/* Action Buttons */}
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          {/* Notification Bell */}
+          <Pressable
+            onPress={() => {
+              // TODO: Connect to feedback DocType for notifications
+              console.log("Notifications pressed");
+            }}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: "#F3F4F6",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 0.7 : 1,
+              transform: [{ scale: pressed ? 0.95 : 1 }],
+            })}
+          >
+            <Bell size={20} color="#6B7280" />
+          </Pressable>
+
+          {/* Profile Button */}
+          <Pressable
+            onPress={() => router.push("/profile")}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: "#F3F4F6",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 0.7 : 1,
+              transform: [{ scale: pressed ? 0.95 : 1 }],
+            })}
+          >
+            <User size={20} color="#6B7280" />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
