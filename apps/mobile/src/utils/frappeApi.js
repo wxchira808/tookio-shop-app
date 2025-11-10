@@ -364,6 +364,11 @@ export async function deleteItem(itemId) {
 export async function getSales() {
   const response = await frappeRequest('/api/resource/Sale Invoice?fields=["*"]&limit_page_length=999&order_by=creation desc');
 
+  // Debug: Log first sale to see structure
+  if (response.data && response.data.length > 0) {
+    console.log('📊 First sale data structure:', JSON.stringify(response.data[0], null, 2));
+  }
+
   // Get shops and items to map IDs to names
   const [shopsResponse, itemsResponse] = await Promise.all([
     frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
@@ -399,6 +404,8 @@ export async function getSales() {
     created_at: sale.creation,
     updated_at: sale.modified,
   }));
+
+  console.log('📊 Mapped sales (first item):', JSON.stringify(sales[0], null, 2));
 
   return { sales };
 }
@@ -450,6 +457,11 @@ export async function createSale(saleData) {
 export async function getStockTransactions() {
   const response = await frappeRequest('/api/resource/Product Stock?fields=["*"]&limit_page_length=999&order_by=creation desc');
 
+  // Debug: Log first transaction to see structure
+  if (response.data && response.data.length > 0) {
+    console.log('📦 First stock transaction data structure:', JSON.stringify(response.data[0], null, 2));
+  }
+
   // Get shops and items for mapping names
   const [shopsResponse, itemsResponse] = await Promise.all([
     frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
@@ -488,6 +500,8 @@ export async function getStockTransactions() {
       shop_name: shopsMap[trans.shop] || trans.shop,
     };
   });
+
+  console.log('📦 Mapped transactions (first item):', JSON.stringify(transactions[0], null, 2));
 
   return { transactions };
 }
