@@ -117,6 +117,22 @@ export async function login(usr, pwd) {
         name: userDoc.data.full_name || userDoc.data.name,
         username: userDoc.data.name,
       };
+
+      // Try to fetch subscription plan from Customer doctype
+      try {
+        const customerQuery = await frappeRequest(`/api/resource/Customer?filters=[["email_id","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan"]&limit_page_length=1`, {}, true);
+        if (customerQuery.data && customerQuery.data.length > 0) {
+          const customer = customerQuery.data[0];
+          userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
+          console.log('📋 Subscription plan:', userDetails.subscription_tier);
+        } else {
+          console.log('⚠️ No Customer record found, defaulting to free plan');
+          userDetails.subscription_tier = 'free';
+        }
+      } catch (e) {
+        console.log('Could not fetch subscription plan:', e.message);
+        userDetails.subscription_tier = 'free';
+      }
     } catch (e) {
       console.log('Could not fetch user details, using username:', e.message);
       // Fallback: use username as both email and name
@@ -124,6 +140,7 @@ export async function login(usr, pwd) {
         email: username,
         name: username,
         username: username,
+        subscription_tier: 'free',
       };
     }
 

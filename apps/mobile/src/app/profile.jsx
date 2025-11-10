@@ -14,6 +14,7 @@ import {
   Info,
   Shield,
   HelpCircle,
+  ExternalLink,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -598,6 +599,45 @@ export default function Profile() {
                           "Pro plan includes up to 5 shops and unlimited items!"}
                       </Text>
                     </View>
+
+                    {/* Manage Subscription Button */}
+                    <Pressable
+                      onPress={async () => {
+                        try {
+                          const url = 'https://shop.tookio.co.ke/subscriptions';
+                          const canOpen = await Linking.canOpenURL(url);
+                          if (canOpen) {
+                            await Linking.openURL(url);
+                          } else {
+                            Alert.alert('Error', 'Unable to open subscription page');
+                          }
+                        } catch (error) {
+                          console.error('Error opening subscription page:', error);
+                          Alert.alert('Error', 'Failed to open subscription page');
+                        }
+                      }}
+                      style={({ pressed }) => ({
+                        backgroundColor: getSubscriptionColor(getSubscriptionTier()),
+                        borderRadius: 8,
+                        padding: 14,
+                        marginTop: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: pressed ? 0.8 : 1,
+                      })}
+                    >
+                      <ExternalLink size={18} color="#fff" style={{ marginRight: 8 }} />
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: '600',
+                          color: '#fff',
+                        }}
+                      >
+                        Manage Subscription
+                      </Text>
+                    </Pressable>
                   </View>
                 </View>
 
