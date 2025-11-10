@@ -45,6 +45,7 @@ export default function Stock() {
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [itemSearchQuery, setItemSearchQuery] = useState("");
 
   useEffect(() => {
     loadData();
@@ -84,6 +85,7 @@ export default function Stock() {
     setSelectedItemId("");
     setQuantity("");
     setReason("");
+    setItemSearchQuery("");
     setShowModal(true);
   };
 
@@ -581,54 +583,116 @@ export default function Stock() {
               >
                 <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
                   {/* Item Selection */}
-              <View>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: "#374151",
-                    marginBottom: 8,
-                  }}
-                >
-                  Select Item *
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    {items.map((item) => (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => setSelectedItemId(item.id.toString())}
-                        style={{
-                          paddingHorizontal: 16,
-                          paddingVertical: 10,
-                          borderRadius: 20,
-                          backgroundColor:
-                            selectedItemId === item.id.toString()
+                  <View>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#374151",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Select Item *
+                    </Text>
+
+                    {/* Search Bar */}
+                    <TextInput
+                      value={itemSearchQuery}
+                      onChangeText={setItemSearchQuery}
+                      placeholder="Search items..."
+                      style={{
+                        borderWidth: 1,
+                        borderColor: "#E5E7EB",
+                        borderRadius: 8,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        fontSize: 14,
+                        backgroundColor: "#fff",
+                        marginBottom: 8,
+                      }}
+                    />
+
+                    {/* Items List */}
+                    <View style={{
+                      maxHeight: 200,
+                      borderWidth: 1,
+                      borderColor: "#E5E7EB",
+                      borderRadius: 8,
+                      backgroundColor: "#FAFAFA",
+                    }}>
+                      <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                        {items
+                          .filter((item) => {
+                            const matchesSearch = itemSearchQuery
+                              ? item.item_name.toLowerCase().includes(itemSearchQuery.toLowerCase())
+                              : true;
+                            return matchesSearch;
+                          })
+                          .map((item) => {
+                            const isSelected = selectedItemId === item.id.toString();
+                            const bgColor = isSelected
+                              ? modalType === "in"
+                                ? "#ECFDF5"
+                                : modalType === "out"
+                                ? "#FEF2F2"
+                                : "#FFFBEB"
+                              : "#fff";
+                            const borderColor = isSelected
                               ? modalType === "in"
                                 ? "#10B981"
                                 : modalType === "out"
                                 ? "#EF4444"
                                 : "#F59E0B"
-                              : "#F3F4F6",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontWeight: "500",
-                            color:
-                              selectedItemId === item.id.toString()
-                                ? "#fff"
-                                : "#6B7280",
-                          }}
-                        >
-                          {item.item_name} ({item.current_stock})
-                        </Text>
-                      </Pressable>
-                    ))}
+                              : "#E5E7EB";
+
+                            return (
+                              <Pressable
+                                key={item.id}
+                                onPress={() => setSelectedItemId(item.id.toString())}
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  padding: 12,
+                                  borderBottomWidth: 1,
+                                  borderBottomColor: "#E5E7EB",
+                                  backgroundColor: bgColor,
+                                }}
+                              >
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{
+                                    fontSize: 14,
+                                    fontWeight: "600",
+                                    color: "#1F2937",
+                                  }}>
+                                    {item.item_name}
+                                  </Text>
+                                  <Text style={{
+                                    fontSize: 12,
+                                    color: "#6B7280",
+                                    marginTop: 2,
+                                  }}>
+                                    Current Stock: {item.current_stock} units
+                                  </Text>
+                                </View>
+                                {isSelected && (
+                                  <View style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 10,
+                                    backgroundColor: borderColor,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}>
+                                    <Text style={{ color: "#fff", fontSize: 12 }}>✓</Text>
+                                  </View>
+                                )}
+                              </Pressable>
+                            );
+                          })}
+                      </ScrollView>
+                    </View>
                   </View>
-                </ScrollView>
-              </View>
 
               {/* Quantity */}
               <View>
