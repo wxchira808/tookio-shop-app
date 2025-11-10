@@ -49,9 +49,9 @@ async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
     }
 
     if (!response.ok) {
-      // Handle session expiry (401 Unauthorized or 403 Forbidden)
-      // BUT NOT during login/signup flows
-      if ((response.status === 401 || response.status === 403) && !skipSessionCheck) {
+      // Handle session expiry ONLY on 401 Unauthorized
+      // Don't treat 403 (Forbidden/Permission Denied) as session expiry
+      if (response.status === 401 && !skipSessionCheck) {
         console.log('🔒 Session expired, logging out...');
         await SecureStore.deleteItemAsync(AUTH_KEY);
 
@@ -369,21 +369,34 @@ export async function getSales() {
     console.log('📊 First sale data structure:', JSON.stringify(response.data[0], null, 2));
   }
 
-  // Fetch child table items, shops, and products in parallel
-  const [saleItemsResponse, shopsResponse, itemsResponse] = await Promise.all([
-    frappeRequest('/api/resource/Tookio Sales Invoice Item?fields=["*"]&limit_page_length=9999'),
+  // Try to fetch child table items separately, but fall back to parent document items if permissions denied
+  let saleItemsMap = {};
+  let useParentItems = false;
+
+  try {
+    const [saleItemsResponse, shopsResponse, itemsResponse] = await Promise.all([
+      frappeRequest('/api/resource/Tookio Sales Invoice Item?fields=["*"]&limit_page_length=9999'),
+      frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
+      frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
+    ]);
+
+    // Create a map of sale items by parent (sale invoice)
+    (saleItemsResponse.data || []).forEach(item => {
+      if (!saleItemsMap[item.parent]) {
+        saleItemsMap[item.parent] = [];
+      }
+      saleItemsMap[item.parent].push(item);
+    });
+  } catch (error) {
+    console.log('⚠️ Could not fetch child table separately (permission denied?), using parent document items');
+    useParentItems = true;
+  }
+
+  // Fetch shops and products for mapping
+  const [shopsResponse, itemsResponse] = await Promise.all([
     frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
     frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
   ]);
-
-  // Create a map of sale items by parent (sale invoice)
-  const saleItemsMap = {};
-  (saleItemsResponse.data || []).forEach(item => {
-    if (!saleItemsMap[item.parent]) {
-      saleItemsMap[item.parent] = [];
-    }
-    saleItemsMap[item.parent].push(item);
-  });
 
   const shopsMap = {};
   (shopsResponse.data || []).forEach(shop => {
@@ -396,7 +409,9 @@ export async function getSales() {
   });
 
   const sales = (response.data || []).map(sale => {
-    const saleItems = saleItemsMap[sale.name] || [];
+    // Use either separately fetched items or items from parent document
+    const saleItems = useParentItems ? (sale.items || []) : (saleItemsMap[sale.name] || sale.items || []);
+
     return {
       id: sale.name,
       total_amount: sale.total || 0,
@@ -408,13 +423,13 @@ export async function getSales() {
       notes: sale.notes || '',
       shop_name: shopsMap[sale.shop] || sale.shop,
       shop_id: sale.shop,
-      items: saleItems.map(item => ({
+      items: (saleItems || []).map(item => ({
         product: item.product,
         product_name: itemsMap[item.product] || item.product,
         quantity: item.quantity || 0,
         item_price: item.item_price || 0,
       })),
-      items_count: saleItems.length,
+      items_count: (saleItems || []).length,
       created_at: sale.creation,
       updated_at: sale.modified,
     };
@@ -477,21 +492,34 @@ export async function getStockTransactions() {
     console.log('📦 First stock transaction data structure:', JSON.stringify(response.data[0], null, 2));
   }
 
-  // Fetch child table items, shops, and products in parallel
-  const [stockItemsResponse, shopsResponse, itemsResponse] = await Promise.all([
-    frappeRequest('/api/resource/Tookio Product Stock Item?fields=["*"]&limit_page_length=9999'),
+  // Try to fetch child table items separately, but fall back to parent document items if permissions denied
+  let stockItemsMap = {};
+  let useParentItems = false;
+
+  try {
+    const [stockItemsResponse, shopsResponse, itemsResponse] = await Promise.all([
+      frappeRequest('/api/resource/Tookio Product Stock Item?fields=["*"]&limit_page_length=9999'),
+      frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
+      frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
+    ]);
+
+    // Create a map of stock items by parent (product stock)
+    (stockItemsResponse.data || []).forEach(item => {
+      if (!stockItemsMap[item.parent]) {
+        stockItemsMap[item.parent] = [];
+      }
+      stockItemsMap[item.parent].push(item);
+    });
+  } catch (error) {
+    console.log('⚠️ Could not fetch child table separately (permission denied?), using parent document items');
+    useParentItems = true;
+  }
+
+  // Fetch shops and products for mapping
+  const [shopsResponse, itemsResponse] = await Promise.all([
     frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
     frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
   ]);
-
-  // Create a map of stock items by parent (product stock)
-  const stockItemsMap = {};
-  (stockItemsResponse.data || []).forEach(item => {
-    if (!stockItemsMap[item.parent]) {
-      stockItemsMap[item.parent] = [];
-    }
-    stockItemsMap[item.parent].push(item);
-  });
 
   const shopsMap = {};
   (shopsResponse.data || []).forEach(shop => {
@@ -504,10 +532,13 @@ export async function getStockTransactions() {
   });
 
   const transactions = (response.data || []).map(trans => {
-    const transItems = stockItemsMap[trans.name] || [];
+    // Use either separately fetched items or items from parent document
+    // Note: Frappe has a typo in the field name - it's "prodcuts" not "products"
+    const transItems = useParentItems ? (trans.prodcuts || trans.products || []) : (stockItemsMap[trans.name] || trans.prodcuts || trans.products || []);
+
     // Calculate total quantity from child items
-    const totalQty = transItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const itemsList = transItems.map(item => ({
+    const totalQty = (transItems || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const itemsList = (transItems || []).map(item => ({
       product_id: item.product,
       product_name: itemsMap[item.product] || item.product,
       quantity: item.quantity || 0,
