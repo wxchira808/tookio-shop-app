@@ -31,10 +31,11 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [dateFilter, setDateFilter] = useState("all"); // all, today, week, month
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [dateFilter]); // Reload when date filter changes
 
   const loadStats = async () => {
     try {
@@ -47,7 +48,32 @@ export default function Dashboard() {
 
       const shops = shopsRes?.shops || [];
       const items = itemsRes?.items || [];
-      const sales = salesRes?.sales || [];
+      let sales = salesRes?.sales || [];
+
+      // Filter sales by date
+      if (dateFilter !== "all") {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        sales = sales.filter((sale) => {
+          const saleDate = new Date(sale.sale_date || sale.created_at);
+
+          if (dateFilter === "today") {
+            const saleDateOnly = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate());
+            return saleDateOnly.getTime() === today.getTime();
+          } else if (dateFilter === "week") {
+            const weekAgo = new Date(today);
+            weekAgo.setDate(today.getDate() - 7);
+            return saleDate >= weekAgo;
+          } else if (dateFilter === "month") {
+            const monthAgo = new Date(today);
+            monthAgo.setMonth(today.getMonth() - 1);
+            return saleDate >= monthAgo;
+          }
+
+          return true;
+        });
+      }
 
       const totalRevenue = sales.reduce(
         (sum, sale) => sum + parseFloat(sale.total_amount || 0),
@@ -278,11 +304,98 @@ export default function Dashboard() {
               fontSize: 18,
               fontWeight: "600",
               color: "#1F2937",
-              marginBottom: 16,
+              marginBottom: 12,
             }}
           >
             Quick Stats
           </Text>
+
+          {/* Date Filter */}
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            <Pressable
+              onPress={() => setDateFilter("all")}
+              style={({ pressed }) => ({
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
+                backgroundColor: dateFilter === "all" ? "#357AFF" : "#F3F4F6",
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: dateFilter === "all" ? "#fff" : "#6B7280",
+                }}
+              >
+                All Time
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setDateFilter("today")}
+              style={({ pressed }) => ({
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
+                backgroundColor: dateFilter === "today" ? "#357AFF" : "#F3F4F6",
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: dateFilter === "today" ? "#fff" : "#6B7280",
+                }}
+              >
+                Today
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setDateFilter("week")}
+              style={({ pressed }) => ({
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
+                backgroundColor: dateFilter === "week" ? "#357AFF" : "#F3F4F6",
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: dateFilter === "week" ? "#fff" : "#6B7280",
+                }}
+              >
+                Last 7 Days
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setDateFilter("month")}
+              style={({ pressed }) => ({
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
+                backgroundColor: dateFilter === "month" ? "#357AFF" : "#F3F4F6",
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: dateFilter === "month" ? "#fff" : "#6B7280",
+                }}
+              >
+                Last 30 Days
+              </Text>
+            </Pressable>
+          </View>
 
           {loading && stats.shopsCount === 0 ? (
             <View

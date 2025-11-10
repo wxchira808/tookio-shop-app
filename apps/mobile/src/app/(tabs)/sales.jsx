@@ -46,6 +46,7 @@ export default function Sales() {
   const [selectedSale, setSelectedSale] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [itemSearchQuery, setItemSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all"); // all, today, week, month
 
   // New customer fields
   const [customerName, setCustomerName] = useState("");
@@ -218,8 +219,29 @@ export default function Sales() {
     );
   };
 
-  // Filter sales by search query
+  // Filter sales by search query and date
   const filteredSales = sales.filter((sale) => {
+    // Date filtering
+    if (dateFilter !== "all") {
+      const saleDate = new Date(sale.sale_date || sale.created_at);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      if (dateFilter === "today") {
+        const saleDateOnly = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate());
+        if (saleDateOnly.getTime() !== today.getTime()) return false;
+      } else if (dateFilter === "week") {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        if (saleDate < weekAgo) return false;
+      } else if (dateFilter === "month") {
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(today.getMonth() - 1);
+        if (saleDate < monthAgo) return false;
+      }
+    }
+
+    // Search query filtering
     if (!searchQuery) return true;
 
     const query = searchQuery.toLowerCase();
@@ -428,16 +450,111 @@ export default function Sales() {
         {/* Sales List */}
         {sales.length > 0 ? (
           <View style={{ paddingHorizontal: 20 }}>
-            <Text
+            <View
               style={{
-                fontSize: 18,
-                fontWeight: "600",
-                color: "#1F2937",
-                marginBottom: 16,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
               }}
             >
-              Recent Sales
-            </Text>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "600",
+                  color: "#1F2937",
+                }}
+              >
+                Recent Sales
+              </Text>
+            </View>
+
+            {/* Date Filter */}
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+              <Pressable
+                onPress={() => setDateFilter("all")}
+                style={({ pressed }) => ({
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  backgroundColor: dateFilter === "all" ? "#EF4444" : "#F3F4F6",
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: dateFilter === "all" ? "#fff" : "#6B7280",
+                  }}
+                >
+                  All Time
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setDateFilter("today")}
+                style={({ pressed }) => ({
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  backgroundColor: dateFilter === "today" ? "#EF4444" : "#F3F4F6",
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: dateFilter === "today" ? "#fff" : "#6B7280",
+                  }}
+                >
+                  Today
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setDateFilter("week")}
+                style={({ pressed }) => ({
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  backgroundColor: dateFilter === "week" ? "#EF4444" : "#F3F4F6",
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: dateFilter === "week" ? "#fff" : "#6B7280",
+                  }}
+                >
+                  Last 7 Days
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setDateFilter("month")}
+                style={({ pressed }) => ({
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  backgroundColor: dateFilter === "month" ? "#EF4444" : "#F3F4F6",
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: dateFilter === "month" ? "#fff" : "#6B7280",
+                  }}
+                >
+                  Last 30 Days
+                </Text>
+              </Pressable>
+            </View>
 
             {filteredSales.map((sale) => (
               <Pressable
