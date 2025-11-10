@@ -33,6 +33,7 @@ export default function Items() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [activeShopId, setActiveShopId] = useState(null);
+  const [filterShopId, setFilterShopId] = useState(null); // For list view filtering
   const [searchQuery, setSearchQuery] = useState("");
 
   // Form states
@@ -241,10 +242,10 @@ export default function Items() {
     return "In Stock";
   };
 
-  // Filter items by active shop and search query
+  // Filter items by shop filter and search query
   const displayItems = items.filter((item) => {
-    // Filter by active shop if one is selected
-    if (activeShopId && item.shop_id !== activeShopId) {
+    // Filter by selected shop if one is selected
+    if (filterShopId && item.shop_id !== filterShopId) {
       return false;
     }
 
@@ -326,8 +327,9 @@ export default function Items() {
         </Pressable>
       </View>
 
-      {/* Search Bar */}
-      <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+      {/* Search and Filter Bar */}
+      <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB", gap: 12 }}>
+        {/* Search Input */}
         <TextInput
           style={{
             backgroundColor: "#F3F4F6",
@@ -343,6 +345,54 @@ export default function Items() {
           placeholderTextColor="#9CA3AF"
           returnKeyType="search"
         />
+
+        {/* Shop Filter */}
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+          <Pressable
+            onPress={() => setFilterShopId(null)}
+            style={({ pressed }) => ({
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+              backgroundColor: !filterShopId ? "#10B981" : "#F3F4F6",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: !filterShopId ? "#fff" : "#6B7280",
+              }}
+            >
+              All Shops
+            </Text>
+          </Pressable>
+
+          {shops.map((shop) => (
+            <Pressable
+              key={shop.id}
+              onPress={() => setFilterShopId(shop.id)}
+              style={({ pressed }) => ({
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 20,
+                backgroundColor: filterShopId === shop.id ? "#10B981" : "#F3F4F6",
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: filterShopId === shop.id ? "#fff" : "#6B7280",
+                }}
+              >
+                {shop.shop_name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       <ScrollView
@@ -409,71 +459,20 @@ export default function Items() {
                         {item.item_name}
                       </Text>
                       <Text
-                        style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}
+                        style={{ fontSize: 14, color: "#6B7280", marginTop: 4 }}
                       >
-                        {item.sku ? `SKU: ${item.sku} • ` : ""}{item.shop_name}
+                        {item.shop_name}
                       </Text>
-
-                      <View
+                      <Text
                         style={{
-                          flexDirection: "row",
-                          marginTop: 8,
-                          alignItems: "center",
-                          flexWrap: "wrap",
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: getStockStatusColor(item.current_stock),
+                          marginTop: 4,
                         }}
                       >
-                        <View
-                          style={{
-                            backgroundColor:
-                              getStockStatusColor(item.current_stock) + "15",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                            marginRight: 8,
-                            marginBottom: 4,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              color: getStockStatusColor(item.current_stock),
-                              fontWeight: "600",
-                            }}
-                          >
-                            {item.current_stock} units •{" "}
-                            {getStockStatusText(item.current_stock)}
-                          </Text>
-                        </View>
-
-                        <View
-                          style={{
-                            backgroundColor: "#F3F4F6",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                            marginBottom: 4,
-                            marginRight: 8,
-                          }}
-                        >
-                          <Text style={{ fontSize: 12, color: "#6B7280" }}>
-                            Price: {formatCurrency(item.unit_price)}
-                          </Text>
-                        </View>
-
-                        <View
-                          style={{
-                            backgroundColor: "#FEF3C7",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                            marginBottom: 4,
-                          }}
-                        >
-                          <Text style={{ fontSize: 12, color: "#92400E" }}>
-                            Cost: {formatCurrency(item.cost_price)}
-                          </Text>
-                        </View>
-                      </View>
+                        Stock: {item.current_stock} units
+                      </Text>
                     </View>
                   </View>
                 </View>
@@ -815,35 +814,6 @@ export default function Items() {
                         marginBottom: 8,
                       }}
                     >
-                      Selling Price *
-                    </Text>
-                    <TextInput
-                      value={sellingPrice}
-                      onChangeText={setSellingPrice}
-                      placeholder="0.00"
-                      keyboardType="decimal-pad"
-                      selectTextOnFocus={true}
-                      style={{
-                        borderWidth: 1,
-                        borderColor: "#E5E7EB",
-                        borderRadius: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 12,
-                        fontSize: 16,
-                        backgroundColor: "#fff",
-                      }}
-                    />
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#374151",
-                        marginBottom: 8,
-                      }}
-                    >
                       Buying Price *
                     </Text>
                     <TextInput
@@ -863,67 +833,65 @@ export default function Items() {
                       }}
                     />
                   </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#374151",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Selling Price *
+                    </Text>
+                    <TextInput
+                      value={sellingPrice}
+                      onChangeText={setSellingPrice}
+                      placeholder="0.00"
+                      keyboardType="decimal-pad"
+                      selectTextOnFocus={true}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: "#E5E7EB",
+                        borderRadius: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        fontSize: 16,
+                        backgroundColor: "#fff",
+                      }}
+                    />
+                  </View>
                 </View>
 
-                {/* Stock Row */}
-                <View style={{ flexDirection: "row", gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#374151",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Initial Stock
-                    </Text>
-                    <TextInput
-                      value={currentStock}
-                      onChangeText={setCurrentStock}
-                      placeholder="0"
-                      keyboardType="numeric"
-                      selectTextOnFocus={true}
-                      style={{
-                        borderWidth: 1,
-                        borderColor: "#E5E7EB",
-                        borderRadius: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 12,
-                        fontSize: 16,
-                        backgroundColor: "#fff",
-                      }}
-                    />
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#374151",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Low Stock Alert
-                    </Text>
-                    <TextInput
-                      value={lowStockThreshold}
-                      onChangeText={setLowStockThreshold}
-                      placeholder="5"
-                      keyboardType="numeric"
-                      selectTextOnFocus={true}
-                      style={{
-                        borderWidth: 1,
-                        borderColor: "#E5E7EB",
-                        borderRadius: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 12,
-                        fontSize: 16,
-                        backgroundColor: "#fff",
-                      }}
-                    />
-                  </View>
+                {/* Low Stock Alert */}
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#374151",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Low Stock Alert
+                  </Text>
+                  <TextInput
+                    value={lowStockThreshold}
+                    onChangeText={setLowStockThreshold}
+                    placeholder="5"
+                    keyboardType="numeric"
+                    selectTextOnFocus={true}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "#E5E7EB",
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      fontSize: 16,
+                      backgroundColor: "#fff",
+                    }}
+                  />
                 </View>
               </View>
               </ScrollView>
