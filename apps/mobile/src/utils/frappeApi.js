@@ -118,22 +118,56 @@ export async function login(usr, pwd) {
         username: userDoc.data.name,
       };
 
-      // Try to fetch subscription plan from Customer doctype
+      // Try to fetch subscription plan from Customer via Portal User
+      // Using correct flow: User -> Portal User (child table) -> Customer -> Subscription Plan
       try {
-        const customerQuery = await frappeRequest(`/api/resource/Customer?filters=[["email_id","=","${userDoc.data.email}"]]&fields=["*"]&limit_page_length=1`, {}, true);
-        console.log('📋 Customer query response:', JSON.stringify(customerQuery, null, 2));
+        // Step 1: Get Customer ID from Portal User child table
+        const portalUserResponse = await frappeRequest('/api/method/frappe.client.get_value', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            doctype: 'Portal User',
+            filters: { user: userDoc.data.email },
+            fieldname: 'parent'
+          }),
+        }, true);
 
-        if (customerQuery.data && customerQuery.data.length > 0) {
-          const customer = customerQuery.data[0];
-          console.log('📋 Customer data:', JSON.stringify(customer, null, 2));
+        console.log('📋 Portal User response:', JSON.stringify(portalUserResponse, null, 2));
 
-          userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
-          userDetails.subscription_expiry = customer.custom_subscription_expiry_date || null;
+        if (portalUserResponse.message && portalUserResponse.message.parent) {
+          const customerId = portalUserResponse.message.parent;
+          console.log('📋 Customer ID from Portal User:', customerId);
 
-          console.log('📋 Subscription plan:', userDetails.subscription_tier);
-          console.log('📋 Subscription expiry:', userDetails.subscription_expiry);
+          // Step 2: Get Customer details with subscription plan
+          const customerResponse = await frappeRequest('/api/method/frappe.client.get', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              doctype: 'Customer',
+              name: customerId
+            }),
+          }, true);
+
+          console.log('📋 Customer data:', JSON.stringify(customerResponse, null, 2));
+
+          if (customerResponse.message) {
+            const customer = customerResponse.message;
+            userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
+            userDetails.subscription_expiry = customer.custom_subscription_expiry_date || null;
+
+            console.log('📋 Subscription plan:', userDetails.subscription_tier);
+            console.log('📋 Subscription expiry:', userDetails.subscription_expiry);
+          } else {
+            console.log('⚠️ No Customer data found for ID:', customerId);
+            userDetails.subscription_tier = 'free';
+            userDetails.subscription_expiry = null;
+          }
         } else {
-          console.log('⚠️ No Customer record found for email:', userDoc.data.email);
+          console.log('⚠️ No Portal User found for email:', userDoc.data.email);
           userDetails.subscription_tier = 'free';
           userDetails.subscription_expiry = null;
         }
