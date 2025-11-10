@@ -44,6 +44,8 @@ export const useAuth = () => {
       // Clear local auth state
       setAuth(null);
       close();
+      // Redirect to auth screen
+      router.replace('/auth');
     }
   }, [close, setAuth]);
 

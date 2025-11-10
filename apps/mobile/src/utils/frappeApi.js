@@ -141,8 +141,14 @@ export async function signup(email, username, password, full_name) {
       }),
     });
 
-    // With your custom fork, you can login immediately
-    return await login(email, password);
+    // Try to login immediately after signup
+    try {
+      return await login(email, password);
+    } catch (loginError) {
+      // User was created but auto-login failed
+      console.log('User created but auto-login failed:', loginError.message);
+      throw new Error('Account created successfully. Please login.');
+    }
   } catch (error) {
     throw new Error(error.message || 'Signup failed');
   }
@@ -342,13 +348,16 @@ export async function getSales() {
 
 export async function createSale(saleData) {
   // Map mobile app sale items to Frappe format
+  // IMPORTANT: Frappe child tables require the 'doctype' field
   const items = saleData.items.map(item => ({
+    doctype: 'Tookio Sales Invoice Item',  // Required for child table
     product: item.item_id,
-    quantity: item.quantity,
-    item_price: item.unit_price,
+    quantity: parseFloat(item.quantity) || 0,
+    item_price: parseFloat(item.unit_price) || 0,
   }));
 
   const frappeData = {
+    doctype: 'Sale Invoice',
     shop: saleData.shop_id,
     posting_date: saleData.sale_date || new Date().toISOString().split('T')[0],
     customer_name: saleData.customer_name || 'Walk-in Customer',
@@ -397,12 +406,14 @@ export async function createStockTransaction(transactionData) {
   const purpose = transactionData.transaction_type === 'in' ? 'Add Stock' : 'Remove Stock';
 
   const frappeData = {
+    doctype: 'Product Stock',
     shop: transactionData.shop_id,
     date: new Date().toISOString().split('T')[0],
     purpose: purpose,
     products: [{
+      doctype: 'Tookio Product Stock Item',  // Required for child table
       product: transactionData.item_id,
-      quantity: Math.abs(transactionData.quantity),
+      quantity: Math.abs(parseFloat(transactionData.quantity) || 0),
     }],
   };
 

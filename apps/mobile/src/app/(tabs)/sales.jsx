@@ -24,6 +24,7 @@ import {
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
 import { getSales, createSale, getShops, getItems } from "@/utils/frappeApi";
+import { formatCurrency } from "@/utils/currency";
 
 export default function Sales() {
   useRequireAuth();
@@ -43,6 +44,7 @@ export default function Sales() {
   const [submitting, setSubmitting] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadData();
@@ -182,13 +184,21 @@ export default function Sales() {
     );
   };
 
-  const formatCurrency = (amount) => {
-    return `$${parseFloat(amount).toFixed(2)}`;
-  };
+  // Filter sales by search query
+  const filteredSales = sales.filter((sale) => {
+    if (!searchQuery) return true;
+
+    const query = searchQuery.toLowerCase();
+    return (
+      (sale.customer_name && sale.customer_name.toLowerCase().includes(query)) ||
+      (sale.notes && sale.notes.toLowerCase().includes(query)) ||
+      (sale.id && sale.id.toString().includes(query))
+    );
+  });
 
   // Calculate totals
-  const totalRevenue = sales.reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
-  const averageSale = sales.length > 0 ? totalRevenue / sales.length : 0;
+  const totalRevenue = filteredSales.reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
+  const averageSale = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
 
   if (loading && sales.length === 0) {
     return (
@@ -254,6 +264,25 @@ export default function Sales() {
         </Pressable>
       </View>
 
+      {/* Search Bar */}
+      <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+        <TextInput
+          style={{
+            backgroundColor: "#F3F4F6",
+            borderRadius: 8,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            fontSize: 16,
+            color: "#1F2937",
+          }}
+          placeholder="Search sales by customer name, ID, or notes..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#9CA3AF"
+          returnKeyType="search"
+        />
+      </View>
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
@@ -293,7 +322,7 @@ export default function Sales() {
               <Text
                 style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}
               >
-                ${totalRevenue.toFixed(2)}
+                {formatCurrency(totalRevenue, false)}
               </Text>
             </View>
 
@@ -357,7 +386,7 @@ export default function Sales() {
             <Text
               style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}
             >
-              ${averageSale.toFixed(2)}
+              {formatCurrency(averageSale, false)}
             </Text>
           </View>
         </View>
@@ -376,7 +405,7 @@ export default function Sales() {
               Recent Sales
             </Text>
 
-            {sales.map((sale) => (
+            {filteredSales.map((sale) => (
               <Pressable
                 key={sale.id}
                 onPress={() => handleSalePress(sale)}
@@ -485,7 +514,7 @@ export default function Sales() {
                         color: "#10B981",
                       }}
                     >
-                      ${sale.total_amount.toFixed(2)}
+                      {formatCurrency(sale.total_amount)}
                     </Text>
                   </View>
                 </View>

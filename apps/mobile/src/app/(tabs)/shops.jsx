@@ -33,6 +33,7 @@ import {
   getActiveShop,
   setActiveShop as saveActiveShop,
 } from "@/utils/storage";
+import { formatCurrency } from "@/utils/currency";
 
 export default function Shops() {
   useRequireAuth();
@@ -394,7 +395,7 @@ export default function Shops() {
                             }}
                           >
                             <Text style={{ fontSize: 12, color: "#16A34A" }}>
-                              ${parseFloat(shop.total_value || 0).toFixed(2)}
+                              {formatCurrency(shop.total_value || 0)}
                             </Text>
                           </View>
                         </View>

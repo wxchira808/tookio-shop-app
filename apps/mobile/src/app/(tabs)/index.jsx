@@ -15,6 +15,7 @@ import {
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
 import { getShops, getItems, getSales } from "@/utils/frappeApi";
+import { formatCurrency } from "@/utils/currency";
 
 export default function Dashboard() {
   useRequireAuth();
@@ -354,7 +355,7 @@ export default function Dashboard() {
                   <Text
                     style={{ fontSize: 24, fontWeight: "bold", color: "#1F2937" }}
                   >
-                    ${stats.totalRevenue.toFixed(2)}
+                    {formatCurrency(stats.totalRevenue, false)}
                   </Text>
                 </View>
 

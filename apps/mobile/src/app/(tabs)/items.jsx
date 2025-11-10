@@ -17,6 +17,7 @@ import { router } from "expo-router";
 import { useState, useEffect } from "react";
 import { getItems, createItem, getShops, updateItem, deleteItem } from "@/utils/frappeApi";
 import { getActiveShop } from "@/utils/storage";
+import { formatCurrency } from "@/utils/currency";
 
 export default function Items() {
   useRequireAuth();
@@ -30,6 +31,7 @@ export default function Items() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [activeShopId, setActiveShopId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Form states
   const [itemName, setItemName] = useState("");
@@ -242,10 +244,25 @@ export default function Items() {
     return "In Stock";
   };
 
-  // Filter items by active shop if one is selected
-  const displayItems = activeShopId
-    ? items.filter((item) => item.shop_id === activeShopId)
-    : items;
+  // Filter items by active shop and search query
+  const displayItems = items.filter((item) => {
+    // Filter by active shop if one is selected
+    if (activeShopId && item.shop_id !== activeShopId) {
+      return false;
+    }
+
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        (item.item_name && item.item_name.toLowerCase().includes(query)) ||
+        (item.description && item.description.toLowerCase().includes(query)) ||
+        (item.sku && item.sku.toLowerCase().includes(query))
+      );
+    }
+
+    return true;
+  });
 
   if (loading && items.length === 0) {
     return (
@@ -310,6 +327,25 @@ export default function Items() {
             Add Item
           </Text>
         </Pressable>
+      </View>
+
+      {/* Search Bar */}
+      <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+        <TextInput
+          style={{
+            backgroundColor: "#F3F4F6",
+            borderRadius: 8,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            fontSize: 16,
+            color: "#1F2937",
+          }}
+          placeholder="Search items by name, SKU, or description..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#9CA3AF"
+          returnKeyType="search"
+        />
       </View>
 
       <ScrollView
@@ -423,7 +459,7 @@ export default function Items() {
                           }}
                         >
                           <Text style={{ fontSize: 12, color: "#6B7280" }}>
-                            Price: ${item.unit_price.toFixed(2)}
+                            Price: {formatCurrency(item.unit_price)}
                           </Text>
                         </View>
 
@@ -437,7 +473,7 @@ export default function Items() {
                           }}
                         >
                           <Text style={{ fontSize: 12, color: "#92400E" }}>
-                            Cost: ${item.cost_price.toFixed(2)}
+                            Cost: {formatCurrency(item.cost_price)}
                           </Text>
                         </View>
                       </View>

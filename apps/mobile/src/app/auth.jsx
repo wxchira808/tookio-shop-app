@@ -19,6 +19,7 @@ export default function AuthScreen() {
   const [mode, setMode] = useState('signin'); // 'signin' or 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const { setAuth } = useAuth();
@@ -45,21 +46,65 @@ export default function AuthScreen() {
   };
 
   const handleSignUp = async () => {
-    if (!email || !password || !fullName) {
+    if (!email || !password || !confirmPassword || !fullName) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
     setLoading(true);
     try {
       const result = await signup(email, email, password, fullName);
+
+      // If signup succeeded but didn't auto-login, show success and switch to login
+      if (!result.user) {
+        Alert.alert(
+          'Account Created',
+          'Your account has been created successfully. Please login.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setMode('signin');
+                setPassword('');
+                setConfirmPassword('');
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Auto-login successful
       setAuth({
         user: result.user,
         logged_in: true,
       });
       router.replace('/(tabs)');
     } catch (error) {
-      Alert.alert('Signup Failed', error.message || 'Could not create account');
+      // Check if user was created but login failed
+      if (error.message && error.message.includes('created')) {
+        Alert.alert(
+          'Account Created',
+          'Your account has been created. Please login.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setMode('signin');
+                setPassword('');
+                setConfirmPassword('');
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Signup Failed', error.message || 'Could not create account');
+      }
     } finally {
       setLoading(false);
     }
@@ -69,8 +114,12 @@ export default function AuthScreen() {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.content}>
           <Text style={styles.title}>Tookio Shop</Text>
           <Text style={styles.subtitle}>
@@ -85,17 +134,19 @@ export default function AuthScreen() {
               onChangeText={setFullName}
               autoCapitalize="words"
               editable={!loading}
+              returnKeyType="next"
             />
           )}
 
           <TextInput
             style={styles.input}
-            placeholder="Email or Username"
+            placeholder={mode === 'signup' ? 'Email' : 'Email or Username'}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
             editable={!loading}
+            returnKeyType="next"
           />
 
           <TextInput
@@ -105,7 +156,20 @@ export default function AuthScreen() {
             onChangeText={setPassword}
             secureTextEntry
             editable={!loading}
+            returnKeyType={mode === 'signup' ? 'next' : 'done'}
           />
+
+          {mode === 'signup' && (
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              editable={!loading}
+              returnKeyType="done"
+            />
+          )}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -122,7 +186,11 @@ export default function AuthScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+            onPress={() => {
+              setMode(mode === 'signin' ? 'signup' : 'signin');
+              setPassword('');
+              setConfirmPassword('');
+            }}
             disabled={loading}
           >
             <Text style={styles.switchText}>
