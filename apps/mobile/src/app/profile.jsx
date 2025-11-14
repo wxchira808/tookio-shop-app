@@ -244,20 +244,7 @@ export default function Profile() {
         {/* Manage Subscription Button */}
         <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
           <Pressable
-            onPress={async () => {
-              try {
-                const url = 'https://shop.tookio.co.ke/subscriptions';
-                const canOpen = await Linking.canOpenURL(url);
-                if (canOpen) {
-                  await Linking.openURL(url);
-                } else {
-                  Alert.alert('Error', 'Unable to open subscription page');
-                }
-              } catch (error) {
-                console.error('Error opening subscription page:', error);
-                Alert.alert('Error', 'Failed to open subscription page');
-              }
-            }}
+            onPress={() => router.push("/subscription")}
             style={({ pressed }) => ({
               backgroundColor: subscriptionColor,
               borderRadius: 16,
@@ -269,7 +256,7 @@ export default function Profile() {
               opacity: pressed ? 0.9 : 1,
             })}
           >
-            <ExternalLink size={20} color="#FFFFFF" strokeWidth={2} />
+            <Crown size={20} color="#FFFFFF" strokeWidth={2.5} />
             <Text
               style={{
                 fontSize: 16,
@@ -279,7 +266,7 @@ export default function Profile() {
                 letterSpacing: -0.3,
               }}
             >
-              Manage Subscription
+              {currentTier === "free" ? "Upgrade Plan" : "Manage Subscription"}
             </Text>
           </Pressable>
         </View>
