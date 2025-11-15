@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, Modal, TextInput, Alert, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, Modal, TextInput, Alert, RefreshControl, KeyboardAvoidingView, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth } from "@/utils/auth/useAuth";
@@ -18,13 +18,9 @@ import { getPurchases, createPurchase, getShops } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
 
 const CATEGORIES = [
-  "Inventory Purchase",
+  "Stock",
   "Utilities",
   "Rent",
-  "Salaries",
-  "Marketing",
-  "Equipment",
-  "Maintenance",
   "Transport",
   "Other",
 ];
@@ -46,7 +42,7 @@ export default function PurchasesScreen() {
     shop: "",
     description: "",
     amount: "",
-    category: "Inventory Purchase",
+    category: "Stock",
   });
 
   useEffect(() => {
@@ -101,19 +97,15 @@ export default function PurchasesScreen() {
       shop: "",
       description: "",
       amount: "",
-      category: "Inventory Purchase",
+      category: "Stock",
     });
   };
 
   const getCategoryColor = (category) => {
     const colors = {
-      "Inventory Purchase": "#10B981",
+      "Stock": "#10B981",
       "Utilities": "#F59E0B",
       "Rent": "#EF4444",
-      "Salaries": "#8B5CF6",
-      "Marketing": "#EC4899",
-      "Equipment": "#6366F1",
-      "Maintenance": "#14B8A6",
       "Transport": "#F97316",
       "Other": "#64748B",
     };
@@ -320,19 +312,23 @@ export default function PurchasesScreen() {
 
       {/* Add Purchase Modal */}
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom }}>
-            {/* Header */}
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
-                Record Purchase
-              </Text>
-              <Pressable onPress={() => { setShowAddModal(false); resetForm(); }} style={{ padding: 4 }}>
-                <X size={24} color="#64748B" strokeWidth={2} />
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+            <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom, maxHeight: "90%" }}>
+              {/* Header */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+                <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
+                  Record Purchase
+                </Text>
+                <Pressable onPress={() => { setShowAddModal(false); resetForm(); }} style={{ padding: 4 }}>
+                  <X size={24} color="#64748B" strokeWidth={2} />
+                </Pressable>
+              </View>
 
-            <ScrollView style={{ maxHeight: 600 }} showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <View style={{ padding: 20, gap: 20 }}>
                 {/* Shop Selection */}
                 <View>
@@ -473,9 +469,10 @@ export default function PurchasesScreen() {
                   </Text>
                 </Pressable>
               </View>
-            </ScrollView>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Purchase Details Modal */}

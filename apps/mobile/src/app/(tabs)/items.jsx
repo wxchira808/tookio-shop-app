@@ -81,9 +81,7 @@ export default function InventoryScreen() {
       setShops(shopsRes?.shops || []);
       setStockHistory(stockRes?.transactions || []);
 
-      if (shopsRes?.shops?.length > 0 && !selectedShop) {
-        setSelectedShop(shopsRes.shops[0].id);
-      }
+      // Don't auto-select a shop - show all items by default
     } catch (error) {
       console.error("Error loading data:", error);
       Alert.alert("Error", "Failed to load inventory data");
