@@ -20,6 +20,7 @@ import {
   Calendar,
   X,
   Minus,
+  Trash2,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
@@ -54,26 +55,75 @@ export default function Sales() {
       const [salesRes, shopsRes, itemsRes] = await Promise.all([
         getSales(),
         getShops(),
-        getItems(),
+        getProducts(),
       ]);
 
-      if (salesRes && salesRes.sales) {
-        setSales(salesRes.sales);
+      // Map Frappe sales data
+      if (salesRes && Array.isArray(salesRes)) {
+        const mappedSales = salesRes.map(sale => ({
+          id: sale.name,
+          name: sale.name,
+          sale_date: sale.transaction_date || sale.creation,
+          shop_id: sale.shop,
+          shop_name: sale.shop_name || sale.shop,
+          total_amount: sale.total_amount || 0,
+          items_count: sale.items?.length || 0,
+          notes: sale.notes,
+        }));
+        setSales(mappedSales);
       }
 
-      if (shopsRes && shopsRes.shops) {
-        setShops(shopsRes.shops);
+      // Map Frappe shops
+      if (shopsRes && Array.isArray(shopsRes)) {
+        const mappedShops = shopsRes.map(shop => ({
+          id: shop.name,
+          shop_name: shop.shop_name,
+          description: shop.description,
+        }));
+        setShops(mappedShops);
       }
 
-      if (itemsRes && itemsRes.items) {
-        setItems(itemsRes.items);
+      // Map Frappe products
+      if (itemsRes && Array.isArray(itemsRes)) {
+        const mappedItems = itemsRes.map(item => ({
+          id: item.name,
+          item_name: item.product_name || item.item_name,
+          shop_id: item.shop,
+          current_stock: item.stock_quantity || item.current_stock || 0,
+          unit_price: item.price || item.unit_price || 0,
+        }));
+        setItems(mappedItems);
       }
     } catch (error) {
       console.error("Error loading sales:", error);
-      Alert.alert("Error", "Failed to load sales data");
+      Alert.alert("Error", error.message || "Failed to load sales data");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteSale = (sale) => {
+    Alert.alert(
+      "Delete Sale",
+      `Delete sale #${sale.id}? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteSalesTransaction(sale.name || sale.id);
+              Alert.alert("Success", "Sale deleted successfully!");
+              await loadData();
+            } catch (error) {
+              console.error("Error deleting sale:", error);
+              Alert.alert("Error", error.message || "Failed to delete sale");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const onRefresh = async () => {
@@ -477,7 +527,7 @@ export default function Sales() {
                     </View>
                   </View>
 
-                  <View style={{ alignItems: "flex-end" }}>
+                  <View style={{ alignItems: "flex-end", gap: 8 }}>
                     <Text
                       style={{
                         fontSize: 18,
@@ -487,6 +537,20 @@ export default function Sales() {
                     >
                       ${sale.total_amount.toFixed(2)}
                     </Text>
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSale(sale);
+                      }}
+                      style={({ pressed }) => ({
+                        padding: 8,
+                        backgroundColor: "#FEE2E2",
+                        borderRadius: 8,
+                        opacity: pressed ? 0.7 : 1,
+                      })}
+                    >
+                      <Trash2 size={16} color="#EF4444" />
+                    </Pressable>
                   </View>
                 </View>
               </Pressable>
