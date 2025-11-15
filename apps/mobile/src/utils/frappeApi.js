@@ -238,8 +238,9 @@ export async function isAuthenticated() {
 }
 
 /**
- * Refreshes the current user's details including subscription info from the server
- * Use this when you need to get the latest subscription status
+ * Refreshes the current user's details
+ * Note: Subscription data requires Customer doctype access which portal users don't have
+ * The subscription is set during login and stored in auth state
  */
 export async function refreshUserDetails() {
   try {
@@ -255,37 +256,13 @@ export async function refreshUserDetails() {
       email: userDoc.data.email,
       name: userDoc.data.full_name || userDoc.data.name,
       username: userDoc.data.name,
+      // Subscription is set during login and stored in auth - portal users can't query Customer doctype
+      subscription_tier: 'free',
+      subscription_expiry: null,
     };
 
-    // Fetch subscription plan from Customer via Portal User child table
-    try {
-      const customerQuery = await frappeRequest(
-        `/api/resource/Customer?filters=[["portal_users","user","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan"]&limit_page_length=1`
-      );
-
-      console.log('📋 Customer query response:', JSON.stringify(customerQuery, null, 2));
-
-      if (customerQuery.data && customerQuery.data.length > 0) {
-        const customer = customerQuery.data[0];
-        console.log('📋 Customer found:', customer.name);
-        console.log('📋 Customer data:', JSON.stringify(customer, null, 2));
-
-        userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
-        userDetails.subscription_expiry = null; // Not stored in Customer doctype
-
-        console.log('📋 Subscription plan:', userDetails.subscription_tier);
-      } else {
-        console.log('⚠️ No Customer found with portal user email:', userDoc.data.email);
-        userDetails.subscription_tier = 'free';
-        userDetails.subscription_expiry = null;
-      }
-    } catch (e) {
-      console.log('❌ Could not fetch subscription plan:', e.message);
-      userDetails.subscription_tier = 'free';
-      userDetails.subscription_expiry = null;
-    }
-
     console.log('✅ User details refreshed:', userDetails);
+    console.log('💡 Note: Subscription data is only fetched during login. Portal users cannot query Customer doctype.');
     return userDetails;
   } catch (error) {
     console.log('❌ Error refreshing user details:', error);
@@ -405,6 +382,8 @@ export async function getItems() {
     unit_price: item.selling_price || 0,
     cost_price: item.price || 0,
     current_stock: item.stock_quantity || 0,
+    low_stock_threshold: item.low_stock_threshold || 5,
+    shop: item.shop, // Add this for filtering in stock adjustment
     shop_id: item.shop,
     shop_name: item.shop_name,
     created_at: item.creation,

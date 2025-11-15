@@ -28,7 +28,7 @@ export default function Profile() {
   const [refreshing, setRefreshing] = useState(false);
   const isRefreshingRef = useRef(false);
 
-  // Refresh user subscription data from server
+  // Refresh user details from server
   const handleRefresh = useCallback(async () => {
     // Prevent multiple simultaneous refreshes
     if (isRefreshingRef.current) {
@@ -43,6 +43,7 @@ export default function Profile() {
       const updatedUser = await refreshUserDetails();
 
       // Update auth in SecureStore and state
+      // Note: Subscription is preserved from login - portal users can't query Customer doctype
       const authData = await SecureStore.getItemAsync(authKey);
       if (authData) {
         const auth = JSON.parse(authData);
@@ -51,6 +52,9 @@ export default function Profile() {
           user: {
             ...auth.user,
             ...updatedUser,
+            // Preserve subscription from login since we can't re-query it
+            subscription_tier: auth.user.subscription_tier || 'free',
+            subscription_expiry: auth.user.subscription_expiry || null,
           },
         };
         await SecureStore.setItemAsync(authKey, JSON.stringify(updatedAuth));
@@ -60,7 +64,7 @@ export default function Profile() {
       console.error("Error refreshing user details:", error);
       // Don't show alert on focus refresh, only on manual refresh
       if (refreshing) {
-        Alert.alert("Error", "Failed to refresh subscription data");
+        Alert.alert("Error", "Failed to refresh user details");
       }
     } finally {
       setRefreshing(false);
