@@ -23,7 +23,7 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getSales, createSale, getShops, getItems } from "@/utils/api";
+import { getSales, createSale, getShops, getProducts, deleteSalesTransaction } from "@/utils/frappeApi";
 
 export default function Sales() {
   useRequireAuth();

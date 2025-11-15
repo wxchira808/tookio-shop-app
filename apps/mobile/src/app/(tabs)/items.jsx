@@ -15,7 +15,7 @@ import { useRequireAuth } from "@/utils/auth/useAuth";
 import { Package, Plus, Edit, Trash2, X } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getItems, createItem, getShops, updateItem, deleteItem } from "@/utils/api";
+import { getProducts, createProduct, getShops, updateProduct, deleteProduct } from "@/utils/frappeApi";
 import { getActiveShop } from "@/utils/storage";
 
 export default function Items() {
@@ -50,27 +50,49 @@ export default function Items() {
     try {
       setLoading(true);
       const [itemsRes, shopsRes, activeId] = await Promise.all([
-        getItems(),
+        getProducts(),
         getShops(),
         getActiveShop(),
       ]);
 
-      if (itemsRes && itemsRes.items) {
-        setItems(itemsRes.items);
+      // Frappe returns array directly
+      if (itemsRes && Array.isArray(itemsRes)) {
+        // Map Frappe field names to expected field names
+        const mappedItems = itemsRes.map(item => ({
+          id: item.name, // Frappe uses 'name' as primary key
+          name: item.name,
+          item_name: item.product_name || item.item_name,
+          description: item.description,
+          sku: item.sku || item.product_code,
+          unit_price: item.price || item.unit_price || 0,
+          cost_price: item.cost_price || item.cost || 0,
+          current_stock: item.stock_quantity || item.current_stock || 0,
+          low_stock_threshold: item.low_stock_threshold || 5,
+          shop_id: item.shop,
+          shop_name: item.shop_name || item.shop,
+        }));
+        setItems(mappedItems);
       }
 
-      if (shopsRes && shopsRes.shops) {
-        setShops(shopsRes.shops);
+      if (shopsRes && Array.isArray(shopsRes)) {
+        // Map Frappe shops
+        const mappedShops = shopsRes.map(shop => ({
+          id: shop.name,
+          name: shop.name,
+          shop_name: shop.shop_name,
+          description: shop.description,
+        }));
+        setShops(mappedShops);
         if (activeId) {
           setActiveShopId(activeId);
           setSelectedShopId(activeId.toString());
-        } else if (shopsRes.shops.length > 0) {
-          setSelectedShopId(shopsRes.shops[0].id.toString());
+        } else if (mappedShops.length > 0) {
+          setSelectedShopId(mappedShops[0].name);
         }
       }
     } catch (error) {
       console.error("Error loading items:", error);
-      Alert.alert("Error", "Failed to load items. Please try again.");
+      Alert.alert("Error", error.message || "Failed to load items. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -115,18 +137,23 @@ export default function Items() {
 
     try {
       setSubmitting(true);
-      const result = await createItem({
-        shop_id: parseInt(selectedShopId),
-        item_name: itemName.trim(),
-        description: description.trim() || null,
-        sku: sku.trim() || null,
+      // Map to Frappe field names
+      const result = await createProduct({
+        shop: selectedShopId, // Frappe link field
+        product_name: itemName.trim(),
+        description: description.trim() || "",
+        sku: sku.trim() || "",
+        product_code: sku.trim() || "",
+        price: parseFloat(unitPrice),
         unit_price: parseFloat(unitPrice),
         cost_price: parseFloat(costPrice),
+        cost: parseFloat(costPrice),
+        stock_quantity: currentStock ? parseInt(currentStock) : 0,
         current_stock: currentStock ? parseInt(currentStock) : 0,
         low_stock_threshold: lowStockThreshold ? parseInt(lowStockThreshold) : 5,
       });
 
-      if (result && result.item) {
+      if (result) {
         Alert.alert("Success", "Item added successfully!");
         resetForm();
         setShowAddModal(false);
@@ -158,16 +185,20 @@ export default function Items() {
 
     try {
       setSubmitting(true);
-      const result = await updateItem(editingItem.id, {
-        item_name: itemName.trim(),
-        description: description.trim() || null,
-        sku: sku.trim() || null,
+      // Map to Frappe field names (use 'name' as ID)
+      const result = await updateProduct(editingItem.name || editingItem.id, {
+        product_name: itemName.trim(),
+        description: description.trim() || "",
+        sku: sku.trim() || "",
+        product_code: sku.trim() || "",
+        price: parseFloat(unitPrice),
         unit_price: parseFloat(unitPrice),
         cost_price: parseFloat(costPrice),
+        cost: parseFloat(costPrice),
         low_stock_threshold: lowStockThreshold ? parseInt(lowStockThreshold) : 5,
       });
 
-      if (result && result.item) {
+      if (result) {
         Alert.alert("Success", "Item updated successfully!");
         resetForm();
         setShowEditModal(false);
@@ -193,12 +224,10 @@ export default function Items() {
           style: "destructive",
           onPress: async () => {
             try {
-              const result = await deleteItem(item.id);
-              
-              if (result && result.success) {
-                Alert.alert("Success", "Item deleted successfully!");
-                await loadData();
-              }
+              // Frappe uses 'name' field as primary key
+              await deleteProduct(item.name || item.id);
+              Alert.alert("Success", "Item deleted successfully!");
+              await loadData();
             } catch (error) {
               console.error("Error deleting item:", error);
               Alert.alert("Error", error.message || "Failed to delete item");
