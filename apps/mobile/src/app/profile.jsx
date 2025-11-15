@@ -43,25 +43,44 @@ export default function Profile() {
   };
 
   const getSubscriptionColor = (tier) => {
-    switch (tier) {
-      case "pro":
-        return "#10B981";
-      case "starter":
-        return "#F59E0B";
-      default:
-        return "#6B7280";
+    const tierLower = (tier || "").toLowerCase();
+    if (tierLower.includes("business") || tierLower.includes("premium")) {
+      return "#8B5CF6"; // Purple for Business/Premium
     }
+    if (tierLower.includes("pro")) {
+      return "#10B981"; // Green for Pro
+    }
+    if (tierLower.includes("starter") || tierLower.includes("basic")) {
+      return "#F59E0B"; // Orange for Starter
+    }
+    return "#6B7280"; // Gray for Free
   };
 
   const getSubscriptionLabel = (tier) => {
-    switch (tier) {
-      case "pro":
-        return "Pro - $10/month";
-      case "starter":
-        return "Starter - $4/month";
-      default:
-        return "Free Plan";
+    // Use the actual plan name from Frappe
+    if (tier && tier !== "free") {
+      return tier;
     }
+    return "Free Plan";
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getDaysUntilExpiry = () => {
+    if (!user?.subscription_expiry) return null;
+    const expiry = new Date(user.subscription_expiry);
+    const now = new Date();
+    const diff = expiry - now;
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return days;
   };
 
   if (loading) {
@@ -571,29 +590,111 @@ export default function Profile() {
                       />
                     </View>
 
+                    {/* Plan Limits */}
                     <View
                       style={{
                         backgroundColor: "#fff",
                         borderRadius: 8,
                         padding: 12,
                         marginTop: 8,
+                        gap: 8,
                       }}
                     >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#6B7280",
-                          lineHeight: 20,
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                          Shops Allowed:
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
+                          {user?.shops_allowed || 1}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                          Items Allowed:
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
+                          {user?.items_allowed || 10}
+                        </Text>
+                      </View>
+                      {user?.subscription_status && (
+                        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                            Status:
+                          </Text>
+                          <Text style={{ fontSize: 14, fontWeight: "600", color: "#10B981" }}>
+                            {user.subscription_status}
+                          </Text>
+                        </View>
+                      )}
+                      {user?.subscription_expiry && (
+                        <>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                            <Text style={{ fontSize: 14, color: "#6B7280" }}>
+                              Expires:
+                            </Text>
+                            <Text style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>
+                              {formatDate(user.subscription_expiry)}
+                            </Text>
+                          </View>
+                          {getDaysUntilExpiry() !== null && getDaysUntilExpiry() <= 7 && (
+                            <View
+                              style={{
+                                backgroundColor: "#FEF3C7",
+                                padding: 8,
+                                borderRadius: 6,
+                                marginTop: 4,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  color: "#92400E",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {getDaysUntilExpiry() > 0
+                                  ? `Expires in ${getDaysUntilExpiry()} day${getDaysUntilExpiry() !== 1 ? 's' : ''}`
+                                  : "Expired"}
+                              </Text>
+                            </View>
+                          )}
+                        </>
+                      )}
+                    </View>
+
+                    {/* Upgrade Button */}
+                    {getSubscriptionTier() === "free" && (
+                      <Pressable
+                        style={({ pressed }) => ({
+                          backgroundColor: "#10B981",
+                          borderRadius: 8,
+                          paddingVertical: 12,
+                          paddingHorizontal: 16,
+                          marginTop: 12,
+                          opacity: pressed ? 0.7 : 1,
+                        })}
+                        onPress={() => {
+                          Alert.alert(
+                            "Upgrade Plan",
+                            "Visit https://shop.tookio.co.ke/subscriptions to upgrade your plan and unlock more features!",
+                            [
+                              { text: "OK" },
+                            ]
+                          );
                         }}
                       >
-                        {getSubscriptionTier() === "free" &&
-                          "You're on the free plan. Upgrade to unlock more shops and items!"}
-                        {getSubscriptionTier() === "starter" &&
-                          "Starter plan includes 1 shop and up to 100 items."}
-                        {getSubscriptionTier() === "pro" &&
-                          "Pro plan includes up to 5 shops and unlimited items!"}
-                      </Text>
-                    </View>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: "600",
+                            color: "#fff",
+                            textAlign: "center",
+                          }}
+                        >
+                          Upgrade Plan
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
                 </View>
 
