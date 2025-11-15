@@ -238,6 +238,63 @@ export async function isAuthenticated() {
   }
 }
 
+/**
+ * Refreshes the current user's details including subscription info from the server
+ * Use this when you need to get the latest subscription status
+ */
+export async function refreshUserDetails() {
+  try {
+    console.log('🔄 Refreshing user details...');
+
+    const userInfo = await getCurrentUser();
+    const username = userInfo.message;
+
+    // Fetch full user details from User doctype
+    const userDoc = await frappeRequest(`/api/resource/User/${username}?fields=["email","full_name","name"]`);
+
+    let userDetails = {
+      email: userDoc.data.email,
+      name: userDoc.data.full_name || userDoc.data.name,
+      username: userDoc.data.name,
+    };
+
+    // Fetch subscription plan from Customer via Portal User child table
+    try {
+      const customerQuery = await frappeRequest(
+        `/api/resource/Customer?filters=[["portal_users","user","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan","custom_subscription_expiry_date"]&limit_page_length=1`
+      );
+
+      console.log('📋 Customer query response:', JSON.stringify(customerQuery, null, 2));
+
+      if (customerQuery.data && customerQuery.data.length > 0) {
+        const customer = customerQuery.data[0];
+        console.log('📋 Customer found:', customer.name);
+        console.log('📋 Customer data:', JSON.stringify(customer, null, 2));
+
+        userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
+        userDetails.subscription_expiry = customer.custom_subscription_expiry_date || null;
+
+        console.log('📋 Subscription plan:', userDetails.subscription_tier);
+        console.log('📋 Subscription expiry:', userDetails.subscription_expiry);
+      } else {
+        console.log('⚠️ No Customer found with portal user email:', userDoc.data.email);
+        userDetails.subscription_tier = 'free';
+        userDetails.subscription_expiry = null;
+      }
+    } catch (e) {
+      console.log('❌ Could not fetch subscription plan:', e.message);
+      userDetails.subscription_tier = 'free';
+      userDetails.subscription_expiry = null;
+    }
+
+    console.log('✅ User details refreshed:', userDetails);
+    return userDetails;
+  } catch (error) {
+    console.log('❌ Error refreshing user details:', error);
+    throw error;
+  }
+}
+
 // ==================== SHOP DOCTYPE ====================
 
 export async function getShops() {

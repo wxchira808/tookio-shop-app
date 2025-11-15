@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, Alert, Linking } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, Linking, RefreshControl } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -13,13 +13,49 @@ import {
   ExternalLink,
   Calendar,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useState, useCallback } from "react";
+import { refreshUserDetails } from "@/utils/frappeApi";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
-  const { signOut } = useAuth();
+  const { signOut, setAuth, auth } = useAuth();
   const { data: user, loading } = useUser();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Refresh user subscription data from server
+  const handleRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      const updatedUser = await refreshUserDetails();
+
+      // Update the auth state with fresh user data
+      if (auth) {
+        const updatedAuth = {
+          ...auth,
+          user: {
+            ...auth.user,
+            ...updatedUser,
+          },
+        };
+        setAuth(updatedAuth);
+      }
+    } catch (error) {
+      console.error("Error refreshing user details:", error);
+      Alert.alert("Error", "Failed to refresh subscription data");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [auth, setAuth]);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      handleRefresh();
+    }, [handleRefresh])
+  );
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -149,6 +185,9 @@ export default function Profile() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
       >
         {/* Profile Header Card */}
         <View style={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 }}>

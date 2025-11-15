@@ -7,6 +7,8 @@ import {
   TextInput,
   Modal,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -464,7 +466,8 @@ export default function InventoryScreen() {
       {/* Add Item Modal */}
       <Modal visible={showAddItemModal} transparent animationType="slide" onRequestClose={() => setShowAddItemModal(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
+            {/* Header - Outside KeyboardAvoidingView */}
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
               <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
                 Add New Item
@@ -474,172 +477,180 @@ export default function InventoryScreen() {
               </Pressable>
             </View>
 
-            <ScrollView style={{ maxHeight: 600 }} showsVerticalScrollIndicator={false}>
-              <View style={{ padding: 20, gap: 16 }}>
-                {/* Shop Selection */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                    Shop
-                  </Text>
-                  <View style={{ gap: 8 }}>
-                    {shops.map(shop => (
-                      <Pressable
-                        key={shop.id}
-                        onPress={() => setItemForm({ ...itemForm, shop: shop.id })}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+                  {/* Shop Selection */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Shop
+                    </Text>
+                    <View style={{ gap: 8 }}>
+                      {shops.map(shop => (
+                        <Pressable
+                          key={shop.id}
+                          onPress={() => setItemForm({ ...itemForm, shop: shop.id })}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 12,
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: itemForm.shop === shop.id ? "#6366F1" : "#F1F5F9",
+                            backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                          }}
+                        >
+                          <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
+                          <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
+                            {shop.shop_name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Item Name */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Item Name
+                    </Text>
+                    <TextInput
+                      value={itemForm.item_name}
+                      onChangeText={(text) => setItemForm({ ...itemForm, item_name: text })}
+                      placeholder="e.g., Coca Cola 500ml"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                    />
+                  </View>
+
+                  {/* Description */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Description (Optional)
+                    </Text>
+                    <TextInput
+                      value={itemForm.description}
+                      onChangeText={(text) => setItemForm({ ...itemForm, description: text })}
+                      placeholder="Additional details..."
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                      multiline
+                      numberOfLines={2}
+                    />
+                  </View>
+
+                  {/* Prices */}
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                        Selling Price
+                      </Text>
+                      <TextInput
+                        value={itemForm.unit_price}
+                        onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
+                        placeholder="0.00"
+                        keyboardType="decimal-pad"
                         style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          padding: 12,
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
                           borderRadius: 12,
-                          borderWidth: 2,
-                          borderColor: itemForm.shop === shop.id ? "#6366F1" : "#F1F5F9",
-                          backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                          padding: 14,
+                          fontSize: 15,
+                          color: "#0F172A",
                         }}
-                      >
-                        <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
-                        <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
-                          {shop.shop_name}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
+                      />
+                    </View>
 
-                {/* Item Name */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                    Item Name
-                  </Text>
-                  <TextInput
-                    value={itemForm.item_name}
-                    onChangeText={(text) => setItemForm({ ...itemForm, item_name: text })}
-                    placeholder="e.g., Coca Cola 500ml"
-                    style={{
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "#E2E8F0",
-                      borderRadius: 12,
-                      padding: 14,
-                      fontSize: 15,
-                      color: "#0F172A",
-                    }}
-                  />
-                </View>
-
-                {/* Description */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                    Description (Optional)
-                  </Text>
-                  <TextInput
-                    value={itemForm.description}
-                    onChangeText={(text) => setItemForm({ ...itemForm, description: text })}
-                    placeholder="Additional details..."
-                    style={{
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "#E2E8F0",
-                      borderRadius: 12,
-                      padding: 14,
-                      fontSize: 15,
-                      color: "#0F172A",
-                    }}
-                    multiline
-                    numberOfLines={2}
-                  />
-                </View>
-
-                {/* Prices */}
-                <View style={{ flexDirection: "row", gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Selling Price
-                    </Text>
-                    <TextInput
-                      value={itemForm.unit_price}
-                      onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
-                      placeholder="0.00"
-                      keyboardType="decimal-pad"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                        Cost Price
+                      </Text>
+                      <TextInput
+                        value={itemForm.cost_price}
+                        onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })}
+                        placeholder="0.00"
+                        keyboardType="decimal-pad"
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 14,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                      />
+                    </View>
                   </View>
 
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Cost Price
-                    </Text>
-                    <TextInput
-                      value={itemForm.cost_price}
-                      onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })}
-                      placeholder="0.00"
-                      keyboardType="decimal-pad"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                    />
+                  {/* Stock */}
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                        Initial Stock
+                      </Text>
+                      <TextInput
+                        value={itemForm.current_stock}
+                        onChangeText={(text) => setItemForm({ ...itemForm, current_stock: text })}
+                        placeholder="0"
+                        keyboardType="number-pad"
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 14,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                      />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                        Low Stock Alert
+                      </Text>
+                      <TextInput
+                        value={itemForm.low_stock_threshold}
+                        onChangeText={(text) => setItemForm({ ...itemForm, low_stock_threshold: text })}
+                        placeholder="5"
+                        keyboardType="number-pad"
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 14,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                      />
+                    </View>
                   </View>
                 </View>
+              </ScrollView>
 
-                {/* Stock */}
-                <View style={{ flexDirection: "row", gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Initial Stock
-                    </Text>
-                    <TextInput
-                      value={itemForm.current_stock}
-                      onChangeText={(text) => setItemForm({ ...itemForm, current_stock: text })}
-                      placeholder="0"
-                      keyboardType="number-pad"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                    />
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Low Stock Alert
-                    </Text>
-                    <TextInput
-                      value={itemForm.low_stock_threshold}
-                      onChangeText={(text) => setItemForm({ ...itemForm, low_stock_threshold: text })}
-                      placeholder="5"
-                      keyboardType="number-pad"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                    />
-                  </View>
-                </View>
-
-                {/* Submit Button */}
+              {/* Submit Button - Footer outside ScrollView but inside KeyboardAvoidingView */}
+              <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
                 <Pressable
                   onPress={handleAddItem}
                   style={({ pressed }) => ({
@@ -647,7 +658,6 @@ export default function InventoryScreen() {
                     borderRadius: 12,
                     paddingVertical: 16,
                     alignItems: "center",
-                    marginTop: 8,
                     opacity: pressed ? 0.9 : 1,
                   })}
                 >
@@ -656,7 +666,7 @@ export default function InventoryScreen() {
                   </Text>
                 </Pressable>
               </View>
-            </ScrollView>
+            </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>
@@ -664,7 +674,8 @@ export default function InventoryScreen() {
       {/* Bulk Stock Adjustment Modal */}
       <Modal visible={showStockAdjustModal} transparent animationType="slide" onRequestClose={() => setShowStockAdjustModal(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom, maxHeight: "90%" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
+            {/* Header - Outside KeyboardAvoidingView */}
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
               <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
                 Bulk Stock Adjustment
@@ -674,8 +685,13 @@ export default function InventoryScreen() {
               </Pressable>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={{ padding: 20, gap: 20 }}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
                 {/* Shop Selection */}
                 <View>
                   <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
@@ -929,8 +945,12 @@ export default function InventoryScreen() {
                   </View>
                 )}
 
-                {/* Submit Button */}
-                {adjustmentShop && adjustmentItems.length > 0 && (
+                </View>
+              </ScrollView>
+
+              {/* Submit Button - Footer outside ScrollView but inside KeyboardAvoidingView */}
+              {adjustmentShop && adjustmentItems.length > 0 && (
+                <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
                   <Pressable
                     onPress={handleBulkStockAdjustment}
                     style={({ pressed }) => ({
@@ -938,7 +958,6 @@ export default function InventoryScreen() {
                       borderRadius: 12,
                       paddingVertical: 16,
                       alignItems: "center",
-                      marginTop: 8,
                       opacity: pressed ? 0.9 : 1,
                     })}
                   >
@@ -946,9 +965,9 @@ export default function InventoryScreen() {
                       {adjustmentType === "Add Stock" ? "Add Stock" : "Remove Stock"}
                     </Text>
                   </Pressable>
-                )}
-              </View>
-            </ScrollView>
+                </View>
+              )}
+            </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>
