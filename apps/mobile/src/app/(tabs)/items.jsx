@@ -220,6 +220,21 @@ export default function InventoryScreen() {
   // Get items for selected shop (for stock adjustment)
   const shopItems = items.filter(item => item.shop === adjustmentShop);
 
+  // Debug: Log shop items when shop is selected
+  useEffect(() => {
+    if (adjustmentShop) {
+      console.log('🏪 Selected shop for adjustment:', adjustmentShop);
+      console.log('📦 Total items loaded:', items.length);
+      console.log('📦 Shop items found:', shopItems.length);
+      if (items.length > 0) {
+        console.log('📦 First item shop field:', items[0].shop);
+      }
+      if (shopItems.length > 0) {
+        console.log('📦 First shop item:', JSON.stringify(shopItems[0], null, 2));
+      }
+    }
+  }, [adjustmentShop, items, shopItems.length]);
+
   const totalInventoryValue = filteredItems.reduce((sum, item) => {
     return sum + (item.unit_price || 0) * (item.current_stock || 0);
   }, 0);
