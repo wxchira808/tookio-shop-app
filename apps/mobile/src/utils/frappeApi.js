@@ -717,6 +717,38 @@ export async function createStockTransaction(transactionData) {
   return response.data;
 }
 
+export async function createBulkStockAdjustment(adjustmentData) {
+  // adjustmentData: { shop, purpose, items: [{ product, quantity }] }
+  const frappeData = {
+    doctype: 'Product Stock',
+    shop: adjustmentData.shop,
+    date: new Date().toISOString().split('T')[0],
+    purpose: adjustmentData.purpose, // "Add Stock" or "Remove Stock"
+    prodcuts: adjustmentData.items.map(item => ({
+      doctype: 'Product Stock Item',  // Required for child table
+      product: item.product,
+      quantity: Math.abs(parseFloat(item.quantity) || 0),
+    })),
+  };
+
+  const response = await frappeRequest('/api/resource/Product Stock', {
+    method: 'POST',
+    body: JSON.stringify(frappeData),
+  });
+
+  // Submit to apply stock changes
+  try {
+    await frappeRequest(`/api/resource/Product Stock/${response.data.name}`, {
+      method: 'PUT',
+      body: JSON.stringify({ docstatus: 1 }),
+    });
+  } catch (e) {
+    console.log('Could not auto-submit stock adjustment:', e.message);
+  }
+
+  return response.data;
+}
+
 // ==================== PURCHASES ====================
 
 export async function getPurchases() {

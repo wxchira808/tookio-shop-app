@@ -7,44 +7,62 @@ import {
   TextInput,
   Modal,
   RefreshControl,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth } from "@/utils/auth/useAuth";
-import { Package, Plus, Edit, Trash2, X } from "lucide-react-native";
-import { router } from "expo-router";
+import {
+  Package,
+  Plus,
+  TrendingUp,
+  TrendingDown,
+  X,
+  Store,
+  ArrowUpDown,
+  CheckCircle,
+  Minus,
+  Search,
+} from "lucide-react-native";
 import { useState, useEffect } from "react";
-import { getItems, createItem, getShops, updateItem, deleteItem } from "@/utils/frappeApi";
-import { getActiveShop } from "@/utils/storage";
+import {
+  getItems,
+  createItem,
+  getShops,
+  createBulkStockAdjustment,
+  getStockTransactions,
+} from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
 
-export default function Items() {
+export default function InventoryScreen() {
   useRequireAuth();
   const insets = useSafeAreaInsets();
 
   const [items, setItems] = useState([]);
   const [shops, setShops] = useState([]);
+  const [stockHistory, setStockHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [activeShopId, setActiveShopId] = useState(null);
-  const [filterShopId, setFilterShopId] = useState(null); // For list view filtering
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [showStockAdjustModal, setShowStockAdjustModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedShop, setSelectedShop] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Form states
-  const [itemName, setItemName] = useState("");
-  const [description, setDescription] = useState("");
-  const [sellingPrice, setSellingPrice] = useState("");
-  const [buyingPrice, setBuyingPrice] = useState("");
-  const [currentStock, setCurrentStock] = useState("");
-  const [lowStockThreshold, setLowStockThreshold] = useState("5");
-  const [selectedShopId, setSelectedShopId] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  // Add Item Form
+  const [itemForm, setItemForm] = useState({
+    shop: "",
+    item_name: "",
+    description: "",
+    unit_price: "",
+    cost_price: "",
+    current_stock: "0",
+    low_stock_threshold: "5",
+  });
+
+  // Stock Adjustment
+  const [adjustmentShop, setAdjustmentShop] = useState("");
+  const [adjustmentType, setAdjustmentType] = useState("Add Stock"); // Add Stock or Remove Stock
+  const [adjustmentItems, setAdjustmentItems] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -53,28 +71,22 @@ export default function Items() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [itemsRes, shopsRes, activeId] = await Promise.all([
+      const [itemsRes, shopsRes, stockRes] = await Promise.all([
         getItems(),
         getShops(),
-        getActiveShop(),
+        getStockTransactions(),
       ]);
 
-      if (itemsRes && itemsRes.items) {
-        setItems(itemsRes.items);
-      }
+      setItems(itemsRes?.items || []);
+      setShops(shopsRes?.shops || []);
+      setStockHistory(stockRes?.transactions || []);
 
-      if (shopsRes && shopsRes.shops) {
-        setShops(shopsRes.shops);
-        if (activeId) {
-          setActiveShopId(activeId);
-          setSelectedShopId(activeId.toString());
-        } else if (shopsRes.shops.length > 0) {
-          setSelectedShopId(shopsRes.shops[0].id.toString());
-        }
+      if (shopsRes?.shops?.length > 0 && !selectedShop) {
+        setSelectedShop(shopsRes.shops[0].id);
       }
     } catch (error) {
-      console.error("Error loading items:", error);
-      Alert.alert("Error", "Failed to load items. Please try again.");
+      console.error("Error loading data:", error);
+      Alert.alert("Error", "Failed to load inventory data");
     } finally {
       setLoading(false);
     }
@@ -86,851 +98,808 @@ export default function Items() {
     setRefreshing(false);
   };
 
-  const resetForm = () => {
-    setItemName("");
-    setDescription("");
-    setSellingPrice("");
-    setBuyingPrice("");
-    setCurrentStock("");
-    setLowStockThreshold("5");
-  };
-
   const handleAddItem = async () => {
-    if (!itemName.trim()) {
-      Alert.alert("Error", "Please enter item name");
-      return;
-    }
-
-    if (!selectedShopId) {
-      Alert.alert("Error", "Please select a shop");
-      return;
-    }
-
-    if (!sellingPrice || parseFloat(sellingPrice) < 0) {
-      Alert.alert("Error", "Please enter a valid selling price");
-      return;
-    }
-
-    if (!buyingPrice || parseFloat(buyingPrice) < 0) {
-      Alert.alert("Error", "Please enter a valid buying price");
+    if (!itemForm.shop || !itemForm.item_name || !itemForm.unit_price || !itemForm.cost_price) {
+      Alert.alert("Missing Fields", "Please fill in shop, name, and prices");
       return;
     }
 
     try {
-      setSubmitting(true);
-      const result = await createItem({
-        shop_id: selectedShopId,  // Pass as string (shop name), not integer
-        item_name: itemName.trim(),
-        description: description.trim() || null,
-        unit_price: parseFloat(sellingPrice),  // Frappe field name
-        cost_price: parseFloat(buyingPrice),    // Frappe field name
-        current_stock: currentStock ? parseInt(currentStock) : 0,
-        low_stock_threshold: lowStockThreshold ? parseInt(lowStockThreshold) : 5,
+      await createItem({
+        shop_id: itemForm.shop,
+        item_name: itemForm.item_name.trim(),
+        description: itemForm.description.trim(),
+        unit_price: parseFloat(itemForm.unit_price),
+        cost_price: parseFloat(itemForm.cost_price),
+        current_stock: parseInt(itemForm.current_stock) || 0,
+        low_stock_threshold: parseInt(itemForm.low_stock_threshold) || 5,
       });
 
-      if (result && result.item) {
-        Alert.alert("Success", "Item added successfully!");
-        resetForm();
-        setShowAddModal(false);
-        await loadData();
-      }
+      Alert.alert("Success", "Item added successfully");
+      setShowAddItemModal(false);
+      resetItemForm();
+      await loadData();
     } catch (error) {
       console.error("Error creating item:", error);
-      Alert.alert("Error", error.message || "Failed to create item");
-    } finally {
-      setSubmitting(false);
+      Alert.alert("Error", "Failed to create item");
     }
   };
 
-  const handleEditItem = async () => {
-    if (!itemName.trim()) {
-      Alert.alert("Error", "Please enter item name");
+  const handleBulkStockAdjustment = async () => {
+    if (!adjustmentShop) {
+      Alert.alert("Missing Shop", "Please select a shop");
       return;
     }
 
-    if (!sellingPrice || parseFloat(sellingPrice) < 0) {
-      Alert.alert("Error", "Please enter a valid selling price");
-      return;
-    }
-
-    if (!buyingPrice || parseFloat(buyingPrice) < 0) {
-      Alert.alert("Error", "Please enter a valid buying price");
+    const itemsWithQty = adjustmentItems.filter(item => item.quantity > 0);
+    if (itemsWithQty.length === 0) {
+      Alert.alert("No Items", "Please add at least one item with quantity");
       return;
     }
 
     try {
-      setSubmitting(true);
-      const result = await updateItem(editingItem.id, {
-        item_name: itemName.trim(),
-        description: description.trim() || null,
-        unit_price: parseFloat(sellingPrice),  // Frappe field name
-        cost_price: parseFloat(buyingPrice),    // Frappe field name
-        low_stock_threshold: lowStockThreshold ? parseInt(lowStockThreshold) : 5,
+      await createBulkStockAdjustment({
+        shop: adjustmentShop,
+        purpose: adjustmentType,
+        items: itemsWithQty.map(item => ({
+          product: item.product_id,
+          quantity: item.quantity,
+        })),
       });
 
-      if (result && result.item) {
-        Alert.alert("Success", "Item updated successfully!");
-        resetForm();
-        setShowEditModal(false);
-        setEditingItem(null);
-        await loadData();
-      }
+      Alert.alert("Success", `Stock ${adjustmentType === "Add Stock" ? "added" : "removed"} successfully`);
+      setShowStockAdjustModal(false);
+      resetStockAdjustment();
+      await loadData();
     } catch (error) {
-      console.error("Error updating item:", error);
-      Alert.alert("Error", error.message || "Failed to update item");
-    } finally {
-      setSubmitting(false);
+      console.error("Error adjusting stock:", error);
+      Alert.alert("Error", "Failed to adjust stock");
     }
   };
 
-  const handleDeleteItem = (item) => {
-    Alert.alert(
-      "Delete Item",
-      `Are you sure you want to delete "${item.item_name}"? This will also delete all associated transactions.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const result = await deleteItem(item.id);
-              
-              if (result && result.success) {
-                Alert.alert("Success", "Item deleted successfully!");
-                await loadData();
-              }
-            } catch (error) {
-              console.error("Error deleting item:", error);
-              Alert.alert("Error", error.message || "Failed to delete item");
-            }
-          },
-        },
-      ]
-    );
+  const resetItemForm = () => {
+    setItemForm({
+      shop: "",
+      item_name: "",
+      description: "",
+      unit_price: "",
+      cost_price: "",
+      current_stock: "0",
+      low_stock_threshold: "5",
+    });
   };
 
-  const openEditModal = (item) => {
-    setEditingItem(item);
-    setItemName(item.item_name);
-    setDescription(item.description || "");
-    setSellingPrice(item.unit_price.toString());
-    setBuyingPrice(item.cost_price.toString());
-    setCurrentStock(item.current_stock.toString());
-    setLowStockThreshold(item.low_stock_threshold?.toString() || "5");
-    setSelectedShopId(item.shop_id.toString());
-    setShowEditModal(true);
+  const resetStockAdjustment = () => {
+    setAdjustmentShop("");
+    setAdjustmentType("Add Stock");
+    setAdjustmentItems([]);
   };
 
-  const openAddModal = () => {
-    resetForm();
-    if (activeShopId) {
-      setSelectedShopId(activeShopId.toString());
-    }
-    setShowAddModal(true);
+  const addItemToAdjustment = () => {
+    setAdjustmentItems([...adjustmentItems, { product_id: "", quantity: 0 }]);
   };
 
-  const getStockStatusColor = (stock) => {
-    if (stock === 0) return "#EF4444";
-    if (stock < 5) return "#F59E0B";
-    return "#10B981";
+  const removeItemFromAdjustment = (index) => {
+    setAdjustmentItems(adjustmentItems.filter((_, i) => i !== index));
   };
 
-  const getStockStatusText = (stock) => {
-    if (stock === 0) return "Out of Stock";
-    if (stock < 5) return "Low Stock";
-    return "In Stock";
+  const updateAdjustmentItem = (index, field, value) => {
+    const updated = [...adjustmentItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setAdjustmentItems(updated);
   };
 
-  // Filter items by shop filter and search query
-  const displayItems = items.filter((item) => {
-    // Filter by selected shop if one is selected
-    if (filterShopId && item.shop_id !== filterShopId) {
-      return false;
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        (item.item_name && item.item_name.toLowerCase().includes(query)) ||
-        (item.description && item.description.toLowerCase().includes(query)) ||
-        (item.sku && item.sku.toLowerCase().includes(query))
-      );
-    }
-
-    return true;
+  // Filter items
+  const filteredItems = items.filter(item => {
+    const matchesShop = !selectedShop || item.shop === selectedShop;
+    const matchesSearch = !searchQuery ||
+      item.item_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesShop && matchesSearch;
   });
 
-  if (loading && items.length === 0) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#F8FAFC",
-          paddingTop: insets.top,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color="#10B981" />
-        <Text style={{ fontSize: 16, color: "#6B7280", marginTop: 12 }}>
-          Loading items...
-        </Text>
-      </View>
-    );
-  }
+  // Get items for selected shop (for stock adjustment)
+  const shopItems = items.filter(item => item.shop === adjustmentShop);
+
+  const totalInventoryValue = filteredItems.reduce((sum, item) => {
+    return sum + (item.unit_price || 0) * (item.current_stock || 0);
+  }, 0);
+
+  const lowStockItems = filteredItems.filter(
+    item => item.current_stock <= (item.low_stock_threshold || 5)
+  );
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: "#F8FAFC", paddingTop: insets.top }}
-    >
+    <View style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}>
       <StatusBar style="dark" />
 
       {/* Header */}
       <View
         style={{
           paddingHorizontal: 20,
-          paddingVertical: 20,
-          backgroundColor: "#fff",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
+          paddingVertical: 16,
+          backgroundColor: "#FFFFFF",
+          borderBottomWidth: 1,
+          borderBottomColor: "#F1F5F9",
         }}
       >
-        <View>
-          <Text style={{ fontSize: 24, fontWeight: "bold", color: "#1F2937" }}>
-            Items
-          </Text>
-          <Text style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}>
-            {displayItems.length} item{displayItems.length !== 1 ? "s" : ""}
-            {activeShopId ? " in active shop" : " across all shops"}
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={openAddModal}
-          style={({ pressed }) => ({
-            backgroundColor: "#10B981",
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 8,
-            flexDirection: "row",
-            alignItems: "center",
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <Plus size={16} color="#fff" />
-          <Text style={{ color: "#fff", marginLeft: 4, fontWeight: "600" }}>
-            Add Item
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Search and Filter Bar */}
-      <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB", gap: 12 }}>
-        {/* Search Input */}
-        <TextInput
-          style={{
-            backgroundColor: "#F3F4F6",
-            borderRadius: 8,
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            fontSize: 16,
-            color: "#1F2937",
-          }}
-          placeholder="Search items by name or description..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#9CA3AF"
-          returnKeyType="search"
-        />
-
-        {/* Shop Filter */}
-        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-          <Pressable
-            onPress={() => setFilterShopId(null)}
-            style={({ pressed }) => ({
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 20,
-              backgroundColor: !filterShopId ? "#10B981" : "#F3F4F6",
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: !filterShopId ? "#fff" : "#6B7280",
-              }}
-            >
-              All Shops
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
+              Inventory
             </Text>
-          </Pressable>
+            <Text style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
+              Items & Stock Management
+            </Text>
+          </View>
 
-          {shops.map((shop) => (
+          <View style={{ flexDirection: "row", gap: 8 }}>
             <Pressable
-              key={shop.id}
-              onPress={() => setFilterShopId(shop.id)}
+              onPress={() => setShowStockAdjustModal(true)}
               style={({ pressed }) => ({
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 20,
-                backgroundColor: filterShopId === shop.id ? "#10B981" : "#F3F4F6",
-                opacity: pressed ? 0.7 : 1,
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                borderRadius: 12,
+                backgroundColor: pressed ? "#5B21B6" : "#6366F1",
+                flexDirection: "row",
+                alignItems: "center",
               })}
             >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "600",
-                  color: filterShopId === shop.id ? "#fff" : "#6B7280",
-                }}
-              >
-                {shop.shop_name}
+              <ArrowUpDown size={18} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={{ fontSize: 14, fontWeight: "700", color: "#FFFFFF", marginLeft: 6 }}>
+                Adjust
               </Text>
             </Pressable>
-          ))}
+
+            <Pressable
+              onPress={() => setShowAddItemModal(true)}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: pressed ? "#059669" : "#10B981",
+                alignItems: "center",
+                justifyContent: "center",
+              })}
+            >
+              <Plus size={22} color="#FFFFFF" strokeWidth={2.5} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Search Bar */}
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
+          <Search size={18} color="#94A3B8" strokeWidth={2} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search items..."
+            placeholderTextColor="#94A3B8"
+            style={{ flex: 1, marginLeft: 10, fontSize: 15, color: "#0F172A" }}
+          />
         </View>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {displayItems.length > 0 ? (
-          <View style={{ padding: 20 }}>
-            {displayItems.map((item) => (
-              <View
-                key={item.id}
-                style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 12,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 4,
-                  elevation: 2,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      flex: 1,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
-                        backgroundColor: "#10B98115",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 16,
-                      }}
-                    >
-                      <Package size={24} color="#10B981" />
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "600",
-                          color: "#1F2937",
-                        }}
-                      >
-                        {item.item_name}
-                      </Text>
-                      <Text
-                        style={{ fontSize: 14, color: "#6B7280", marginTop: 4 }}
-                      >
-                        {item.shop_name}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "600",
-                          color: getStockStatusColor(item.current_stock),
-                          marginTop: 4,
-                        }}
-                      >
-                        Stock: {item.current_stock} units
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Action Buttons */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    gap: 8,
-                    marginTop: 12,
-                    paddingTop: 12,
-                    borderTopWidth: 1,
-                    borderTopColor: "#F3F4F6",
-                  }}
-                >
-                  <Pressable
-                    onPress={() => openEditModal(item)}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      backgroundColor: "#F59E0B15",
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    <Edit size={16} color="#F59E0B" />
-                    <Text
-                      style={{
-                        color: "#F59E0B",
-                        marginLeft: 4,
-                        fontWeight: "600",
-                        fontSize: 14,
-                      }}
-                    >
-                      Edit
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => handleDeleteItem(item)}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      backgroundColor: "#EF444415",
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    <Trash2 size={16} color="#EF4444" />
-                    <Text
-                      style={{
-                        color: "#EF4444",
-                        marginLeft: 4,
-                        fontWeight: "600",
-                        fontSize: 14,
-                      }}
-                    >
-                      Delete
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View
-            style={{
-              flex: 1,
-              alignItems: "center",
-              justifyContent: "center",
-              paddingHorizontal: 40,
-              paddingTop: 100,
-            }}
-          >
-            <View
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                backgroundColor: "#F3F4F6",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 24,
-              }}
-            >
-              <Package size={32} color="#9CA3AF" />
+        {/* Stats Cards */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
+            <View style={{ flex: 1, backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#F1F5F9" }}>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                TOTAL VALUE
+              </Text>
+              <Text style={{ fontSize: 20, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
+                {formatCurrency(totalInventoryValue, false)}
+              </Text>
             </View>
 
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: "600",
-                color: "#1F2937",
-                textAlign: "center",
-                marginBottom: 8,
-              }}
-            >
-              No Items Yet
-            </Text>
+            <View style={{ flex: 1, backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#F1F5F9" }}>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                LOW STOCK
+              </Text>
+              <Text style={{ fontSize: 20, fontWeight: "800", color: lowStockItems.length > 0 ? "#EF4444" : "#0F172A", letterSpacing: -0.5 }}>
+                {lowStockItems.length}
+              </Text>
+            </View>
+          </View>
+        </View>
 
-            <Text
-              style={{
-                fontSize: 16,
-                color: "#6B7280",
-                textAlign: "center",
-                marginBottom: 32,
-                lineHeight: 24,
-              }}
-            >
-              {shops.length === 0
-                ? "Create a shop first, then add products to track inventory"
-                : "Add your first product to start tracking inventory levels"}
-            </Text>
-
-            {shops.length > 0 && (
+        {/* Shop Filter */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <Pressable
-                onPress={openAddModal}
-                style={({ pressed }) => ({
-                  backgroundColor: "#10B981",
-                  paddingHorizontal: 24,
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  opacity: pressed ? 0.7 : 1,
-                })}
+                onPress={() => setSelectedShop("")}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: !selectedShop ? "#0F172A" : "#FFFFFF",
+                  borderWidth: 1,
+                  borderColor: !selectedShop ? "#0F172A" : "#E2E8F0",
+                }}
               >
-                <Plus size={20} color="#fff" />
-                <Text
-                  style={{
-                    color: "#fff",
-                    marginLeft: 8,
-                    fontWeight: "600",
-                    fontSize: 16,
-                  }}
-                >
-                  Add First Item
+                <Text style={{ fontSize: 13, fontWeight: "600", color: !selectedShop ? "#FFFFFF" : "#64748B" }}>
+                  All Shops
                 </Text>
               </Pressable>
-            )}
-          </View>
-        )}
-      </ScrollView>
 
-      {/* Add/Edit Item Modal */}
-      <Modal
-        visible={showAddModal || showEditModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => {
-          setShowAddModal(false);
-          setShowEditModal(false);
-          setEditingItem(null);
-        }}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              height: "90%",
-              paddingBottom: insets.bottom,
-            }}
-          >
+              {shops.map(shop => (
+                <Pressable
+                  key={shop.id}
+                  onPress={() => setSelectedShop(shop.id)}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: selectedShop === shop.id ? "#0F172A" : "#FFFFFF",
+                    borderWidth: 1,
+                    borderColor: selectedShop === shop.id ? "#0F172A" : "#E2E8F0",
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: selectedShop === shop.id ? "#FFFFFF" : "#64748B" }}>
+                    {shop.shop_name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Items List */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748B", textTransform: "uppercase", letterSpacing: 1 }}>
+              Items ({filteredItems.length})
+            </Text>
+            <Pressable onPress={() => setShowHistoryModal(true)}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "#6366F1" }}>
+                View History
+              </Text>
+            </Pressable>
+          </View>
+
+          {loading && filteredItems.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 48 }}>
+              <Text style={{ fontSize: 14, color: "#94A3B8" }}>Loading items...</Text>
+            </View>
+          ) : filteredItems.length === 0 ? (
             <View
               style={{
-                flexDirection: "row",
+                backgroundColor: "#FFFFFF",
+                borderRadius: 16,
+                padding: 32,
                 alignItems: "center",
-                justifyContent: "space-between",
-                padding: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: "#E5E7EB",
+                borderWidth: 1,
+                borderColor: "#F1F5F9",
               }}
             >
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "bold",
-                  color: "#1F2937",
-                }}
-              >
-                {showEditModal ? "Edit Item" : "Add New Item"}
+              <Package size={48} color="#CBD5E1" strokeWidth={1.5} />
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A", marginTop: 16 }}>
+                No Items Yet
               </Text>
-              <Pressable
-                onPress={() => {
-                  setShowAddModal(false);
-                  setShowEditModal(false);
-                  setEditingItem(null);
-                }}
-                style={{ padding: 4 }}
-              >
-                <X size={24} color="#6B7280" />
+              <Text style={{ fontSize: 14, color: "#64748B", textAlign: "center", marginTop: 8 }}>
+                Start by adding your first product
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 8 }}>
+              {filteredItems.map(item => {
+                const isLowStock = item.current_stock <= (item.low_stock_threshold || 5);
+                const stockColor = item.current_stock === 0 ? "#EF4444" : isLowStock ? "#F59E0B" : "#10B981";
+
+                return (
+                  <View
+                    key={item.id}
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: 12,
+                      padding: 14,
+                      borderWidth: 1,
+                      borderColor: "#F1F5F9",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                      <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A", flex: 1 }}>
+                        {item.item_name}
+                      </Text>
+                      <View
+                        style={{
+                          backgroundColor: stockColor + "15",
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: "700", color: stockColor }}>
+                          {item.current_stock || 0} in stock
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <View>
+                        <Text style={{ fontSize: 13, color: "#64748B" }}>
+                          {item.shop_name || item.shop}
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#0F172A", marginTop: 2 }}>
+                          {formatCurrency(item.unit_price || 0, false)}
+                        </Text>
+                      </View>
+
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
+                        Value: {formatCurrency((item.unit_price || 0) * (item.current_stock || 0), false)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Add Item Modal */}
+      <Modal visible={showAddItemModal} transparent animationType="slide" onRequestClose={() => setShowAddItemModal(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
+                Add New Item
+              </Text>
+              <Pressable onPress={() => { setShowAddItemModal(false); resetItemForm(); }}>
+                <X size={24} color="#64748B" strokeWidth={2} />
               </Pressable>
             </View>
 
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={{ flex: 1 }}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-            >
-              <ScrollView
-                style={{ flex: 1 }}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={true}
-              >
-                <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+            <ScrollView style={{ maxHeight: 600 }} showsVerticalScrollIndicator={false}>
+              <View style={{ padding: 20, gap: 16 }}>
                 {/* Shop Selection */}
-                {!showEditModal && (
-                  <View>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#374151",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Shop *
-                    </Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      <View style={{ flexDirection: "row", gap: 8 }}>
-                        {shops.map((shop) => (
-                          <Pressable
-                            key={shop.id}
-                            onPress={() =>
-                              setSelectedShopId(shop.id.toString())
-                            }
-                            style={{
-                              paddingHorizontal: 16,
-                              paddingVertical: 10,
-                              borderRadius: 20,
-                              backgroundColor:
-                                selectedShopId === shop.id.toString()
-                                  ? "#10B981"
-                                  : "#F3F4F6",
-                            }}
-                          >
-                            <Text
-                              style={{
-                                fontSize: 14,
-                                fontWeight: "500",
-                                color:
-                                  selectedShopId === shop.id.toString()
-                                    ? "#fff"
-                                    : "#6B7280",
-                              }}
-                            >
-                              {shop.shop_name}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </ScrollView>
+                <View>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                    Shop
+                  </Text>
+                  <View style={{ gap: 8 }}>
+                    {shops.map(shop => (
+                      <Pressable
+                        key={shop.id}
+                        onPress={() => setItemForm({ ...itemForm, shop: shop.id })}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 12,
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor: itemForm.shop === shop.id ? "#6366F1" : "#F1F5F9",
+                          backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                        }}
+                      >
+                        <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
+                        <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
+                          {shop.shop_name}
+                        </Text>
+                      </Pressable>
+                    ))}
                   </View>
-                )}
+                </View>
 
                 {/* Item Name */}
                 <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#374151",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Item Name *
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                    Item Name
                   </Text>
                   <TextInput
-                    value={itemName}
-                    onChangeText={setItemName}
-                    placeholder="Enter item name"
+                    value={itemForm.item_name}
+                    onChangeText={(text) => setItemForm({ ...itemForm, item_name: text })}
+                    placeholder="e.g., Coca Cola 500ml"
                     style={{
+                      backgroundColor: "#F8FAFC",
                       borderWidth: 1,
-                      borderColor: "#E5E7EB",
+                      borderColor: "#E2E8F0",
                       borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      fontSize: 16,
-                      backgroundColor: "#fff",
+                      padding: 14,
+                      fontSize: 15,
+                      color: "#0F172A",
                     }}
                   />
                 </View>
 
                 {/* Description */}
                 <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#374151",
-                      marginBottom: 8,
-                    }}
-                  >
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
                     Description (Optional)
                   </Text>
                   <TextInput
-                    value={description}
-                    onChangeText={setDescription}
-                    placeholder="Enter description"
+                    value={itemForm.description}
+                    onChangeText={(text) => setItemForm({ ...itemForm, description: text })}
+                    placeholder="Additional details..."
+                    style={{
+                      backgroundColor: "#F8FAFC",
+                      borderWidth: 1,
+                      borderColor: "#E2E8F0",
+                      borderRadius: 12,
+                      padding: 14,
+                      fontSize: 15,
+                      color: "#0F172A",
+                    }}
                     multiline
                     numberOfLines={2}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: "#E5E7EB",
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      fontSize: 16,
-                      backgroundColor: "#fff",
-                      textAlignVertical: "top",
-                    }}
                   />
                 </View>
 
-                {/* Pricing Row */}
+                {/* Prices */}
                 <View style={{ flexDirection: "row", gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#374151",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Buying Price *
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Selling Price
                     </Text>
                     <TextInput
-                      value={buyingPrice}
-                      onChangeText={setBuyingPrice}
+                      value={itemForm.unit_price}
+                      onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
                       placeholder="0.00"
                       keyboardType="decimal-pad"
-                      selectTextOnFocus={true}
                       style={{
+                        backgroundColor: "#F8FAFC",
                         borderWidth: 1,
-                        borderColor: "#E5E7EB",
+                        borderColor: "#E2E8F0",
                         borderRadius: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 12,
-                        fontSize: 16,
-                        backgroundColor: "#fff",
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
                       }}
                     />
                   </View>
 
                   <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#374151",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Selling Price *
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Cost Price
                     </Text>
                     <TextInput
-                      value={sellingPrice}
-                      onChangeText={setSellingPrice}
+                      value={itemForm.cost_price}
+                      onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })}
                       placeholder="0.00"
                       keyboardType="decimal-pad"
-                      selectTextOnFocus={true}
                       style={{
+                        backgroundColor: "#F8FAFC",
                         borderWidth: 1,
-                        borderColor: "#E5E7EB",
+                        borderColor: "#E2E8F0",
                         borderRadius: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 12,
-                        fontSize: 16,
-                        backgroundColor: "#fff",
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
                       }}
                     />
                   </View>
                 </View>
 
-                {/* Low Stock Alert */}
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#374151",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Low Stock Alert
-                  </Text>
-                  <TextInput
-                    value={lowStockThreshold}
-                    onChangeText={setLowStockThreshold}
-                    placeholder="5"
-                    keyboardType="numeric"
-                    selectTextOnFocus={true}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: "#E5E7EB",
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      fontSize: 16,
-                      backgroundColor: "#fff",
-                    }}
-                  />
-                </View>
-              </View>
-              </ScrollView>
+                {/* Stock */}
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Initial Stock
+                    </Text>
+                    <TextInput
+                      value={itemForm.current_stock}
+                      onChangeText={(text) => setItemForm({ ...itemForm, current_stock: text })}
+                      placeholder="0"
+                      keyboardType="number-pad"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                    />
+                  </View>
 
-              <View
-                style={{
-                  padding: 20,
-                  paddingBottom: insets.bottom + 20,
-                  borderTopWidth: 1,
-                  borderTopColor: "#E5E7EB",
-                }}
-              >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Low Stock Alert
+                    </Text>
+                    <TextInput
+                      value={itemForm.low_stock_threshold}
+                      onChangeText={(text) => setItemForm({ ...itemForm, low_stock_threshold: text })}
+                      placeholder="5"
+                      keyboardType="number-pad"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                    />
+                  </View>
+                </View>
+
+                {/* Submit Button */}
                 <Pressable
-                  onPress={showEditModal ? handleEditItem : handleAddItem}
-                  disabled={submitting}
+                  onPress={handleAddItem}
                   style={({ pressed }) => ({
                     backgroundColor: "#10B981",
                     borderRadius: 12,
                     paddingVertical: 16,
                     alignItems: "center",
-                    opacity: pressed || submitting ? 0.7 : 1,
+                    marginTop: 8,
+                    opacity: pressed ? 0.9 : 1,
                   })}
                 >
-                  {submitting ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#fff",
-                      }}
-                    >
-                      {showEditModal ? "Update Item" : "Add Item"}
-                    </Text>
-                  )}
+                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
+                    Add Item
+                  </Text>
                 </Pressable>
               </View>
-            </KeyboardAvoidingView>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Bulk Stock Adjustment Modal */}
+      <Modal visible={showStockAdjustModal} transparent animationType="slide" onRequestClose={() => setShowStockAdjustModal(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom, maxHeight: "90%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
+                Bulk Stock Adjustment
+              </Text>
+              <Pressable onPress={() => { setShowStockAdjustModal(false); resetStockAdjustment(); }}>
+                <X size={24} color="#64748B" strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{ padding: 20, gap: 20 }}>
+                {/* Shop Selection */}
+                <View>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                    Select Shop
+                  </Text>
+                  <View style={{ gap: 8 }}>
+                    {shops.map(shop => (
+                      <Pressable
+                        key={shop.id}
+                        onPress={() => setAdjustmentShop(shop.id)}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 12,
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor: adjustmentShop === shop.id ? "#6366F1" : "#F1F5F9",
+                          backgroundColor: adjustmentShop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                        }}
+                      >
+                        <Store size={18} color={adjustmentShop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
+                        <Text style={{ fontSize: 15, fontWeight: "600", color: adjustmentShop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
+                          {shop.shop_name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Adjustment Type */}
+                <View>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                    Adjustment Type
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <Pressable
+                      onPress={() => setAdjustmentType("Add Stock")}
+                      style={{
+                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 14,
+                        borderRadius: 12,
+                        borderWidth: 2,
+                        borderColor: adjustmentType === "Add Stock" ? "#10B981" : "#F1F5F9",
+                        backgroundColor: adjustmentType === "Add Stock" ? "#ECFDF5" : "#FFFFFF",
+                      }}
+                    >
+                      <TrendingUp size={18} color={adjustmentType === "Add Stock" ? "#10B981" : "#64748B"} strokeWidth={2} />
+                      <Text style={{ fontSize: 15, fontWeight: "600", color: adjustmentType === "Add Stock" ? "#10B981" : "#0F172A", marginLeft: 8 }}>
+                        Add Stock
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => setAdjustmentType("Remove Stock")}
+                      style={{
+                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 14,
+                        borderRadius: 12,
+                        borderWidth: 2,
+                        borderColor: adjustmentType === "Remove Stock" ? "#EF4444" : "#F1F5F9",
+                        backgroundColor: adjustmentType === "Remove Stock" ? "#FEF2F2" : "#FFFFFF",
+                      }}
+                    >
+                      <TrendingDown size={18} color={adjustmentType === "Remove Stock" ? "#EF4444" : "#64748B"} strokeWidth={2} />
+                      <Text style={{ fontSize: 15, fontWeight: "600", color: adjustmentType === "Remove Stock" ? "#EF4444" : "#0F172A", marginLeft: 8 }}>
+                        Remove Stock
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* Items to Adjust */}
+                {adjustmentShop && (
+                  <View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
+                        Items ({adjustmentItems.length})
+                      </Text>
+                      <Pressable onPress={addItemToAdjustment}>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#6366F1" }}>
+                          + Add Item
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    {adjustmentItems.length === 0 ? (
+                      <View style={{ backgroundColor: "#F8FAFC", borderRadius: 12, padding: 24, alignItems: "center" }}>
+                        <Text style={{ fontSize: 14, color: "#94A3B8", textAlign: "center" }}>
+                          No items added yet. Tap "+ Add Item" to start.
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={{ gap: 12 }}>
+                        {adjustmentItems.map((item, index) => (
+                          <View key={index} style={{ backgroundColor: "#F8FAFC", borderRadius: 12, padding: 12 }}>
+                            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 6 }}>
+                                  Product
+                                </Text>
+                                <View style={{ backgroundColor: "#FFFFFF", borderRadius: 8, borderWidth: 1, borderColor: "#E2E8F0" }}>
+                                  {shopItems.map(shopItem => (
+                                    <Pressable
+                                      key={shopItem.id}
+                                      onPress={() => updateAdjustmentItem(index, "product_id", shopItem.id)}
+                                      style={{
+                                        padding: 10,
+                                        backgroundColor: item.product_id === shopItem.id ? "#EEF2FF" : "transparent",
+                                        borderRadius: 8,
+                                      }}
+                                    >
+                                      <Text style={{ fontSize: 14, fontWeight: item.product_id === shopItem.id ? "600" : "400", color: item.product_id === shopItem.id ? "#6366F1" : "#0F172A" }}>
+                                        {shopItem.item_name}
+                                      </Text>
+                                    </Pressable>
+                                  ))}
+                                </View>
+                              </View>
+
+                              <View style={{ width: 100 }}>
+                                <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 6 }}>
+                                  Quantity
+                                </Text>
+                                <TextInput
+                                  value={item.quantity.toString()}
+                                  onChangeText={(text) => updateAdjustmentItem(index, "quantity", parseInt(text) || 0)}
+                                  placeholder="0"
+                                  keyboardType="number-pad"
+                                  style={{
+                                    backgroundColor: "#FFFFFF",
+                                    borderWidth: 1,
+                                    borderColor: "#E2E8F0",
+                                    borderRadius: 8,
+                                    padding: 10,
+                                    fontSize: 14,
+                                    color: "#0F172A",
+                                    textAlign: "center",
+                                  }}
+                                />
+                              </View>
+
+                              <Pressable
+                                onPress={() => removeItemFromAdjustment(index)}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 16,
+                                  backgroundColor: "#FEF2F2",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  alignSelf: "flex-end",
+                                }}
+                              >
+                                <Minus size={16} color="#EF4444" strokeWidth={2.5} />
+                              </Pressable>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Submit Button */}
+                {adjustmentShop && adjustmentItems.length > 0 && (
+                  <Pressable
+                    onPress={handleBulkStockAdjustment}
+                    style={({ pressed }) => ({
+                      backgroundColor: adjustmentType === "Add Stock" ? "#10B981" : "#EF4444",
+                      borderRadius: 12,
+                      paddingVertical: 16,
+                      alignItems: "center",
+                      marginTop: 8,
+                      opacity: pressed ? 0.9 : 1,
+                    })}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
+                      {adjustmentType === "Add Stock" ? "Add Stock" : "Remove Stock"}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Stock History Modal */}
+      <Modal visible={showHistoryModal} transparent animationType="slide" onRequestClose={() => setShowHistoryModal(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom, maxHeight: "80%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
+                Stock History
+              </Text>
+              <Pressable onPress={() => setShowHistoryModal(false)}>
+                <X size={24} color="#64748B" strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{ padding: 20 }}>
+                {stockHistory.length === 0 ? (
+                  <View style={{ paddingVertical: 48, alignItems: "center" }}>
+                    <Text style={{ fontSize: 14, color: "#94A3B8" }}>No stock transactions yet</Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 12 }}>
+                    {stockHistory.slice(0, 20).map(transaction => (
+                      <View
+                        key={transaction.id}
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderRadius: 12,
+                          padding: 14,
+                          borderLeftWidth: 4,
+                          borderLeftColor: transaction.purpose === "Add Stock" ? "#10B981" : transaction.purpose === "Remove Stock" ? "#EF4444" : "#6366F1",
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                          <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>
+                            {transaction.purpose}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: "#64748B" }}>
+                            {new Date(transaction.date).toLocaleDateString()}
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: 13, color: "#64748B" }}>
+                          {transaction.shop_name || transaction.shop}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
