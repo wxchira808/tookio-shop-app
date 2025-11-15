@@ -717,6 +717,47 @@ export async function createStockTransaction(transactionData) {
   return response.data;
 }
 
+// ==================== PURCHASES ====================
+
+export async function getPurchases() {
+  try {
+    const response = await frappeRequest('/api/resource/Tookio Purchase?fields=["*"]&limit_page_length=999&order_by=date desc');
+
+    const purchases = (response.data || []).map(purchase => ({
+      id: purchase.name,
+      date: purchase.date,
+      shop: purchase.shop,
+      shop_name: purchase.shop_name || purchase.shop,  // Fetch shop name if available
+      description: purchase.description,
+      amount: purchase.amount,
+      category: purchase.category,
+    }));
+
+    return { purchases };
+  } catch (error) {
+    console.error('Error fetching purchases:', error);
+    throw error;
+  }
+}
+
+export async function createPurchase(purchaseData) {
+  const frappeData = {
+    doctype: 'Tookio Purchase',
+    date: purchaseData.date || new Date().toISOString().split('T')[0],
+    shop: purchaseData.shop,
+    description: purchaseData.description,
+    amount: parseFloat(purchaseData.amount) || 0,
+    category: purchaseData.category || 'Other',
+  };
+
+  const response = await frappeRequest('/api/resource/Tookio Purchase', {
+    method: 'POST',
+    body: JSON.stringify(frappeData),
+  });
+
+  return response.data;
+}
+
 // ==================== HELPER FUNCTIONS ====================
 
 export async function getAuth() {
