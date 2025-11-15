@@ -749,6 +749,37 @@ export async function createBulkStockAdjustment(adjustmentData) {
   return response.data;
 }
 
+// ==================== NOTIFICATIONS ====================
+
+export async function getNotifications() {
+  try {
+    const response = await frappeRequest('/api/resource/Tookio Notification?fields=["*"]&limit_page_length=50&order_by=date desc');
+
+    const notifications = (response.data || []).map(notif => ({
+      id: notif.name,
+      date: notif.date,
+      message: notif.message,
+      read: notif.read || 0,
+    }));
+
+    return { notifications };
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return { notifications: [] };
+  }
+}
+
+export async function markNotificationAsRead(notificationId) {
+  try {
+    await frappeRequest(`/api/resource/Tookio Notification/${notificationId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ read: 1 }),
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+  }
+}
+
 // ==================== PURCHASES ====================
 
 export async function getPurchases() {

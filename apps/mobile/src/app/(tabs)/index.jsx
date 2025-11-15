@@ -14,10 +14,11 @@ import {
   AlertTriangle,
   ChevronRight,
   Activity,
+  Bell,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getShops, getItems, getSales } from "@/utils/frappeApi";
+import { getShops, getItems, getSales, getNotifications, markNotificationAsRead } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
 
 export default function Dashboard() {
@@ -36,6 +37,8 @@ export default function Dashboard() {
   const [dateFilter, setDateFilter] = useState("all");
   const [showLowStockModal, setShowLowStockModal] = useState(false);
   const [lowStockItems, setLowStockItems] = useState([]);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     loadStats();
@@ -44,11 +47,14 @@ export default function Dashboard() {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const [shopsRes, itemsRes, salesRes] = await Promise.all([
+      const [shopsRes, itemsRes, salesRes, notifsRes] = await Promise.all([
         getShops(),
         getItems(),
         getSales(),
+        getNotifications(),
       ]);
+
+      setNotifications(notifsRes?.notifications || []);
 
       const shops = shopsRes?.shops || [];
       const items = itemsRes?.items || [];
@@ -173,21 +179,61 @@ export default function Dashboard() {
             </Text>
           </View>
 
-          <Pressable
-            onPress={() => router.push("/profile")}
-            style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: pressed ? "#F1F5F9" : "#F8FAFC",
-              alignItems: "center",
-              justifyContent: "center",
-              borderWidth: 1,
-              borderColor: "#E2E8F0",
-            })}
-          >
-            <User size={20} color="#0F172A" strokeWidth={2} />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {/* Notifications Bell */}
+            <Pressable
+              onPress={() => setShowNotificationsModal(true)}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: pressed ? "#F1F5F9" : "#F8FAFC",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "#E2E8F0",
+              })}
+            >
+              <Bell size={20} color="#0F172A" strokeWidth={2} />
+              {notifications.filter(n => !n.read).length > 0 && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    backgroundColor: "#EF4444",
+                    borderRadius: 8,
+                    minWidth: 16,
+                    height: 16,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingHorizontal: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFFFFF" }}>
+                    {notifications.filter(n => !n.read).length}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+
+            {/* Profile */}
+            <Pressable
+              onPress={() => router.push("/profile")}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: pressed ? "#F1F5F9" : "#F8FAFC",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "#E2E8F0",
+              })}
+            >
+              <User size={20} color="#0F172A" strokeWidth={2} />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -670,6 +716,107 @@ export default function Dashboard() {
                     </View>
                   </View>
                 ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Notifications Modal */}
+      <Modal visible={showNotificationsModal} transparent animationType="slide" onRequestClose={() => setShowNotificationsModal(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "80%", paddingBottom: insets.bottom }}>
+            {/* Header */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    backgroundColor: "#EEF2FF",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: 12,
+                  }}
+                >
+                  <Bell size={20} color="#6366F1" strokeWidth={2.5} />
+                </View>
+                <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A", letterSpacing: -0.3 }}>
+                  Notifications
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setShowNotificationsModal(false)}
+                style={({ pressed }) => ({
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: pressed ? "#F1F5F9" : "transparent",
+                  alignItems: "center",
+                  justifyContent: "center",
+                })}
+              >
+                <X size={20} color="#64748B" strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            {/* Notifications List */}
+            <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={true}>
+              <View style={{ padding: 20 }}>
+                {notifications.length === 0 ? (
+                  <View style={{ paddingVertical: 48, alignItems: "center" }}>
+                    <Bell size={48} color="#CBD5E1" strokeWidth={1.5} />
+                    <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A", marginTop: 16 }}>
+                      No Notifications
+                    </Text>
+                    <Text style={{ fontSize: 14, color: "#64748B", textAlign: "center", marginTop: 8 }}>
+                      You're all caught up!
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 12 }}>
+                    {notifications.map((notif) => (
+                      <Pressable
+                        key={notif.id}
+                        onPress={() => {
+                          if (!notif.read) {
+                            markNotificationAsRead(notif.id);
+                            setNotifications(notifications.map(n =>
+                              n.id === notif.id ? { ...n, read: 1 } : n
+                            ));
+                          }
+                        }}
+                        style={{
+                          backgroundColor: notif.read ? "#FAFAFA" : "#EEF2FF",
+                          borderRadius: 16,
+                          padding: 16,
+                          borderLeftWidth: 4,
+                          borderLeftColor: notif.read ? "#E2E8F0" : "#6366F1",
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                          <Text style={{ fontSize: 12, color: "#64748B" }}>
+                            {new Date(notif.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Text>
+                          {!notif.read && (
+                            <View
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 4,
+                                backgroundColor: "#6366F1",
+                              }}
+                            />
+                          )}
+                        </View>
+                        <Text style={{ fontSize: 15, fontWeight: notif.read ? "500" : "700", color: "#0F172A", lineHeight: 22 }}>
+                          {notif.message}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
               </View>
             </ScrollView>
           </View>
