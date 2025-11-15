@@ -123,7 +123,7 @@ export async function login(usr, pwd) {
       try {
         // Query Customer where portal_users child table contains the user email
         const customerQuery = await frappeRequest(
-          `/api/resource/Customer?filters=[["portal_users","user","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan","custom_subscription_expiry_date"]&limit_page_length=1`,
+          `/api/resource/Customer?filters=[["portal_users","user","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan"]&limit_page_length=1`,
           {},
           true
         );
@@ -136,10 +136,9 @@ export async function login(usr, pwd) {
           console.log('📋 Customer data:', JSON.stringify(customer, null, 2));
 
           userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
-          userDetails.subscription_expiry = customer.custom_subscription_expiry_date || null;
+          userDetails.subscription_expiry = null; // Not stored in Customer doctype
 
           console.log('📋 Subscription plan:', userDetails.subscription_tier);
-          console.log('📋 Subscription expiry:', userDetails.subscription_expiry);
         } else {
           console.log('⚠️ No Customer found with portal user email:', userDoc.data.email);
           userDetails.subscription_tier = 'free';
@@ -261,7 +260,7 @@ export async function refreshUserDetails() {
     // Fetch subscription plan from Customer via Portal User child table
     try {
       const customerQuery = await frappeRequest(
-        `/api/resource/Customer?filters=[["portal_users","user","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan","custom_subscription_expiry_date"]&limit_page_length=1`
+        `/api/resource/Customer?filters=[["portal_users","user","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan"]&limit_page_length=1`
       );
 
       console.log('📋 Customer query response:', JSON.stringify(customerQuery, null, 2));
@@ -272,10 +271,9 @@ export async function refreshUserDetails() {
         console.log('📋 Customer data:', JSON.stringify(customer, null, 2));
 
         userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
-        userDetails.subscription_expiry = customer.custom_subscription_expiry_date || null;
+        userDetails.subscription_expiry = null; // Not stored in Customer doctype
 
         console.log('📋 Subscription plan:', userDetails.subscription_tier);
-        console.log('📋 Subscription expiry:', userDetails.subscription_expiry);
       } else {
         console.log('⚠️ No Customer found with portal user email:', userDoc.data.email);
         userDetails.subscription_tier = 'free';

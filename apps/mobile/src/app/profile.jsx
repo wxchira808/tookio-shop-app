@@ -16,23 +16,36 @@ import {
   RefreshCw,
 } from "lucide-react-native";
 import { router, useFocusEffect } from "expo-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { refreshUserDetails } from "@/utils/frappeApi";
+import * as SecureStore from "expo-secure-store";
+import { authKey } from "@/utils/auth/store";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
-  const { signOut, setAuth, auth } = useAuth();
+  const { signOut, setAuth } = useAuth();
   const { data: user, loading } = useUser();
   const [refreshing, setRefreshing] = useState(false);
+  const isRefreshingRef = useRef(false);
 
   // Refresh user subscription data from server
   const handleRefresh = useCallback(async () => {
+    // Prevent multiple simultaneous refreshes
+    if (isRefreshingRef.current) {
+      console.log('🔄 Refresh already in progress, skipping...');
+      return;
+    }
+
     try {
+      isRefreshingRef.current = true;
       setRefreshing(true);
+
       const updatedUser = await refreshUserDetails();
 
-      // Update the auth state with fresh user data
-      if (auth) {
+      // Update auth in SecureStore and state
+      const authData = await SecureStore.getItemAsync(authKey);
+      if (authData) {
+        const auth = JSON.parse(authData);
         const updatedAuth = {
           ...auth,
           user: {
@@ -40,21 +53,27 @@ export default function Profile() {
             ...updatedUser,
           },
         };
+        await SecureStore.setItemAsync(authKey, JSON.stringify(updatedAuth));
         setAuth(updatedAuth);
       }
     } catch (error) {
       console.error("Error refreshing user details:", error);
-      Alert.alert("Error", "Failed to refresh subscription data");
+      // Don't show alert on focus refresh, only on manual refresh
+      if (refreshing) {
+        Alert.alert("Error", "Failed to refresh subscription data");
+      }
     } finally {
       setRefreshing(false);
+      isRefreshingRef.current = false;
     }
-  }, [auth, setAuth]);
+  }, [setAuth]);
 
-  // Auto-refresh when screen comes into focus
+  // Auto-refresh when screen comes into focus (only once)
   useFocusEffect(
     useCallback(() => {
+      console.log('📱 Profile screen focused, refreshing subscription data...');
       handleRefresh();
-    }, [handleRefresh])
+    }, []) // Empty dependency array - only run on focus
   );
 
   const handleSignOut = () => {
