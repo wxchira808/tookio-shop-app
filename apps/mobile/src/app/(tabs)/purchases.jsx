@@ -312,147 +312,151 @@ export default function PurchasesScreen() {
 
       {/* Add Purchase Modal */}
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-            <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom, maxHeight: "90%" }}>
-              {/* Header */}
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-                <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
-                  Record Purchase
-                </Text>
-                <Pressable onPress={() => { setShowAddModal(false); resetForm(); }} style={{ padding: 4 }}>
-                  <X size={24} color="#64748B" strokeWidth={2} />
-                </Pressable>
-              </View>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
+            {/* Header */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
+                Record Purchase
+              </Text>
+              <Pressable onPress={() => { setShowAddModal(false); resetForm(); }} style={{ padding: 4 }}>
+                <X size={24} color="#64748B" strokeWidth={2} />
+              </Pressable>
+            </View>
 
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <View style={{ padding: 20, gap: 20 }}>
-                {/* Shop Selection */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                    Shop
-                  </Text>
-                  <View style={{ gap: 8 }}>
-                    {shops.map((shop) => (
-                      <Pressable
-                        key={shop.id}
-                        onPress={() => setFormData({ ...formData, shop: shop.id })}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          padding: 12,
-                          borderRadius: 12,
-                          borderWidth: 2,
-                          borderColor: formData.shop === shop.id ? "#6366F1" : "#F1F5F9",
-                          backgroundColor: formData.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
-                        }}
-                      >
-                        <Store size={18} color={formData.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
-                        <Text style={{ fontSize: 15, fontWeight: "600", color: formData.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
-                          {shop.shop_name}
-                        </Text>
-                      </Pressable>
-                    ))}
+                <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
+                  {/* Shop Selection */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Shop
+                    </Text>
+                    <View style={{ gap: 8 }}>
+                      {shops.map((shop) => (
+                        <Pressable
+                          key={shop.id}
+                          onPress={() => setFormData({ ...formData, shop: shop.id })}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 12,
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: formData.shop === shop.id ? "#6366F1" : "#F1F5F9",
+                            backgroundColor: formData.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                          }}
+                        >
+                          <Store size={18} color={formData.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
+                          <Text style={{ fontSize: 15, fontWeight: "600", color: formData.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
+                            {shop.shop_name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Category Selection */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Category
+                    </Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {CATEGORIES.map((category) => (
+                        <Pressable
+                          key={category}
+                          onPress={() => setFormData({ ...formData, category })}
+                          style={{
+                            paddingHorizontal: 14,
+                            paddingVertical: 8,
+                            borderRadius: 20,
+                            borderWidth: 2,
+                            borderColor: formData.category === category ? getCategoryColor(category) : "#F1F5F9",
+                            backgroundColor: formData.category === category ? getCategoryColor(category) + "15" : "#FFFFFF",
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: "600", color: formData.category === category ? getCategoryColor(category) : "#64748B" }}>
+                            {category}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Description */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Description
+                    </Text>
+                    <TextInput
+                      value={formData.description}
+                      onChangeText={(text) => setFormData({ ...formData, description: text })}
+                      placeholder="What was purchased?"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                      multiline
+                      numberOfLines={3}
+                    />
+                  </View>
+
+                  {/* Amount */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Amount
+                    </Text>
+                    <TextInput
+                      value={formData.amount}
+                      onChangeText={(text) => setFormData({ ...formData, amount: text })}
+                      placeholder="0.00"
+                      keyboardType="decimal-pad"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                    />
+                  </View>
+
+                  {/* Date */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Date
+                    </Text>
+                    <TextInput
+                      value={formData.date}
+                      onChangeText={(text) => setFormData({ ...formData, date: text })}
+                      placeholder="YYYY-MM-DD"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                    />
                   </View>
                 </View>
+              </ScrollView>
 
-                {/* Category Selection */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                    Category
-                  </Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                    {CATEGORIES.map((category) => (
-                      <Pressable
-                        key={category}
-                        onPress={() => setFormData({ ...formData, category })}
-                        style={{
-                          paddingHorizontal: 14,
-                          paddingVertical: 8,
-                          borderRadius: 20,
-                          borderWidth: 2,
-                          borderColor: formData.category === category ? getCategoryColor(category) : "#F1F5F9",
-                          backgroundColor: formData.category === category ? getCategoryColor(category) + "15" : "#FFFFFF",
-                        }}
-                      >
-                        <Text style={{ fontSize: 13, fontWeight: "600", color: formData.category === category ? getCategoryColor(category) : "#64748B" }}>
-                          {category}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Description */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                    Description
-                  </Text>
-                  <TextInput
-                    value={formData.description}
-                    onChangeText={(text) => setFormData({ ...formData, description: text })}
-                    placeholder="What was purchased?"
-                    style={{
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "#E2E8F0",
-                      borderRadius: 12,
-                      padding: 14,
-                      fontSize: 15,
-                      color: "#0F172A",
-                    }}
-                    multiline
-                    numberOfLines={3}
-                  />
-                </View>
-
-                {/* Amount */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                    Amount
-                  </Text>
-                  <TextInput
-                    value={formData.amount}
-                    onChangeText={(text) => setFormData({ ...formData, amount: text })}
-                    placeholder="0.00"
-                    keyboardType="decimal-pad"
-                    style={{
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "#E2E8F0",
-                      borderRadius: 12,
-                      padding: 14,
-                      fontSize: 15,
-                      color: "#0F172A",
-                    }}
-                  />
-                </View>
-
-                {/* Date */}
-                <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                    Date
-                  </Text>
-                  <TextInput
-                    value={formData.date}
-                    onChangeText={(text) => setFormData({ ...formData, date: text })}
-                    placeholder="YYYY-MM-DD"
-                    style={{
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "#E2E8F0",
-                      borderRadius: 12,
-                      padding: 14,
-                      fontSize: 15,
-                      color: "#0F172A",
-                    }}
-                  />
-                </View>
-
-                {/* Submit Button */}
+              {/* Submit Button - Outside ScrollView but inside KeyboardAvoidingView */}
+              <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
                 <Pressable
                   onPress={handleAddPurchase}
                   style={({ pressed }) => ({
@@ -460,7 +464,6 @@ export default function PurchasesScreen() {
                     borderRadius: 12,
                     paddingVertical: 16,
                     alignItems: "center",
-                    marginTop: 8,
                     opacity: pressed ? 0.9 : 1,
                   })}
                 >
@@ -469,10 +472,9 @@ export default function PurchasesScreen() {
                   </Text>
                 </Pressable>
               </View>
-              </ScrollView>
-            </View>
+            </KeyboardAvoidingView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Purchase Details Modal */}
