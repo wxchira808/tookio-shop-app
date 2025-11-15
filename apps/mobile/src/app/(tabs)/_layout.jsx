@@ -61,15 +61,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="items"
         options={{
-          title: "Items",
-          tabBarIcon: ({ color, size }) => <Package color={color} size={24} />,
+          title: "Inventory",
+          tabBarIcon: ({ color, size}) => <Package color={color} size={24} />,
         }}
       />
       <Tabs.Screen
         name="purchases"
         options={{
           title: "Purchases",
-          href: null, // Hide tab - Coming Soon feature
           tabBarIcon: ({ color, size }) => (
             <ShoppingCart color={color} size={24} />
           ),
@@ -79,6 +78,7 @@ export default function TabLayout() {
         name="stock"
         options={{
           title: "Stock",
+          href: null, // Hidden - stock management moved to Inventory tab
           tabBarIcon: ({ color, size }) => (
             <BarChart3 color={color} size={24} />
           ),
