@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
 
-export const authKey = `tookio-frappe-auth`;
+// Use Frappe auth key if using Frappe authentication, otherwise use the project-based key
+const USE_FRAPPE_AUTH = process.env.EXPO_PUBLIC_USE_FRAPPE_AUTH === 'true';
+export const authKey = USE_FRAPPE_AUTH
+  ? 'tookio-shop-frappe-auth'
+  : `${process.env.EXPO_PUBLIC_PROJECT_GROUP_ID}-jwt`;
 
 /**
  * This store manages the authentication state of the application.
