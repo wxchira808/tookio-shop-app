@@ -536,6 +536,8 @@ export async function getSales() {
       notes: sale.notes || '',
       shop_name: shopsMap[sale.shop] || sale.shop,
       shop_id: sale.shop,
+      docstatus: sale.docstatus || 0, // 0=Draft, 1=Submitted, 2=Cancelled
+      status: sale.docstatus === 2 ? 'Cancelled' : sale.docstatus === 1 ? 'Submitted' : 'Draft',
       items: (saleItems || []).map(item => ({
         product: item.product,
         product_name: itemsMap[item.product] || item.product,
@@ -633,6 +635,15 @@ export async function createSale(saleData) {
   }
 
   return { sale: response.data };
+}
+
+export async function cancelSale(saleId) {
+  // In Frappe, cancelling a submitted document sets docstatus to 2
+  await frappeRequest(`/api/resource/Sale Invoice/${saleId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ docstatus: 2 }), // 2 = Cancelled
+  });
+  return { success: true };
 }
 
 // ==================== PRODUCT STOCK DOCTYPE ====================
