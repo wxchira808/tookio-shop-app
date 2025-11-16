@@ -24,11 +24,15 @@ import {
   CheckCircle,
   Minus,
   Search,
+  Edit3,
+  Trash2,
 } from "lucide-react-native";
 import { useState, useEffect } from "react";
 import {
   getItems,
   createItem,
+  updateItem,
+  deleteItem,
   getShops,
   createBulkStockAdjustment,
   getStockTransactions,
@@ -47,6 +51,9 @@ export default function InventoryScreen() {
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showStockAdjustModal, setShowStockAdjustModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showItemActionsModal, setShowItemActionsModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [showEditItemModal, setShowEditItemModal] = useState(false);
   const [selectedShop, setSelectedShop] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [itemSearchQuery, setItemSearchQuery] = useState("");
@@ -175,6 +182,88 @@ export default function InventoryScreen() {
     setAdjustmentType("Add Stock");
     setAdjustmentItems([]);
     setItemSearchQuery("");
+  };
+
+  // Handle item click - show actions modal
+  const handleItemClick = (item) => {
+    setSelectedItem(item);
+    setShowItemActionsModal(true);
+  };
+
+  // Handle edit item
+  const handleEditItem = () => {
+    if (!selectedItem) return;
+
+    // Populate form with selected item data
+    setItemForm({
+      shop: selectedItem.shop_id,
+      item_name: selectedItem.item_name,
+      description: selectedItem.description || "",
+      unit_price: selectedItem.unit_price?.toString() || "",
+      cost_price: selectedItem.cost_price?.toString() || "",
+      current_stock: selectedItem.current_stock?.toString() || "0",
+      low_stock_threshold: selectedItem.low_stock_threshold?.toString() || "5",
+    });
+
+    setShowItemActionsModal(false);
+    setShowEditItemModal(true);
+  };
+
+  // Handle delete item
+  const handleDeleteItem = () => {
+    if (!selectedItem) return;
+
+    Alert.alert(
+      "Delete Item",
+      `Are you sure you want to delete "${selectedItem.item_name}"? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setShowItemActionsModal(false);
+              await deleteItem(selectedItem.id);
+              Alert.alert("Success", "Item deleted successfully");
+              await loadData();
+            } catch (error) {
+              console.error("Error deleting item:", error);
+              Alert.alert("Error", "Failed to delete item");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle update item
+  const handleUpdateItem = async () => {
+    if (!selectedItem || !itemForm.item_name || !itemForm.shop) {
+      Alert.alert("Error", "Please fill in all required fields");
+      return;
+    }
+
+    try {
+      await updateItem(selectedItem.id, {
+        item_name: itemForm.item_name,
+        shop: itemForm.shop,
+        description: itemForm.description,
+        unit_price: parseFloat(itemForm.unit_price) || 0,
+        cost_price: parseFloat(itemForm.cost_price) || 0,
+        current_stock: parseInt(itemForm.current_stock) || 0,
+        low_stock_threshold: parseInt(itemForm.low_stock_threshold) || 5,
+      });
+
+      Alert.alert("Success", "Item updated successfully");
+      setShowEditItemModal(false);
+      resetItemForm();
+      setSelectedItem(null);
+      await loadData();
+    } catch (error) {
+      console.error("Error updating item:", error);
+      Alert.alert("Error", "Failed to update item");
+    }
   };
 
   const toggleItemSelection = (item) => {
@@ -428,15 +517,17 @@ export default function InventoryScreen() {
                 const stockColor = item.current_stock === 0 ? "#EF4444" : isLowStock ? "#F59E0B" : "#10B981";
 
                 return (
-                  <View
+                  <Pressable
                     key={item.id}
-                    style={{
+                    onPress={() => handleItemClick(item)}
+                    style={({ pressed }) => ({
                       backgroundColor: "#FFFFFF",
                       borderRadius: 12,
                       padding: 14,
                       borderWidth: 1,
                       borderColor: "#F1F5F9",
-                    }}
+                      opacity: pressed ? 0.7 : 1,
+                    })}
                   >
                     <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
                       <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A", flex: 1 }}>
@@ -470,7 +561,7 @@ export default function InventoryScreen() {
                         Value: {formatCurrency((item.unit_price || 0) * (item.current_stock || 0), false)}
                       </Text>
                     </View>
-                  </View>
+                  </Pressable>
                 );
               })}
             </View>
