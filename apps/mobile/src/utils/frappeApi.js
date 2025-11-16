@@ -886,6 +886,30 @@ export async function createPurchase(purchaseData) {
   return response.data;
 }
 
+export async function updatePurchase(purchaseId, purchaseData) {
+  const frappeData = {
+    date: purchaseData.date,
+    shop: purchaseData.shop,
+    description: purchaseData.description,
+    amount: parseFloat(purchaseData.amount) || 0,
+    category: purchaseData.category,
+  };
+
+  const response = await frappeRequest(`/api/resource/Tookio Purchase/${purchaseId}`, {
+    method: 'PUT',
+    body: JSON.stringify(frappeData),
+  });
+
+  return response.data;
+}
+
+export async function deletePurchase(purchaseId) {
+  await frappeRequest(`/api/resource/Tookio Purchase/${purchaseId}`, {
+    method: 'DELETE',
+  });
+  return { success: true };
+}
+
 // ==================== HELPER FUNCTIONS ====================
 
 export async function getAuth() {
