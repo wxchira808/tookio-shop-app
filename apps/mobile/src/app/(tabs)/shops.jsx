@@ -8,6 +8,8 @@ import {
   Modal,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,11 +30,13 @@ import {
   createShop,
   updateShop,
   deleteShop,
-} from "@/utils/api";
+  getItems,
+} from "@/utils/frappeApi";
 import {
   getActiveShop,
   setActiveShop as saveActiveShop,
 } from "@/utils/storage";
+import { formatCurrency } from "@/utils/currency";
 
 export default function Shops() {
   useRequireAuth();
@@ -45,10 +49,17 @@ export default function Shops() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingShop, setEditingShop] = useState(null);
   const [activeShopId, setActiveShopId] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedShop, setSelectedShop] = useState(null);
+  const [shopItems, setShopItems] = useState([]);
 
   // Form states
   const [shopName, setShopName] = useState("");
   const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+  const [address, setAddress] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -99,12 +110,20 @@ export default function Shops() {
       const result = await createShop({
         shop_name: shopName.trim(),
         description: description.trim() || null,
+        location: location.trim() || null,
+        address: address.trim() || null,
+        mobile_number: mobileNumber.trim() || null,
+        email_address: emailAddress.trim() || null,
       });
 
       if (result && result.shop) {
         Alert.alert("Success", "Shop created successfully!");
         setShopName("");
         setDescription("");
+        setLocation("");
+        setAddress("");
+        setMobileNumber("");
+        setEmailAddress("");
         setShowAddModal(false);
         
         // Set as active shop if it's the first one
@@ -134,12 +153,20 @@ export default function Shops() {
       const result = await updateShop(editingShop.id, {
         shop_name: shopName.trim(),
         description: description.trim() || null,
+        location: location.trim() || null,
+        address: address.trim() || null,
+        mobile_number: mobileNumber.trim() || null,
+        email_address: emailAddress.trim() || null,
       });
 
       if (result && result.shop) {
         Alert.alert("Success", "Shop updated successfully!");
         setShopName("");
         setDescription("");
+        setLocation("");
+        setAddress("");
+        setMobileNumber("");
+        setEmailAddress("");
         setShowEditModal(false);
         setEditingShop(null);
         await loadData();
@@ -196,13 +223,36 @@ export default function Shops() {
     setEditingShop(shop);
     setShopName(shop.shop_name);
     setDescription(shop.description || "");
+    setLocation(shop.location || "");
+    setAddress(shop.address || "");
+    setMobileNumber(shop.mobile_number || "");
+    setEmailAddress(shop.email_address || "");
     setShowEditModal(true);
   };
 
   const openAddModal = () => {
     setShopName("");
     setDescription("");
+    setLocation("");
+    setAddress("");
+    setMobileNumber("");
+    setEmailAddress("");
     setShowAddModal(true);
+  };
+
+  const viewShopDetails = async (shop) => {
+    setSelectedShop(shop);
+    try {
+      const itemsRes = await getItems();
+      if (itemsRes && itemsRes.items) {
+        const filteredItems = itemsRes.items.filter(item => item.shop_id === shop.id);
+        setShopItems(filteredItems);
+      }
+    } catch (error) {
+      console.error("Error loading shop items:", error);
+      setShopItems([]);
+    }
+    setShowDetailsModal(true);
   };
 
   if (loading && shops.length === 0) {
@@ -365,20 +415,38 @@ export default function Shops() {
                             </View>
                           )}
                         </View>
-                        <Text
-                          style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}
-                        >
-                          {shop.description || "No description"}
-                        </Text>
 
-                        <View style={{ flexDirection: "row", marginTop: 8 }}>
+                        {/* Shop Details */}
+                        <View style={{ marginTop: 8, gap: 4 }}>
+                          {shop.location && (
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              📍 {shop.location}
+                            </Text>
+                          )}
+                          {shop.address && (
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              🏠 {shop.address}
+                            </Text>
+                          )}
+                          {shop.mobile_number && (
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              📱 {shop.mobile_number}
+                            </Text>
+                          )}
+                          {shop.email_address && (
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              ✉️ {shop.email_address}
+                            </Text>
+                          )}
+                        </View>
+
+                        <View style={{ flexDirection: "row", marginTop: 8, gap: 8 }}>
                           <View
                             style={{
                               backgroundColor: "#F3F4F6",
                               paddingHorizontal: 8,
                               paddingVertical: 4,
                               borderRadius: 6,
-                              marginRight: 8,
                             }}
                           >
                             <Text style={{ fontSize: 12, color: "#6B7280" }}>
@@ -394,9 +462,22 @@ export default function Shops() {
                             }}
                           >
                             <Text style={{ fontSize: 12, color: "#16A34A" }}>
-                              ${parseFloat(shop.total_value || 0).toFixed(2)}
+                              {formatCurrency(shop.total_value || 0)}
                             </Text>
                           </View>
+                          <Pressable
+                            onPress={() => viewShopDetails(shop)}
+                            style={{
+                              backgroundColor: "#357AFF15",
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, color: "#357AFF", fontWeight: "500" }}>
+                              View Items →
+                            </Text>
+                          </Pressable>
                         </View>
                       </View>
                     </View>
@@ -595,6 +676,7 @@ export default function Shops() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
+              height: "70%",
               paddingBottom: insets.bottom,
             }}
           >
@@ -631,18 +713,28 @@ export default function Shops() {
             </View>
 
             {/* Form */}
-            <View style={{ padding: 20, gap: 20 }}>
-              <View>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: "#374151",
-                    marginBottom: 8,
-                  }}
-                >
-                  Shop Name *
-                </Text>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
+              <ScrollView
+                style={{ flex: 1 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+              >
+                <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
+                  <View>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#374151",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Shop Name *
+                    </Text>
                 <TextInput
                   value={shopName}
                   onChangeText={setShopName}
@@ -689,32 +781,347 @@ export default function Shops() {
                 />
               </View>
 
-              <Pressable
-                onPress={showEditModal ? handleEditShop : handleAddShop}
-                disabled={submitting}
-                style={({ pressed }) => ({
-                  backgroundColor: "#357AFF",
-                  borderRadius: 12,
-                  paddingVertical: 16,
-                  alignItems: "center",
-                  opacity: pressed || submitting ? 0.7 : 1,
-                })}
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Location
+                </Text>
+                <TextInput
+                  value={location}
+                  onChangeText={setLocation}
+                  placeholder="Enter location (e.g., Downtown, Mall)"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Address
+                </Text>
+                <TextInput
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholder="Enter full address"
+                  multiline
+                  numberOfLines={2}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
+                    textAlignVertical: "top",
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Mobile Number
+                </Text>
+                <TextInput
+                  value={mobileNumber}
+                  onChangeText={setMobileNumber}
+                  placeholder="Enter mobile number"
+                  keyboardType="phone-pad"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Email Address
+                </Text>
+                <TextInput
+                  value={emailAddress}
+                  onChangeText={setEmailAddress}
+                  placeholder="Enter email address"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    backgroundColor: "#fff",
+                  }}
+                />
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={{ padding: 20, paddingTop: 0 }}>
+            <Pressable
+              onPress={showEditModal ? handleEditShop : handleAddShop}
+              disabled={submitting}
+              style={({ pressed }) => ({
+                backgroundColor: "#357AFF",
+                borderRadius: 12,
+                paddingVertical: 16,
+                alignItems: "center",
+                opacity: pressed || submitting ? 0.7 : 1,
+              })}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#fff",
+                  }}
+                >
+                  {showEditModal ? "Update Shop" : "Create Shop"}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Shop Details Modal */}
+      <Modal
+        visible={showDetailsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDetailsModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              height: "80%",
+              paddingBottom: insets.bottom,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#E5E7EB",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "bold",
+                  color: "#1F2937",
+                }}
               >
-                {submitting ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#fff",
-                    }}
-                  >
-                    {showEditModal ? "Update Shop" : "Create Shop"}
-                  </Text>
-                )}
+                {selectedShop?.shop_name}
+              </Text>
+              <Pressable
+                onPress={() => setShowDetailsModal(false)}
+                style={{ padding: 4 }}
+              >
+                <X size={24} color="#6B7280" />
               </Pressable>
             </View>
+
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true}>
+              {selectedShop && (
+                <View style={{ padding: 20 }}>
+                  {/* Shop Information */}
+                  <View
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#1F2937",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Shop Information
+                    </Text>
+                    <View style={{ gap: 8 }}>
+                      {selectedShop.location && (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                            Location:
+                          </Text>
+                          <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                            {selectedShop.location}
+                          </Text>
+                        </View>
+                      )}
+                      {selectedShop.address && (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                            Address:
+                          </Text>
+                          <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                            {selectedShop.address}
+                          </Text>
+                        </View>
+                      )}
+                      {selectedShop.mobile_number && (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                            Mobile:
+                          </Text>
+                          <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                            {selectedShop.mobile_number}
+                          </Text>
+                        </View>
+                      )}
+                      {selectedShop.email_address && (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                            Email:
+                          </Text>
+                          <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                            {selectedShop.email_address}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: "#6B7280" }}>Items</Text>
+                          <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1F2937" }}>
+                            {selectedShop.item_count}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: "#6B7280" }}>Total Value</Text>
+                          <Text style={{ fontSize: 18, fontWeight: "bold", color: "#10B981" }}>
+                            {formatCurrency(selectedShop.total_value)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Items List */}
+                  <View>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#1F2937",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Items in this Shop ({shopItems.length})
+                    </Text>
+
+                    {shopItems.length > 0 ? (
+                      shopItems.map((item) => (
+                        <View
+                          key={item.id}
+                          style={{
+                            backgroundColor: "#fff",
+                            borderRadius: 8,
+                            padding: 12,
+                            marginBottom: 8,
+                            borderWidth: 1,
+                            borderColor: "#E5E7EB",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "600",
+                              color: "#1F2937",
+                              marginBottom: 4,
+                            }}
+                          >
+                            {item.item_name}
+                          </Text>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                              Stock: {item.current_stock} units
+                            </Text>
+                            <Text style={{ fontSize: 12, color: "#10B981", fontWeight: "500" }}>
+                              {formatCurrency(item.unit_price)}
+                            </Text>
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <View
+                        style={{
+                          padding: 40,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, color: "#6B7280", textAlign: "center" }}>
+                          No items in this shop yet
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>

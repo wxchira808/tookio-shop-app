@@ -1,72 +1,67 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  TextInput,
-  Alert,
-  Modal,
-  RefreshControl,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, ScrollView, Pressable, Modal, TextInput, Alert, RefreshControl, KeyboardAvoidingView, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth } from "@/utils/auth/useAuth";
-import { useState, useEffect } from "react";
 import {
   Plus,
+  X,
   ShoppingCart,
   Calendar,
-  Receipt,
-  X,
-  Minus,
-  Package,
+  DollarSign,
+  FileText,
+  Tag,
+  Store,
+  ChevronRight,
 } from "lucide-react-native";
-import { router } from "expo-router";
-import { getPurchases, createPurchase, getShops, getItems } from "@/utils/api";
+import { useState, useEffect } from "react";
+import { getPurchases, createPurchase, getShops } from "@/utils/frappeApi";
+import { formatCurrency } from "@/utils/currency";
 
-export default function Purchases() {
+const CATEGORIES = [
+  "Stock",
+  "Utilities",
+  "Rent",
+  "Transport",
+  "Other",
+];
+
+export default function PurchasesScreen() {
   useRequireAuth();
   const insets = useSafeAreaInsets();
+
   const [purchases, setPurchases] = useState([]);
   const [shops, setShops] = useState([]);
-  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedShopId, setSelectedShopId] = useState("");
-  const [notes, setNotes] = useState("");
-  const [purchaseItems, setPurchaseItems] = useState([
-    { item_id: "", quantity: 1, unit_cost: "" },
-  ]);
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    shop: "",
+    description: "",
+    amount: "",
+    category: "Stock",
+  });
 
   useEffect(() => {
-    loadData();
+    loadPurchases();
   }, []);
 
-  const loadData = async () => {
+  const loadPurchases = async () => {
     try {
       setLoading(true);
-      const [purchasesRes, shopsRes, itemsRes] = await Promise.all([
+      const [purchasesRes, shopsRes] = await Promise.all([
         getPurchases(),
         getShops(),
-        getItems(),
       ]);
 
-      if (purchasesRes && purchasesRes.purchases) {
-        setPurchases(purchasesRes.purchases);
-      }
-
-      if (shopsRes && shopsRes.shops) {
-        setShops(shopsRes.shops);
-      }
-
-      if (itemsRes && itemsRes.items) {
-        setItems(itemsRes.items);
-      }
+      setPurchases(purchasesRes?.purchases || []);
+      setShops(shopsRes?.shops || []);
     } catch (error) {
-      console.error("Error loading data:", error);
-      Alert.alert("Error", "Failed to load purchases data");
+      console.error("Error loading purchases:", error);
+      Alert.alert("Error", "Failed to load purchases");
     } finally {
       setLoading(false);
     }
@@ -74,728 +69,490 @@ export default function Purchases() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadPurchases();
     setRefreshing(false);
   };
 
-  const addPurchaseItem = () => {
-    setPurchaseItems([
-      ...purchaseItems,
-      { item_id: "", quantity: 1, unit_cost: "" },
-    ]);
-  };
-
-  const removePurchaseItem = (index) => {
-    if (purchaseItems.length > 1) {
-      setPurchaseItems(purchaseItems.filter((_, i) => i !== index));
-    }
-  };
-
-  const updatePurchaseItem = (index, field, value) => {
-    const updated = [...purchaseItems];
-    updated[index] = { ...updated[index], [field]: value };
-    setPurchaseItems(updated);
-  };
-
-  const calculateTotal = () => {
-    return purchaseItems.reduce(
-      (sum, item) =>
-        sum + parseFloat(item.unit_cost || 0) * parseInt(item.quantity || 0),
-      0,
-    );
-  };
-
   const handleAddPurchase = async () => {
-    if (!selectedShopId) {
-      Alert.alert("Error", "Please select a shop");
-      return;
-    }
-
-    const validItems = purchaseItems.filter(
-      (item) => item.item_id && item.quantity && item.unit_cost,
-    );
-
-    if (validItems.length === 0) {
-      Alert.alert("Error", "Please add at least one valid item");
+    if (!formData.shop || !formData.amount || !formData.description) {
+      Alert.alert("Missing Fields", "Please fill in shop, description, and amount");
       return;
     }
 
     try {
-      const result = await createPurchase({
-        shop_id: parseInt(selectedShopId),
-        items: validItems.map((item) => ({
-          item_id: parseInt(item.item_id),
-          quantity: parseInt(item.quantity),
-          unit_cost: parseFloat(item.unit_cost),
-        })),
-        notes,
-      });
-
-      if (result && result.purchase) {
-        Alert.alert("Success", "Purchase recorded successfully! Stock levels have been updated.");
-        setShowAddModal(false);
-        setSelectedShopId("");
-        setNotes("");
-        setPurchaseItems([{ item_id: "", quantity: 1, unit_cost: "" }]);
-        loadData();
-      }
+      await createPurchase(formData);
+      Alert.alert("Success", "Purchase recorded successfully");
+      setShowAddModal(false);
+      resetForm();
+      await loadPurchases();
     } catch (error) {
-      console.error("Error adding purchase:", error);
-      Alert.alert("Error", error.message || "Failed to record purchase");
+      console.error("Error creating purchase:", error);
+      Alert.alert("Error", "Failed to record purchase");
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+  const resetForm = () => {
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      shop: "",
+      description: "",
+      amount: "",
+      category: "Stock",
     });
   };
 
-  const formatCurrency = (amount) => {
-    return `$${parseFloat(amount).toFixed(2)}`;
+  const getCategoryColor = (category) => {
+    const colors = {
+      "Stock": "#10B981",
+      "Utilities": "#F59E0B",
+      "Rent": "#EF4444",
+      "Transport": "#F97316",
+      "Other": "#64748B",
+    };
+    return colors[category] || "#64748B";
   };
 
-  if (loading && purchases.length === 0) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#F8FAFC",
-          paddingTop: insets.top,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ fontSize: 16, color: "#6B7280" }}>Loading...</Text>
-      </View>
-    );
-  }
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const totalExpenses = purchases.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: "#F8FAFC", paddingTop: insets.top }}
-    >
+    <View style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}>
       <StatusBar style="dark" />
 
       {/* Header */}
       <View
         style={{
           paddingHorizontal: 20,
-          paddingVertical: 20,
-          backgroundColor: "#fff",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
+          paddingVertical: 16,
+          backgroundColor: "#FFFFFF",
+          borderBottomWidth: 1,
+          borderBottomColor: "#F1F5F9",
         }}
       >
-        <View>
-          <Text style={{ fontSize: 28, fontWeight: "bold", color: "#1F2937" }}>
-            Purchases
-          </Text>
-          <Text style={{ fontSize: 16, color: "#6B7280", marginTop: 4 }}>
-            Track your inventory expenses
-          </Text>
-        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
+              Purchases
+            </Text>
+            <Text style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
+              Track expenses and purchases
+            </Text>
+          </View>
 
-        <Pressable
-          onPress={() => setShowAddModal(true)}
-          style={({ pressed }) => ({
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: "#357AFF",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: pressed ? 0.8 : 1,
-          })}
-        >
-          <Plus size={20} color="#fff" />
-        </Pressable>
+          <Pressable
+            onPress={() => setShowAddModal(true)}
+            style={({ pressed }) => ({
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: pressed ? "#5B21B6" : "#6366F1",
+              alignItems: "center",
+              justifyContent: "center",
+            })}
+          >
+            <Plus size={22} color="#FFFFFF" strokeWidth={2.5} />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {purchases.length === 0 ? (
-          <View style={{ padding: 40, alignItems: "center" }}>
-            <ShoppingCart size={64} color="#D1D5DB" />
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "600",
-                color: "#6B7280",
-                marginTop: 16,
-                textAlign: "center",
-              }}
-            >
-              No purchases yet
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                color: "#9CA3AF",
-                textAlign: "center",
-                marginTop: 8,
-                lineHeight: 20,
-              }}
-            >
-              Record your inventory purchases to track expenses and
-              automatically update stock levels
-            </Text>
-          </View>
-        ) : (
-          <View style={{ padding: 20, gap: 12 }}>
-            {purchases.map((purchase) => (
+        {/* Total Expenses Card */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: 16,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: "#F1F5F9",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
               <View
-                key={purchase.id}
                 style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 12,
-                  padding: 16,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 4,
-                  elevation: 2,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: "#FEF2F2",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 12,
                 }}
               >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 12,
-                  }}
+                <DollarSign size={20} color="#EF4444" strokeWidth={2.5} />
+              </View>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Total Expenses
+              </Text>
+            </View>
+            <Text style={{ fontSize: 32, fontWeight: "800", color: "#0F172A", letterSpacing: -1 }}>
+              {formatCurrency(totalExpenses, false)}
+            </Text>
+            <Text style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>
+              {purchases.length} transaction{purchases.length !== 1 ? "s" : ""}
+            </Text>
+          </View>
+        </View>
+
+        {/* Purchases List */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "700",
+              color: "#64748B",
+              textTransform: "uppercase",
+              letterSpacing: 1,
+              marginBottom: 16,
+            }}
+          >
+            Recent Purchases
+          </Text>
+
+          {loading && purchases.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 48 }}>
+              <Text style={{ fontSize: 14, color: "#94A3B8" }}>Loading purchases...</Text>
+            </View>
+          ) : purchases.length === 0 ? (
+            <View
+              style={{
+                backgroundColor: "#FFFFFF",
+                borderRadius: 16,
+                padding: 32,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: "#F1F5F9",
+              }}
+            >
+              <ShoppingCart size={48} color="#CBD5E1" strokeWidth={1.5} />
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A", marginTop: 16 }}>
+                No Purchases Yet
+              </Text>
+              <Text style={{ fontSize: 14, color: "#64748B", textAlign: "center", marginTop: 8 }}>
+                Start tracking your business expenses
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {purchases.map((purchase) => (
+                <Pressable
+                  key={purchase.id}
+                  onPress={() => setSelectedPurchase(purchase)}
+                  style={({ pressed }) => ({
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: 16,
+                    padding: 16,
+                    borderWidth: 1,
+                    borderColor: "#F1F5F9",
+                    opacity: pressed ? 0.7 : 1,
+                  })}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
                     <View
                       style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 8,
-                        backgroundColor: "#F59E0B15",
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        backgroundColor: getCategoryColor(purchase.category) + "15",
                         alignItems: "center",
                         justifyContent: "center",
-                        marginRight: 12,
+                        marginRight: 14,
                       }}
                     >
-                      <Receipt size={16} color="#F59E0B" />
+                      <Tag size={20} color={getCategoryColor(purchase.category)} strokeWidth={2} />
                     </View>
-                    <View>
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "600",
-                          color: "#1F2937",
-                        }}
-                      >
-                        {purchase.shop_name}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: "#6B7280",
-                          marginTop: 2,
-                        }}
-                      >
-                        <Calendar size={10} color="#6B7280" />{" "}
-                        {formatDate(purchase.purchase_date)}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      color: "#F59E0B",
-                    }}
-                  >
-                    {formatCurrency(purchase.total_amount)}
-                  </Text>
-                </View>
 
-                {/* Items */}
-                {purchase.items && purchase.items.length > 0 && (
-                  <View>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "600",
-                        color: "#374151",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Items Purchased:
-                    </Text>
-                    {purchase.items.map((item, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          paddingVertical: 4,
-                        }}
-                      >
-                        <Text
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
+                        {purchase.description}
+                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                        <View
                           style={{
-                            fontSize: 14,
-                            color: "#6B7280",
-                            flex: 1,
+                            backgroundColor: getCategoryColor(purchase.category) + "20",
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            borderRadius: 6,
                           }}
                         >
-                          {item.item_name} × {item.quantity}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontWeight: "500",
-                            color: "#374151",
-                          }}
-                        >
-                          {formatCurrency(item.total_cost)}
+                          <Text style={{ fontSize: 11, fontWeight: "600", color: getCategoryColor(purchase.category) }}>
+                            {purchase.category}
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: 13, color: "#64748B" }}>
+                          {purchase.shop_name || purchase.shop}
                         </Text>
                       </View>
-                    ))}
-                  </View>
-                )}
+                      <Text style={{ fontSize: 12, color: "#94A3B8" }}>
+                        {formatDate(purchase.date)}
+                      </Text>
+                    </View>
 
-                {purchase.notes && (
-                  <View style={{ marginTop: 12 }}>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: "#6B7280",
-                        fontStyle: "italic",
-                      }}
-                    >
-                      Note: {purchase.notes}
-                    </Text>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={{ fontSize: 18, fontWeight: "800", color: "#EF4444", letterSpacing: -0.5 }}>
+                        {formatCurrency(purchase.amount, false)}
+                      </Text>
+                    </View>
                   </View>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Add Purchase Modal */}
-      <Modal
-        visible={showAddModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "flex-end",
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              maxHeight: "90%",
-            }}
-          >
-            {/* Modal Header */}
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: "#E5E7EB",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "bold",
-                  color: "#1F2937",
-                }}
-              >
+      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
+            {/* Header */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
                 Record Purchase
               </Text>
-              <Pressable
-                onPress={() => setShowAddModal(false)}
-                style={{
-                  padding: 4,
-                }}
-              >
-                <X size={24} color="#6B7280" />
+              <Pressable onPress={() => { setShowAddModal(false); resetForm(); }} style={{ padding: 4 }}>
+                <X size={24} color="#64748B" strokeWidth={2} />
               </Pressable>
             </View>
 
-            <ScrollView style={{ maxHeight: 500 }}>
-              <View style={{ padding: 20, gap: 20 }}>
-                {/* Shop Selection */}
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#374151",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Shop *
-                  </Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={{ gap: 8 }}
-                  >
-                    <View style={{ flexDirection: "row", gap: 8 }}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
+                  {/* Shop Selection */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Shop
+                    </Text>
+                    <View style={{ gap: 8 }}>
                       {shops.map((shop) => (
                         <Pressable
                           key={shop.id}
-                          onPress={() => setSelectedShopId(shop.id.toString())}
+                          onPress={() => setFormData({ ...formData, shop: shop.id })}
                           style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            borderRadius: 20,
-                            backgroundColor:
-                              selectedShopId === shop.id.toString()
-                                ? "#357AFF"
-                                : "#F3F4F6",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 12,
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: formData.shop === shop.id ? "#6366F1" : "#F1F5F9",
+                            backgroundColor: formData.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
                           }}
                         >
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "500",
-                              color:
-                                selectedShopId === shop.id.toString()
-                                  ? "#fff"
-                                  : "#6B7280",
-                            }}
-                          >
+                          <Store size={18} color={formData.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
+                          <Text style={{ fontSize: 15, fontWeight: "600", color: formData.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
                             {shop.shop_name}
                           </Text>
                         </Pressable>
                       ))}
                     </View>
-                  </ScrollView>
-                </View>
-
-                {/* Items */}
-                <View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 12,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Items *
-                    </Text>
-                    <Pressable
-                      onPress={addPurchaseItem}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 16,
-                        backgroundColor: "#357AFF15",
-                      }}
-                    >
-                      <Plus size={14} color="#357AFF" />
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: "500",
-                          color: "#357AFF",
-                        }}
-                      >
-                        Add Item
-                      </Text>
-                    </Pressable>
                   </View>
 
-                  {purchaseItems.map((item, index) => (
-                    <View
-                      key={index}
-                      style={{
-                        backgroundColor: "#F9FAFB",
-                        borderRadius: 12,
-                        padding: 16,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <Text
+                  {/* Category Selection */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Category
+                    </Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {CATEGORIES.map((category) => (
+                        <Pressable
+                          key={category}
+                          onPress={() => setFormData({ ...formData, category })}
                           style={{
-                            fontSize: 14,
-                            fontWeight: "600",
-                            color: "#374151",
+                            paddingHorizontal: 14,
+                            paddingVertical: 8,
+                            borderRadius: 20,
+                            borderWidth: 2,
+                            borderColor: formData.category === category ? getCategoryColor(category) : "#F1F5F9",
+                            backgroundColor: formData.category === category ? getCategoryColor(category) + "15" : "#FFFFFF",
                           }}
                         >
-                          Item {index + 1}
-                        </Text>
-                        {purchaseItems.length > 1 && (
-                          <Pressable
-                            onPress={() => removePurchaseItem(index)}
-                            style={{
-                              padding: 4,
-                            }}
-                          >
-                            <Minus size={16} color="#EF4444" />
-                          </Pressable>
-                        )}
-                      </View>
-
-                      {/* Item Selection */}
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "500",
-                          color: "#6B7280",
-                          marginBottom: 6,
-                        }}
-                      >
-                        Product
-                      </Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={{ marginBottom: 12 }}
-                      >
-                        <View style={{ flexDirection: "row", gap: 6 }}>
-                          {items.map((product) => (
-                            <Pressable
-                              key={product.id}
-                              onPress={() =>
-                                updatePurchaseItem(
-                                  index,
-                                  "item_id",
-                                  product.id.toString(),
-                                )
-                              }
-                              style={{
-                                paddingHorizontal: 12,
-                                paddingVertical: 8,
-                                borderRadius: 16,
-                                backgroundColor:
-                                  item.item_id === product.id.toString()
-                                    ? "#357AFF"
-                                    : "#fff",
-                                borderWidth: 1,
-                                borderColor:
-                                  item.item_id === product.id.toString()
-                                    ? "#357AFF"
-                                    : "#E5E7EB",
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: "500",
-                                  color:
-                                    item.item_id === product.id.toString()
-                                      ? "#fff"
-                                      : "#6B7280",
-                                }}
-                              >
-                                {product.item_name}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      </ScrollView>
-
-                      <View style={{ flexDirection: "row", gap: 12 }}>
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "500",
-                              color: "#6B7280",
-                              marginBottom: 6,
-                            }}
-                          >
-                            Quantity
+                          <Text style={{ fontSize: 13, fontWeight: "600", color: formData.category === category ? getCategoryColor(category) : "#64748B" }}>
+                            {category}
                           </Text>
-                          <TextInput
-                            value={item.quantity.toString()}
-                            onChangeText={(text) =>
-                              updatePurchaseItem(index, "quantity", text)
-                            }
-                            placeholder="0"
-                            keyboardType="numeric"
-                            style={{
-                              borderWidth: 1,
-                              borderColor: "#E5E7EB",
-                              borderRadius: 8,
-                              paddingHorizontal: 12,
-                              paddingVertical: 10,
-                              fontSize: 16,
-                              backgroundColor: "#fff",
-                            }}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "500",
-                              color: "#6B7280",
-                              marginBottom: 6,
-                            }}
-                          >
-                            Unit Cost ($)
-                          </Text>
-                          <TextInput
-                            value={item.unit_cost}
-                            onChangeText={(text) =>
-                              updatePurchaseItem(index, "unit_cost", text)
-                            }
-                            placeholder="0.00"
-                            keyboardType="decimal-pad"
-                            style={{
-                              borderWidth: 1,
-                              borderColor: "#E5E7EB",
-                              borderRadius: 8,
-                              paddingHorizontal: 12,
-                              paddingVertical: 10,
-                              fontSize: 16,
-                              backgroundColor: "#fff",
-                            }}
-                          />
-                        </View>
-                      </View>
+                        </Pressable>
+                      ))}
                     </View>
-                  ))}
-                </View>
+                  </View>
 
-                {/* Notes */}
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: "#374151",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Notes (Optional)
-                  </Text>
-                  <TextInput
-                    value={notes}
-                    onChangeText={setNotes}
-                    placeholder="Add any notes about this purchase..."
-                    multiline
-                    numberOfLines={3}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: "#E5E7EB",
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      fontSize: 16,
-                      backgroundColor: "#fff",
-                      textAlignVertical: "top",
-                    }}
-                  />
-                </View>
+                  {/* Description */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Description
+                    </Text>
+                    <TextInput
+                      value={formData.description}
+                      onChangeText={(text) => setFormData({ ...formData, description: text })}
+                      placeholder="What was purchased?"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                      multiline
+                      numberOfLines={3}
+                    />
+                  </View>
 
-                {/* Total */}
-                <View
-                  style={{
-                    backgroundColor: "#F0F9FF",
-                    borderRadius: 12,
-                    padding: 16,
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Total Amount
+                  {/* Amount */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Amount
                     </Text>
-                    <Text
+                    <TextInput
+                      value={formData.amount}
+                      onChangeText={(text) => setFormData({ ...formData, amount: text })}
+                      placeholder="0.00"
+                      keyboardType="decimal-pad"
                       style={{
-                        fontSize: 24,
-                        fontWeight: "bold",
-                        color: "#357AFF",
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
                       }}
-                    >
-                      {formatCurrency(calculateTotal())}
+                    />
+                  </View>
+
+                  {/* Date */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Date
                     </Text>
+                    <TextInput
+                      value={formData.date}
+                      onChangeText={(text) => setFormData({ ...formData, date: text })}
+                      placeholder="YYYY-MM-DD"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                    />
                   </View>
                 </View>
-              </View>
-            </ScrollView>
+              </ScrollView>
 
-            {/* Modal Footer */}
-            <View
-              style={{
-                padding: 20,
-                borderTopWidth: 1,
-                borderTopColor: "#E5E7EB",
-              }}
-            >
-              <Pressable
-                onPress={handleAddPurchase}
-                style={({ pressed }) => ({
-                  backgroundColor: "#357AFF",
-                  borderRadius: 12,
-                  paddingVertical: 16,
-                  alignItems: "center",
-                  opacity: pressed ? 0.8 : 1,
-                })}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: "#fff",
-                  }}
+              {/* Submit Button - Outside ScrollView but inside KeyboardAvoidingView */}
+              <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
+                <Pressable
+                  onPress={handleAddPurchase}
+                  style={({ pressed }) => ({
+                    backgroundColor: "#6366F1",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    opacity: pressed ? 0.9 : 1,
+                  })}
                 >
-                  Record Purchase
+                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
+                    Record Purchase
+                  </Text>
+                </Pressable>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Purchase Details Modal */}
+      <Modal visible={!!selectedPurchase} transparent animationType="fade" onRequestClose={() => setSelectedPurchase(null)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", paddingHorizontal: 20 }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 24, overflow: "hidden" }}>
+            {/* Header */}
+            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A", flex: 1 }}>
+                  Purchase Details
                 </Text>
-              </Pressable>
+                <Pressable onPress={() => setSelectedPurchase(null)} style={{ padding: 4 }}>
+                  <X size={24} color="#64748B" strokeWidth={2} />
+                </Pressable>
+              </View>
             </View>
+
+            {/* Content */}
+            {selectedPurchase && (
+              <View style={{ padding: 20, gap: 16 }}>
+                <View>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                    DESCRIPTION
+                  </Text>
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A" }}>
+                    {selectedPurchase.description}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: "row", gap: 16 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                      AMOUNT
+                    </Text>
+                    <Text style={{ fontSize: 20, fontWeight: "800", color: "#EF4444", letterSpacing: -0.5 }}>
+                      {formatCurrency(selectedPurchase.amount, false)}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                      CATEGORY
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: getCategoryColor(selectedPurchase.category) + "20",
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        alignSelf: "flex-start",
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: getCategoryColor(selectedPurchase.category) }}>
+                        {selectedPurchase.category}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                    SHOP
+                  </Text>
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
+                    {selectedPurchase.shop_name || selectedPurchase.shop}
+                  </Text>
+                </View>
+
+                <View>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                    DATE
+                  </Text>
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
+                    {formatDate(selectedPurchase.date)}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </Modal>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { create } from "zustand";
 import { Modal, View } from "react-native";
 import { useAuthModal, useAuthStore, authKey } from "./store";
+import { logout as frappeLogout } from "@/utils/frappeApi";
 
 /**
  * This hook provides authentication functionality.
@@ -33,10 +34,20 @@ export const useAuth = () => {
     open({ mode: "signup" });
   }, [open]);
 
-  const signOut = useCallback(() => {
-    setAuth(null);
-    close();
-  }, [close]);
+  const signOut = useCallback(async () => {
+    try {
+      // Call Frappe logout
+      await frappeLogout();
+    } catch (error) {
+      console.log('Logout error:', error);
+    } finally {
+      // Clear local auth state
+      setAuth(null);
+      close();
+      // Redirect to auth screen
+      router.replace('/auth');
+    }
+  }, [close, setAuth]);
 
   return {
     isReady,
