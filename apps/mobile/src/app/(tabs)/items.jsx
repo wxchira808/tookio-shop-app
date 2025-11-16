@@ -1130,6 +1130,277 @@ export default function InventoryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Item Actions Modal */}
+      <Modal visible={showItemActionsModal} transparent animationType="fade" onRequestClose={() => setShowItemActionsModal(false)}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}
+          onPress={() => setShowItemActionsModal(false)}
+        >
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: 20,
+              padding: 20,
+              width: "80%",
+              maxWidth: 300,
+            }}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A", marginBottom: 16, textAlign: "center" }}>
+              {selectedItem?.item_name}
+            </Text>
+
+            <Pressable
+              onPress={handleEditItem}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                padding: 16,
+                borderRadius: 12,
+                backgroundColor: "#F8FAFC",
+                marginBottom: 12,
+              }}
+            >
+              <Edit3 size={20} color="#6366F1" strokeWidth={2} />
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A", marginLeft: 12 }}>
+                Edit Item
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleDeleteItem}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                padding: 16,
+                borderRadius: 12,
+                backgroundColor: "#FEF2F2",
+              }}
+            >
+              <Trash2 size={20} color="#EF4444" strokeWidth={2} />
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#EF4444", marginLeft: 12 }}>
+                Delete Item
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setShowItemActionsModal(false)}
+              style={{
+                padding: 16,
+                marginTop: 12,
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#64748B", textAlign: "center" }}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Edit Item Modal - reuses same structure as Add Item Modal */}
+      <Modal visible={showEditItemModal} transparent animationType="slide" onRequestClose={() => {setShowEditItemModal(false); resetItemForm();}}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
+                Edit Item
+              </Text>
+              <Pressable onPress={() => { setShowEditItemModal(false); resetItemForm(); setSelectedItem(null); }}>
+                <X size={24} color="#64748B" strokeWidth={2} />
+              </Pressable>
+            </View>
+
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+            >
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+                  {/* Shop Selection */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Shop
+                    </Text>
+                    <View style={{ gap: 8 }}>
+                      {shops.map(shop => (
+                        <Pressable
+                          key={shop.id}
+                          onPress={() => setItemForm({ ...itemForm, shop: shop.id })}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            padding: 12,
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: itemForm.shop === shop.id ? "#6366F1" : "#F1F5F9",
+                            backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                          }}
+                        >
+                          <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
+                          <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
+                            {shop.shop_name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Same form fields as Add Item Modal */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Item Name
+                    </Text>
+                    <TextInput
+                      value={itemForm.item_name}
+                      onChangeText={(text) => setItemForm({ ...itemForm, item_name: text })}
+                      placeholder="e.g., Coca Cola 500ml"
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                    />
+                  </View>
+
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                      Description (Optional)
+                    </Text>
+                    <TextInput
+                      value={itemForm.description}
+                      onChangeText={(text) => setItemForm({ ...itemForm, description: text })}
+                      placeholder="Additional details..."
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 14,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                      multiline
+                      numberOfLines={2}
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                        Selling Price
+                      </Text>
+                      <TextInput
+                        value={itemForm.unit_price}
+                        onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
+                        placeholder="0.00"
+                        keyboardType="decimal-pad"
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 14,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                      />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                        Cost Price
+                      </Text>
+                      <TextInput
+                        value={itemForm.cost_price}
+                        onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })}
+                        placeholder="0.00"
+                        keyboardType="decimal-pad"
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 14,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                        Current Stock
+                      </Text>
+                      <TextInput
+                        value={itemForm.current_stock}
+                        onChangeText={(text) => setItemForm({ ...itemForm, current_stock: text })}
+                        placeholder="0"
+                        keyboardType="number-pad"
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 14,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                      />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                        Low Stock Alert
+                      </Text>
+                      <TextInput
+                        value={itemForm.low_stock_threshold}
+                        onChangeText={(text) => setItemForm({ ...itemForm, low_stock_threshold: text })}
+                        placeholder="5"
+                        keyboardType="number-pad"
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 14,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                      />
+                    </View>
+                  </View>
+                </View>
+              </ScrollView>
+
+              <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
+                <Pressable
+                  onPress={handleUpdateItem}
+                  style={({ pressed }) => ({
+                    backgroundColor: "#6366F1",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    opacity: pressed ? 0.9 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
+                    Update Item
+                  </Text>
+                </Pressable>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
