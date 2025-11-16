@@ -43,7 +43,6 @@ export default function Profile() {
       const updatedUser = await refreshUserDetails();
 
       // Update auth in SecureStore and state
-      // Note: Subscription is preserved from login - portal users can't query Customer doctype
       const authData = await SecureStore.getItemAsync(authKey);
       if (authData) {
         const auth = JSON.parse(authData);
@@ -52,9 +51,6 @@ export default function Profile() {
           user: {
             ...auth.user,
             ...updatedUser,
-            // Preserve subscription from login since we can't re-query it
-            subscription_tier: auth.user.subscription_tier || 'free',
-            subscription_expiry: auth.user.subscription_expiry || null,
           },
         };
         await SecureStore.setItemAsync(authKey, JSON.stringify(updatedAuth));

@@ -129,36 +129,33 @@ export async function login(usr, pwd) {
         username: userDoc.data.name,
       };
 
-      // Try to fetch subscription plan from Customer via Portal User child table
-      // Portal User is a child table in Customer, so we filter Customer by child table field
+      // Fetch subscription using whitelisted method
       try {
-        // Query Customer where portal_users child table contains the user email
-        const customerQuery = await frappeRequest(
-          `/api/resource/Customer?filters=[["portal_users","user","=","${userDoc.data.email}"]]&fields=["name","custom_tookio_subscription_plan"]&limit_page_length=1`,
-          {},
-          true
+        const subscriptionData = await frappeRequest(
+          '/api/method/tookio_shop.api.get_user_subscription',
+          { method: 'POST' },
+          true // skipSessionCheck during login
         );
 
-        console.log('📋 Customer query response:', JSON.stringify(customerQuery, null, 2));
+        console.log('📋 Subscription API response:', JSON.stringify(subscriptionData, null, 2));
 
-        if (customerQuery.data && customerQuery.data.length > 0) {
-          const customer = customerQuery.data[0];
-          console.log('📋 Customer found:', customer.name);
-          console.log('📋 Customer data:', JSON.stringify(customer, null, 2));
+        if (subscriptionData && subscriptionData.message) {
+          const subData = subscriptionData.message;
 
-          userDetails.subscription_tier = customer.custom_tookio_subscription_plan || 'free';
-          userDetails.subscription_expiry = null; // Not stored in Customer doctype
+          userDetails.subscription_tier = subData.subscription_plan || 'Free Plan';
+          userDetails.subscription_expiry = null;
+          userDetails.customer_name = subData.customer_name;
 
           console.log('📋 Subscription plan:', userDetails.subscription_tier);
+          console.log('📋 Customer:', userDetails.customer_name);
         } else {
-          console.log('⚠️ No Customer found with portal user email:', userDoc.data.email);
-          userDetails.subscription_tier = 'free';
+          console.log('⚠️ No subscription data returned');
+          userDetails.subscription_tier = 'Free Plan';
           userDetails.subscription_expiry = null;
         }
       } catch (e) {
         console.log('❌ Could not fetch subscription plan:', e.message);
-        console.log('❌ Error details:', e);
-        userDetails.subscription_tier = 'free';
+        userDetails.subscription_tier = 'Free Plan';
         userDetails.subscription_expiry = null;
       }
     } catch (e) {
@@ -249,9 +246,7 @@ export async function isAuthenticated() {
 }
 
 /**
- * Refreshes the current user's details
- * Note: Subscription data requires Customer doctype access which portal users don't have
- * The subscription is set during login and stored in auth state
+ * Refreshes the current user's details including subscription from whitelisted API
  */
 export async function refreshUserDetails() {
   try {
@@ -267,13 +262,38 @@ export async function refreshUserDetails() {
       email: userDoc.data.email,
       name: userDoc.data.full_name || userDoc.data.name,
       username: userDoc.data.name,
-      // Subscription is set during login and stored in auth - portal users can't query Customer doctype
-      subscription_tier: 'free',
-      subscription_expiry: null,
     };
 
+    // Fetch subscription using whitelisted method
+    try {
+      const subscriptionData = await frappeRequest(
+        '/api/method/tookio_shop.api.get_user_subscription',
+        { method: 'POST' }
+      );
+
+      console.log('📋 Subscription API response:', JSON.stringify(subscriptionData, null, 2));
+
+      if (subscriptionData && subscriptionData.message) {
+        const subData = subscriptionData.message;
+
+        userDetails.subscription_tier = subData.subscription_plan || 'Free Plan';
+        userDetails.subscription_expiry = null;
+        userDetails.customer_name = subData.customer_name;
+
+        console.log('📋 Subscription plan:', userDetails.subscription_tier);
+        console.log('📋 Customer:', userDetails.customer_name);
+      } else {
+        console.log('⚠️ No subscription data returned');
+        userDetails.subscription_tier = 'Free Plan';
+        userDetails.subscription_expiry = null;
+      }
+    } catch (e) {
+      console.log('❌ Could not fetch subscription plan:', e.message);
+      userDetails.subscription_tier = 'Free Plan';
+      userDetails.subscription_expiry = null;
+    }
+
     console.log('✅ User details refreshed:', userDetails);
-    console.log('💡 Note: Subscription data is only fetched during login. Portal users cannot query Customer doctype.');
     return userDetails;
   } catch (error) {
     console.log('❌ Error refreshing user details:', error);
