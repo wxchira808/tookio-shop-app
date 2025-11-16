@@ -75,6 +75,17 @@ async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
         } catch (e) {
           // Use original error
         }
+
+        // Check if error indicates Guest user (session expired)
+        if (!skipSessionCheck && (parsedError.includes('User <strong>Guest</strong>') || parsedError.includes('Guest') && parsedError.includes('does not have'))) {
+          console.log('🔒 Session expired (Guest user detected), logging out...');
+          await SecureStore.deleteItemAsync(AUTH_KEY);
+
+          const sessionError = new Error('Your session has expired. Please login again.');
+          sessionError.sessionExpired = true;
+          throw sessionError;
+        }
+
         throw new Error(parsedError);
       }
       throw new Error(data.message || `Error: ${response.status}`);
