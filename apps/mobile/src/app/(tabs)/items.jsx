@@ -1337,8 +1337,11 @@ export default function InventoryScreen() {
 
                   <View style={{ flexDirection: "row", gap: 12 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                        Current Stock
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                        Stock Quantity
+                      </Text>
+                      <Text style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>
+                        Edit directly to set stock
                       </Text>
                       <TextInput
                         value={itemForm.current_stock}
