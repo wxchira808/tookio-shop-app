@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRequireAuth } from "@/utils/auth/useAuth";
+import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
 import {
   Package,
   Plus,
@@ -41,6 +41,7 @@ import { formatCurrency } from "@/utils/currency";
 
 export default function InventoryScreen() {
   useRequireAuth();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [items, setItems] = useState([]);
@@ -94,7 +95,9 @@ export default function InventoryScreen() {
       // Don't auto-select a shop - show all items by default
     } catch (error) {
       console.error("Error loading data:", error);
-      Alert.alert("Error", "Failed to load inventory data");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to load inventory data");
+      }
     } finally {
       setLoading(false);
     }
@@ -129,7 +132,9 @@ export default function InventoryScreen() {
       await loadData();
     } catch (error) {
       console.error("Error creating item:", error);
-      Alert.alert("Error", "Failed to create item");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to create item");
+      }
     }
   };
 
@@ -161,7 +166,9 @@ export default function InventoryScreen() {
       await loadData();
     } catch (error) {
       console.error("Error adjusting stock:", error);
-      Alert.alert("Error", "Failed to adjust stock");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to adjust stock");
+      }
     }
   };
 
@@ -229,7 +236,9 @@ export default function InventoryScreen() {
               await loadData();
             } catch (error) {
               console.error("Error deleting item:", error);
-              Alert.alert("Error", "Failed to delete item");
+              if (!handleApiError(error, signOut)) {
+                Alert.alert("Error", "Failed to delete item");
+              }
             }
           },
         },
@@ -262,7 +271,9 @@ export default function InventoryScreen() {
       await loadData();
     } catch (error) {
       console.error("Error updating item:", error);
-      Alert.alert("Error", "Failed to update item");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to update item");
+      }
     }
   };
 

@@ -75,4 +75,24 @@ export const useRequireAuth = (options) => {
   }, [isAuthenticated, open, options?.mode, isReady]);
 };
 
+/**
+ * Helper function to handle API errors and check for session expiry
+ * Use this in catch blocks to automatically handle session timeouts
+ * @param {Error} error - The error from the API call
+ * @param {Function} signOut - The signOut function from useAuth
+ * @param {string} fallbackMessage - Optional fallback error message to display
+ * @returns {boolean} - Returns true if it was a session error, false otherwise
+ */
+export const handleApiError = (error, signOut, fallbackMessage = "An error occurred") => {
+  // Check if error indicates session expiry
+  if (error?.sessionExpired ||
+      error?.message?.includes('session has expired') ||
+      error?.message?.includes('Session expired')) {
+    console.log('🔒 Session expired error detected, signing out...');
+    signOut();
+    return true;
+  }
+  return false;
+};
+
 export default useAuth;

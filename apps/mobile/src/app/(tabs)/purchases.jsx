@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Alert, RefreshControl, KeyboardAvoidingView, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRequireAuth } from "@/utils/auth/useAuth";
+import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
 import {
   Plus,
   X,
@@ -29,6 +29,7 @@ const CATEGORIES = [
 
 export default function PurchasesScreen() {
   useRequireAuth();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [purchases, setPurchases] = useState([]);
@@ -65,7 +66,9 @@ export default function PurchasesScreen() {
       setShops(shopsRes?.shops || []);
     } catch (error) {
       console.error("Error loading purchases:", error);
-      Alert.alert("Error", "Failed to load purchases");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to load purchases");
+      }
     } finally {
       setLoading(false);
     }
@@ -91,7 +94,9 @@ export default function PurchasesScreen() {
       await loadPurchases();
     } catch (error) {
       console.error("Error creating purchase:", error);
-      Alert.alert("Error", "Failed to record purchase");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to record purchase");
+      }
     }
   };
 
@@ -118,7 +123,7 @@ export default function PurchasesScreen() {
     // Populate form with selected purchase data
     setFormData({
       date: selectedPurchase.date,
-      shop: selectedPurchase.shop_id,
+      shop: selectedPurchase.shop,
       description: selectedPurchase.description,
       amount: selectedPurchase.amount?.toString() || "",
       category: selectedPurchase.category || "Stock",
@@ -148,7 +153,9 @@ export default function PurchasesScreen() {
               await loadPurchases();
             } catch (error) {
               console.error("Error deleting purchase:", error);
-              Alert.alert("Error", "Failed to delete purchase");
+              if (!handleApiError(error, signOut)) {
+                Alert.alert("Error", "Failed to delete purchase");
+              }
             }
           },
         },
@@ -172,7 +179,9 @@ export default function PurchasesScreen() {
       await loadPurchases();
     } catch (error) {
       console.error("Error updating purchase:", error);
-      Alert.alert("Error", "Failed to update purchase");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to update purchase");
+      }
     }
   };
 
@@ -548,86 +557,6 @@ export default function PurchasesScreen() {
                 </Pressable>
               </View>
             </KeyboardAvoidingView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Purchase Details Modal */}
-      <Modal visible={!!selectedPurchase} transparent animationType="fade" onRequestClose={() => setSelectedPurchase(null)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", paddingHorizontal: 20 }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 24, overflow: "hidden" }}>
-            {/* Header */}
-            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A", flex: 1 }}>
-                  Purchase Details
-                </Text>
-                <Pressable onPress={() => setSelectedPurchase(null)} style={{ padding: 4 }}>
-                  <X size={24} color="#64748B" strokeWidth={2} />
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Content */}
-            {selectedPurchase && (
-              <View style={{ padding: 20, gap: 16 }}>
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
-                    DESCRIPTION
-                  </Text>
-                  <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A" }}>
-                    {selectedPurchase.description}
-                  </Text>
-                </View>
-
-                <View style={{ flexDirection: "row", gap: 16 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
-                      AMOUNT
-                    </Text>
-                    <Text style={{ fontSize: 20, fontWeight: "800", color: "#EF4444", letterSpacing: -0.5 }}>
-                      {formatCurrency(selectedPurchase.amount, false)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
-                      CATEGORY
-                    </Text>
-                    <View
-                      style={{
-                        backgroundColor: getCategoryColor(selectedPurchase.category) + "20",
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        borderRadius: 8,
-                        alignSelf: "flex-start",
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: "600", color: getCategoryColor(selectedPurchase.category) }}>
-                        {selectedPurchase.category}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
-                    SHOP
-                  </Text>
-                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
-                    {selectedPurchase.shop_name || selectedPurchase.shop}
-                  </Text>
-                </View>
-
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
-                    DATE
-                  </Text>
-                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
-                    {formatDate(selectedPurchase.date)}
-                  </Text>
-                </View>
-              </View>
-            )}
           </View>
         </View>
       </Modal>

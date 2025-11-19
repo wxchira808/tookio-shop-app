@@ -48,6 +48,8 @@ async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
       data = await response.text();
     }
 
+    console.log(`📊 Response status: ${response.status}, ok: ${response.ok}`);
+
     if (!response.ok) {
       // Handle session expiry ONLY on 401 Unauthorized
       // Don't treat 403 (Forbidden/Permission Denied) as session expiry
@@ -76,9 +78,14 @@ async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
           // Use original error
         }
 
-        // Check if error indicates Guest user (session expired)
-        if (!skipSessionCheck && (parsedError.includes('User <strong>Guest</strong>') || parsedError.includes('Guest') && parsedError.includes('does not have'))) {
-          console.log('🔒 Session expired (Guest user detected), logging out...');
+        // Check if error indicates Guest user or session expired
+        if (!skipSessionCheck && (
+          parsedError.includes('User <strong>Guest</strong>') ||
+          (parsedError.includes('Guest') && parsedError.includes('does not have')) ||
+          parsedError.includes('Not implemented') ||
+          parsedError.includes('not implemented')
+        )) {
+          console.log('🔒 Session expired (Guest user/Not implemented detected), logging out...');
           await SecureStore.deleteItemAsync(AUTH_KEY);
 
           const sessionError = new Error('Your session has expired. Please login again.');
@@ -88,7 +95,45 @@ async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
 
         throw new Error(parsedError);
       }
+
+      // Check message field for "Not implemented" error
+      if (data.message && !skipSessionCheck && (
+        data.message.includes('Not implemented') ||
+        data.message.includes('not implemented')
+      )) {
+        console.log('🔒 Session expired (Not implemented in message), logging out...');
+        await SecureStore.deleteItemAsync(AUTH_KEY);
+
+        const sessionError = new Error('Your session has expired. Please login again.');
+        sessionError.sessionExpired = true;
+        throw sessionError;
+      }
+
       throw new Error(data.message || `Error: ${response.status}`);
+    }
+
+    // Check for "Not implemented" even in successful responses (session timeout with 200 status)
+    if (data && !skipSessionCheck) {
+      const checkMessage = (msg) => {
+        if (typeof msg === 'string') {
+          return msg.includes('Not implemented') || msg.includes('not implemented');
+        }
+        return false;
+      };
+
+      // Also check if data itself is a string containing "Not implemented"
+      const dataIsNotImplemented = typeof data === 'string' &&
+        (data.includes('Not implemented') || data.includes('not implemented'));
+
+      if (dataIsNotImplemented || checkMessage(data.message) || checkMessage(data.exception) || checkMessage(data._server_messages)) {
+        console.log('🔒 Session expired (Not implemented detected), logging out...');
+        console.log('🔍 Data type:', typeof data, 'Data:', data);
+        await SecureStore.deleteItemAsync(AUTH_KEY);
+
+        const sessionError = new Error('Your session has expired. Please login again.');
+        sessionError.sessionExpired = true;
+        throw sessionError;
+      }
     }
 
     console.log('✅ Success');
@@ -455,6 +500,9 @@ export async function updateItem(itemId, itemData) {
     item_name: itemData.item_name,
     price: itemData.cost_price,
     selling_price: itemData.unit_price,
+    shop: itemData.shop,
+    stock_quantity: itemData.current_stock,
+    low_stock_threshold: itemData.low_stock_threshold,
   };
 
   const response = await frappeRequest(`/api/resource/Product/${itemId}`, {

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRequireAuth } from "@/utils/auth/useAuth";
+import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
 import {
   BarChart3,
   Plus,
@@ -34,6 +34,7 @@ import {
 
 export default function Stock() {
   useRequireAuth();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [stockTransactions, setStockTransactions] = useState([]);
@@ -71,7 +72,9 @@ export default function Stock() {
       }
     } catch (error) {
       console.error("Error loading stock data:", error);
-      Alert.alert("Error", "Failed to load stock transactions");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to load stock transactions");
+      }
     } finally {
       setLoading(false);
     }
@@ -134,7 +137,9 @@ export default function Stock() {
       }
     } catch (error) {
       console.error("Error recording stock transaction:", error);
-      Alert.alert("Error", error.message || "Failed to record transaction");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", error.message || "Failed to record transaction");
+      }
     } finally {
       setSubmitting(false);
     }

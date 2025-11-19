@@ -418,7 +418,7 @@ export default function SubscriptionScreen() {
                     {/* Action Button */}
                     <Pressable
                       onPress={() => handleSelectPlan(plan)}
-                      disabled={isCurrentPlan}
+                      disabled={isCurrentPlan || (!canUpgrade && plan.id !== "free")}
                       style={({ pressed }) => ({
                         backgroundColor: isCurrentPlan
                           ? "#F1F5F9"

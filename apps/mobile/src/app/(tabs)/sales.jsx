@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRequireAuth } from "@/utils/auth/useAuth";
+import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
 import {
   TrendingUp,
   Plus,
@@ -25,11 +25,12 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getSales, getSaleById, createSale, getShops, getItems } from "@/utils/frappeApi";
+import { getSales, getSaleById, createSale, cancelSale, getShops, getItems } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
 
 export default function Sales() {
   useRequireAuth();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [sales, setSales] = useState([]);
@@ -80,7 +81,9 @@ export default function Sales() {
       }
     } catch (error) {
       console.error("Error loading sales:", error);
-      Alert.alert("Error", "Failed to load sales data");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to load sales data");
+      }
     } finally {
       setLoading(false);
     }
@@ -150,12 +153,45 @@ export default function Sales() {
       const fullSale = await getSaleById(sale.id);
       // Include shop_name from list data
       fullSale.shop_name = sale.shop_name;
+      fullSale.status = sale.status; // Include status
       setSelectedSale(fullSale);
       setShowDetailsModal(true);
     } catch (error) {
       console.error('Error fetching sale details:', error);
-      Alert.alert('Error', 'Failed to load sale details. Please try again.');
+      if (!handleApiError(error, signOut)) {
+        Alert.alert('Error', 'Failed to load sale details. Please try again.');
+      }
     }
+  };
+
+  const handleCancelSale = async () => {
+    if (!selectedSale) return;
+
+    Alert.alert(
+      "Cancel Sale",
+      `Are you sure you want to cancel this sale? This action cannot be undone.`,
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await cancelSale(selectedSale.id);
+              Alert.alert("Success", "Sale cancelled successfully");
+              setShowDetailsModal(false);
+              setSelectedSale(null);
+              await loadData(); // Reload sales list
+            } catch (error) {
+              console.error("Error cancelling sale:", error);
+              if (!handleApiError(error, signOut)) {
+                Alert.alert("Error", "Failed to cancel sale");
+              }
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleAddSale = async () => {
@@ -213,7 +249,9 @@ export default function Sales() {
       }
     } catch (error) {
       console.error("Error adding sale:", error);
-      Alert.alert("Error", error.message || "Failed to record sale");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", error.message || "Failed to record sale");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1370,20 +1408,37 @@ export default function Sales() {
                         marginBottom: 12,
                       }}
                     >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#6B7280",
-                          fontWeight: "500",
-                        }}
-                      >
-                        Sale #{selectedSale.id}
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: "#6B7280",
+                            fontWeight: "500",
+                          }}
+                        >
+                          Sale #{selectedSale.id}
+                        </Text>
+                        {selectedSale.status === "Cancelled" && (
+                          <View
+                            style={{
+                              backgroundColor: "#FEE2E2",
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Text style={{ fontSize: 11, fontWeight: "700", color: "#DC2626" }}>
+                              CANCELLED
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       <Text
                         style={{
                           fontSize: 24,
                           fontWeight: "bold",
-                          color: "#10B981",
+                          color: selectedSale.status === "Cancelled" ? "#6B7280" : "#10B981",
+                          textDecorationLine: selectedSale.status === "Cancelled" ? "line-through" : "none",
                         }}
                       >
                         {formatCurrency(selectedSale.total_amount)}
@@ -1586,8 +1641,32 @@ export default function Sales() {
                 padding: 20,
                 borderTopWidth: 1,
                 borderTopColor: "#E5E7EB",
+                gap: 12,
               }}
             >
+              {selectedSale && selectedSale.status !== "Cancelled" && (
+                <Pressable
+                  onPress={handleCancelSale}
+                  style={({ pressed }) => ({
+                    backgroundColor: "#EF4444",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#fff",
+                    }}
+                  >
+                    Cancel Sale
+                  </Text>
+                </Pressable>
+              )}
+
               <Pressable
                 onPress={() => setShowDetailsModal(false)}
                 style={({ pressed }) => ({

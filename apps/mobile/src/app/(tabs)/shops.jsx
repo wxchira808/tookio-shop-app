@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRequireAuth } from "@/utils/auth/useAuth";
+import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
 import {
   Store,
   Plus,
@@ -40,6 +40,7 @@ import { formatCurrency } from "@/utils/currency";
 
 export default function Shops() {
   useRequireAuth();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [shops, setShops] = useState([]);
@@ -87,7 +88,9 @@ export default function Shops() {
       }
     } catch (error) {
       console.error("Error loading shops:", error);
-      Alert.alert("Error", "Failed to load shops. Please try again.");
+      if (!handleApiError(error, signOut)) {
+        Alert.alert("Error", "Failed to load shops. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -676,7 +679,7 @@ export default function Shops() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              height: "70%",
+              height: "85%",
               paddingBottom: insets.bottom,
             }}
           >
@@ -924,7 +927,7 @@ export default function Shops() {
               )}
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>

@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl, Modal } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRequireAuth } from "@/utils/auth/useAuth";
+import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
 import {
   Store,
   Package,
@@ -23,6 +23,7 @@ import { formatCurrency } from "@/utils/currency";
 
 export default function Dashboard() {
   useRequireAuth();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [stats, setStats] = useState({
@@ -104,6 +105,7 @@ export default function Dashboard() {
       });
     } catch (error) {
       console.error("Error loading dashboard stats:", error);
+      handleApiError(error, signOut);
     } finally {
       setLoading(false);
     }

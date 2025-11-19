@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, Pressable, Alert, Linking, RefreshControl } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/utils/auth/useAuth";
+import { useAuth, handleApiError } from "@/utils/auth/useAuth";
 import useUser from "@/utils/auth/useUser";
 import {
   User,
@@ -58,9 +58,12 @@ export default function Profile() {
       }
     } catch (error) {
       console.error("Error refreshing user details:", error);
-      // Don't show alert on focus refresh, only on manual refresh
-      if (refreshing) {
-        Alert.alert("Error", "Failed to refresh user details");
+      // Check for session timeout first
+      if (!handleApiError(error, signOut)) {
+        // Don't show alert on focus refresh, only on manual refresh
+        if (refreshing) {
+          Alert.alert("Error", "Failed to refresh user details");
+        }
       }
     } finally {
       setRefreshing(false);
