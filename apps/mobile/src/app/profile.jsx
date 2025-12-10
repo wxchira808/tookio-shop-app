@@ -17,7 +17,7 @@ import {
 } from "lucide-react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useState, useCallback, useRef } from "react";
-import { refreshUserDetails } from "@/utils/frappeApi";
+import { refreshUserDetails, checkSession } from "@/utils/frappeApi";
 import * as SecureStore from "expo-secure-store";
 import { authKey } from "@/utils/auth/store";
 
@@ -39,6 +39,9 @@ export default function Profile() {
     try {
       isRefreshingRef.current = true;
       setRefreshing(true);
+
+      // Check session first
+      await checkSession();
 
       const updatedUser = await refreshUserDetails();
 
@@ -93,6 +96,7 @@ export default function Profile() {
     ]);
   };
 
+  /*
   const getSubscriptionTier = () => {
     const tier = user?.subscription_tier || "free";
     return tier.toLowerCase();
@@ -130,6 +134,7 @@ export default function Profile() {
     // Otherwise return the tier name capitalized
     return capitalize(tier);
   };
+  */
 
   const formatExpiryDate = (dateString) => {
     if (!dateString) return null;
@@ -161,10 +166,11 @@ export default function Profile() {
     );
   }
 
-  const currentTier = getSubscriptionTier();
-  const subscriptionColor = getSubscriptionColor(currentTier);
-  const subscriptionLabel = getSubscriptionLabel(currentTier);
-  const expiryDate = user?.subscription_expiry;
+  // Tookio Shop is now completely FREE!
+  // const currentTier = getSubscriptionTier();
+  // const subscriptionColor = getSubscriptionColor(currentTier);
+  // const subscriptionLabel = getSubscriptionLabel(currentTier);
+  // const expiryDate = user?.subscription_expiry;
 
   return (
     <View
@@ -232,10 +238,10 @@ export default function Profile() {
                   alignItems: "center",
                   justifyContent: "center",
                   borderWidth: 2,
-                  borderColor: subscriptionColor + "20",
+                  borderColor: "#10B98120",
                 }}
               >
-                <User size={28} color={subscriptionColor} strokeWidth={2} />
+                <User size={28} color="#10B981" strokeWidth={2} />
               </View>
               <View style={{ marginLeft: 16, flex: 1 }}>
                 <Text
@@ -272,42 +278,37 @@ export default function Profile() {
               }}
             />
 
-            {/* Subscription Info */}
+            {/* Free Plan Info */}
             <View>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Subscription Plan
+                  Your Plan
                 </Text>
-                <Crown size={16} color={subscriptionColor} />
+                <Crown size={16} color="#10B981" />
               </View>
               <Text
                 style={{
                   fontSize: 18,
                   fontWeight: "700",
-                  color: subscriptionColor,
-                  marginBottom: expiryDate ? 8 : 0,
+                  color: "#10B981",
+                  marginBottom: 8,
                 }}
               >
-                {subscriptionLabel}
+                Tookio Shop Free
               </Text>
-              {expiryDate && (
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-                  <Calendar size={14} color="#64748B" />
-                  <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>
-                    Expires: {formatExpiryDate(expiryDate)}
-                  </Text>
-                </View>
-              )}
+              <Text style={{ fontSize: 14, color: "#64748B", lineHeight: 20 }}>
+                Complete access to all features • No limits • No payments • Forever free
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Manage Subscription Button */}
+        {/* Support Us Button */}
         <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
           <Pressable
-            onPress={() => router.push("/subscription")}
+            onPress={() => router.push("/payment")}
             style={({ pressed }) => ({
-              backgroundColor: subscriptionColor,
+              backgroundColor: "#EF4444",
               borderRadius: 16,
               paddingVertical: 16,
               paddingHorizontal: 20,
@@ -327,7 +328,7 @@ export default function Profile() {
                 letterSpacing: -0.3,
               }}
             >
-              {currentTier === "free" ? "Upgrade Plan" : "Manage Subscription"}
+              ❤️ Support Tookio Shop
             </Text>
           </Pressable>
         </View>

@@ -26,6 +26,7 @@ import {
   Search,
   Edit3,
   Trash2,
+  Check,
 } from "lucide-react-native";
 import { useState, useEffect } from "react";
 import {
@@ -36,6 +37,7 @@ import {
   getShops,
   createBulkStockAdjustment,
   getStockTransactions,
+  checkSession,
 } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
 
@@ -58,6 +60,7 @@ export default function InventoryScreen() {
   const [selectedShop, setSelectedShop] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [itemSearchQuery, setItemSearchQuery] = useState("");
+  const [enabledFilter, setEnabledFilter] = useState(null); // null = all, true = enabled, false = disabled
 
   // Add Item Form
   const [itemForm, setItemForm] = useState({
@@ -68,6 +71,7 @@ export default function InventoryScreen() {
     cost_price: "",
     current_stock: "0",
     low_stock_threshold: "5",
+    enabled: true,
   });
 
   // Stock Adjustment
@@ -81,6 +85,9 @@ export default function InventoryScreen() {
 
   const loadData = async () => {
     try {
+      // Check session first
+      await checkSession();
+
       setLoading(true);
       const [itemsRes, shopsRes, stockRes] = await Promise.all([
         getItems(),
@@ -124,6 +131,7 @@ export default function InventoryScreen() {
         cost_price: parseFloat(itemForm.cost_price),
         current_stock: parseInt(itemForm.current_stock) || 0,
         low_stock_threshold: parseInt(itemForm.low_stock_threshold) || 5,
+        enabled: itemForm.enabled,
       });
 
       Alert.alert("Success", "Item added successfully");
@@ -181,6 +189,7 @@ export default function InventoryScreen() {
       cost_price: "",
       current_stock: "0",
       low_stock_threshold: "5",
+      enabled: true,
     });
   };
 
@@ -210,6 +219,7 @@ export default function InventoryScreen() {
       cost_price: selectedItem.cost_price?.toString() || "",
       current_stock: selectedItem.current_stock?.toString() || "0",
       low_stock_threshold: selectedItem.low_stock_threshold?.toString() || "5",
+      enabled: selectedItem.enabled !== false,
     });
 
     setShowItemActionsModal(false);
@@ -262,6 +272,7 @@ export default function InventoryScreen() {
         cost_price: parseFloat(itemForm.cost_price) || 0,
         current_stock: parseInt(itemForm.current_stock) || 0,
         low_stock_threshold: parseInt(itemForm.low_stock_threshold) || 5,
+        enabled: itemForm.enabled,
       });
 
       Alert.alert("Success", "Item updated successfully");
@@ -314,7 +325,8 @@ export default function InventoryScreen() {
     const matchesShop = !selectedShop || item.shop === selectedShop;
     const matchesSearch = !searchQuery ||
       item.item_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesShop && matchesSearch;
+    const matchesStatus = enabledFilter === null || (enabledFilter ? item.enabled !== false : item.enabled === false);
+    return matchesShop && matchesSearch && matchesStatus;
   });
 
   // Get items for selected shop (for stock adjustment)
@@ -336,7 +348,9 @@ export default function InventoryScreen() {
   }, [adjustmentShop, items, shopItems.length]);
 
   const totalInventoryValue = filteredItems.reduce((sum, item) => {
-    return sum + (item.unit_price || 0) * (item.current_stock || 0);
+    // Only count enabled items (enabled !== false, defaults to true) in inventory value using buying price
+    if (item.enabled === false) return sum;
+    return sum + (item.cost_price || 0) * (item.current_stock || 0);
   }, 0);
 
   const lowStockItems = filteredItems.filter(
@@ -344,82 +358,87 @@ export default function InventoryScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}>
-      <StatusBar style="dark" />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <View style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}>
+        <StatusBar style="dark" />
 
-      {/* Header */}
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingVertical: 16,
-          backgroundColor: "#FFFFFF",
-          borderBottomWidth: 1,
-          borderBottomColor: "#F1F5F9",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
-              Inventory
-            </Text>
-            <Text style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
-              Items & Stock Management
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Pressable
-              onPress={() => setShowStockAdjustModal(true)}
-              style={({ pressed }) => ({
-                paddingHorizontal: 14,
-                paddingVertical: 10,
-                borderRadius: 12,
-                backgroundColor: pressed ? "#5B21B6" : "#6366F1",
-                flexDirection: "row",
-                alignItems: "center",
-              })}
-            >
-              <ArrowUpDown size={18} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={{ fontSize: 14, fontWeight: "700", color: "#FFFFFF", marginLeft: 6 }}>
-                Adjust
+        {/* Header */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            backgroundColor: "#FFFFFF",
+            borderBottomWidth: 1,
+            borderBottomColor: "#F1F5F9",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
+                Inventory
               </Text>
-            </Pressable>
+              <Text style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
+                Items & Stock Management
+              </Text>
+            </View>
 
-            <Pressable
-              onPress={() => setShowAddItemModal(true)}
-              style={({ pressed }) => ({
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: pressed ? "#059669" : "#10B981",
-                alignItems: "center",
-                justifyContent: "center",
-              })}
-            >
-              <Plus size={22} color="#FFFFFF" strokeWidth={2.5} />
-            </Pressable>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable
+                onPress={() => setShowStockAdjustModal(true)}
+                style={({ pressed }) => ({
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  backgroundColor: pressed ? "#5B21B6" : "#6366F1",
+                  flexDirection: "row",
+                  alignItems: "center",
+                })}
+              >
+                <ArrowUpDown size={18} color="#FFFFFF" strokeWidth={2.5} />
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#FFFFFF", marginLeft: 6 }}>
+                  Adjust
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setShowAddItemModal(true)}
+                style={({ pressed }) => ({
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: pressed ? "#059669" : "#10B981",
+                  alignItems: "center",
+                  justifyContent: "center",
+                })}
+              >
+                <Plus size={22} color="#FFFFFF" strokeWidth={2.5} />
+              </Pressable>
+            </View>
           </View>
         </View>
 
-        {/* Search Bar */}
-        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-          <Search size={18} color="#94A3B8" strokeWidth={2} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search items..."
-            placeholderTextColor="#94A3B8"
-            style={{ flex: 1, marginLeft: 10, fontSize: 15, color: "#0F172A" }}
-          />
-        </View>
-      </View>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          {/* Search Bar - Inside ScrollView */}
+          <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
+              <Search size={18} color="#94A3B8" strokeWidth={2} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search items..."
+                placeholderTextColor="#94A3B8"
+                style={{ flex: 1, marginLeft: 10, fontSize: 15, color: "#0F172A" }}
+              />
+            </View>
+          </View>
         {/* Stats Cards */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
@@ -441,6 +460,61 @@ export default function InventoryScreen() {
               </Text>
             </View>
           </View>
+        </View>
+
+        {/* Status Filter */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable
+                onPress={() => setEnabledFilter(null)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: enabledFilter === null ? "#6366F1" : "#FFFFFF",
+                  borderWidth: 1,
+                  borderColor: enabledFilter === null ? "#6366F1" : "#E2E8F0",
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === null ? "#FFFFFF" : "#64748B" }}>
+                  All Items
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setEnabledFilter(true)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: enabledFilter === true ? "#10B981" : "#FFFFFF",
+                  borderWidth: 1,
+                  borderColor: enabledFilter === true ? "#10B981" : "#E2E8F0",
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === true ? "#FFFFFF" : "#64748B" }}>
+                  Enabled
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setEnabledFilter(false)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: enabledFilter === false ? "#EF4444" : "#FFFFFF",
+                  borderWidth: 1,
+                  borderColor: enabledFilter === false ? "#EF4444" : "#E2E8F0",
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === false ? "#FFFFFF" : "#64748B" }}>
+                  Disabled
+                </Text>
+              </Pressable>
+            </View>
+          </ScrollView>
         </View>
 
         {/* Shop Filter */}
@@ -540,21 +614,39 @@ export default function InventoryScreen() {
                       opacity: pressed ? 0.7 : 1,
                     })}
                   >
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                      <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A", flex: 1 }}>
-                        {item.item_name}
-                      </Text>
-                      <View
-                        style={{
-                          backgroundColor: stockColor + "15",
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          borderRadius: 6,
-                        }}
-                      >
-                        <Text style={{ fontSize: 11, fontWeight: "700", color: stockColor }}>
-                          {item.current_stock || 0} in stock
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>
+                          {item.item_name}
                         </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                        {/* Status Badge */}
+                        <View
+                          style={{
+                            backgroundColor: item.enabled !== false ? "#10B981" : "#EF4444",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                          }}
+                        >
+                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFFFFF" }}>
+                            {item.enabled !== false ? "ACTIVE" : "INACTIVE"}
+                          </Text>
+                        </View>
+                        {/* Stock Badge */}
+                        <View
+                          style={{
+                            backgroundColor: stockColor + "15",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                          }}
+                        >
+                          <Text style={{ fontSize: 10, fontWeight: "700", color: stockColor }}>
+                            {item.current_stock || 0} in stock
+                          </Text>
+                        </View>
                       </View>
                     </View>
 
@@ -569,7 +661,7 @@ export default function InventoryScreen() {
                       </View>
 
                       <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
-                        Value: {formatCurrency((item.unit_price || 0) * (item.current_stock || 0), false)}
+                        Value: {formatCurrency((item.cost_price || 0) * (item.current_stock || 0), false)}
                       </Text>
                     </View>
                   </Pressable>
@@ -603,9 +695,18 @@ export default function InventoryScreen() {
                 <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
                   {/* Shop Selection */}
                   <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Shop
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
+                        Shop
+                      </Text>
+                      <Text style={{ fontSize: 12, color: "#EF4444", marginLeft: 4 }}>*</Text>
+                      <Text style={{ fontSize: 11, color: "#EF4444", marginLeft: 2 }}>Required</Text>
+                    </View>
+                    {!itemForm.shop && (
+                      <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 8, fontStyle: "italic" }}>
+                        Please select a shop for this item
+                      </Text>
+                    )}
                     <View style={{ gap: 8 }}>
                       {shops.map(shop => (
                         <Pressable
@@ -617,14 +718,19 @@ export default function InventoryScreen() {
                             padding: 12,
                             borderRadius: 12,
                             borderWidth: 2,
-                            borderColor: itemForm.shop === shop.id ? "#6366F1" : "#F1F5F9",
-                            backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                            borderColor: itemForm.shop === shop.id ? "#6366F1" : "#E2E8F0",
+                            backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FAFAFA",
                           }}
                         >
-                          <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
-                          <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
+                          <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#94A3B8"} strokeWidth={2} />
+                          <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#64748B", marginLeft: 10 }}>
                             {shop.shop_name}
                           </Text>
+                          {itemForm.shop === shop.id && (
+                            <View style={{ marginLeft: "auto" }}>
+                              <Check size={16} color="#6366F1" />
+                            </View>
+                          )}
                         </Pressable>
                       ))}
                     </View>
@@ -638,7 +744,7 @@ export default function InventoryScreen() {
                     <TextInput
                       value={itemForm.item_name}
                       onChangeText={(text) => setItemForm({ ...itemForm, item_name: text })}
-                      placeholder="e.g., Coca Cola 500ml"
+                      placeholder="Enter item name"
                       style={{
                         backgroundColor: "#F8FAFC",
                         borderWidth: 1,
@@ -678,11 +784,11 @@ export default function InventoryScreen() {
                   <View style={{ flexDirection: "row", gap: 12 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                        Selling Price
+                        Buying Price
                       </Text>
                       <TextInput
-                        value={itemForm.unit_price}
-                        onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
+                        value={itemForm.cost_price}
+                        onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })}
                         placeholder="0.00"
                         keyboardType="decimal-pad"
                         style={{
@@ -699,11 +805,11 @@ export default function InventoryScreen() {
 
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                        Cost Price
+                        Selling Price
                       </Text>
                       <TextInput
-                        value={itemForm.cost_price}
-                        onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })}
+                        value={itemForm.unit_price}
+                        onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
                         placeholder="0.00"
                         keyboardType="decimal-pad"
                         style={{
@@ -763,6 +869,41 @@ export default function InventoryScreen() {
                       />
                     </View>
                   </View>
+
+                  {/* Enabled Checkbox */}
+                  <Pressable
+                    onPress={() => setItemForm({ ...itemForm, enabled: !itemForm.enabled })}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      padding: 14,
+                      backgroundColor: "#F8FAFC",
+                      borderWidth: 1,
+                      borderColor: "#E2E8F0",
+                      borderRadius: 12,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 6,
+                        borderWidth: 2,
+                        borderColor: itemForm.enabled ? "#10B981" : "#E2E8F0",
+                        backgroundColor: itemForm.enabled ? "#10B981" : "transparent",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 12,
+                      }}
+                    >
+                      {itemForm.enabled && (
+                        <Text style={{ fontSize: 14, fontWeight: "bold", color: "#FFFFFF" }}>✓</Text>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
+                      Item is Enabled
+                    </Text>
+                  </Pressable>
                 </View>
               </ScrollView>
 
@@ -1232,9 +1373,18 @@ export default function InventoryScreen() {
                 <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
                   {/* Shop Selection */}
                   <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Shop
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
+                        Shop
+                      </Text>
+                      <Text style={{ fontSize: 12, color: "#EF4444", marginLeft: 4 }}>*</Text>
+                      <Text style={{ fontSize: 11, color: "#EF4444", marginLeft: 2 }}>Required</Text>
+                    </View>
+                    {!itemForm.shop && (
+                      <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 8, fontStyle: "italic" }}>
+                        Please select a shop for this item
+                      </Text>
+                    )}
                     <View style={{ gap: 8 }}>
                       {shops.map(shop => (
                         <Pressable
@@ -1246,20 +1396,25 @@ export default function InventoryScreen() {
                             padding: 12,
                             borderRadius: 12,
                             borderWidth: 2,
-                            borderColor: itemForm.shop === shop.id ? "#6366F1" : "#F1F5F9",
-                            backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                            borderColor: itemForm.shop === shop.id ? "#6366F1" : "#E2E8F0",
+                            backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FAFAFA",
                           }}
                         >
-                          <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
-                          <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
+                          <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#94A3B8"} strokeWidth={2} />
+                          <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#64748B", marginLeft: 10 }}>
                             {shop.shop_name}
                           </Text>
+                          {itemForm.shop === shop.id && (
+                            <View style={{ marginLeft: "auto" }}>
+                              <Check size={16} color="#6366F1" />
+                            </View>
+                          )}
                         </Pressable>
                       ))}
                     </View>
                   </View>
 
-                  {/* Same form fields as Add Item Modal */}
+                  {/* Item Name */}
                   <View>
                     <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
                       Item Name
@@ -1267,7 +1422,7 @@ export default function InventoryScreen() {
                     <TextInput
                       value={itemForm.item_name}
                       onChangeText={(text) => setItemForm({ ...itemForm, item_name: text })}
-                      placeholder="e.g., Coca Cola 500ml"
+                      placeholder="Enter item name"
                       style={{
                         backgroundColor: "#F8FAFC",
                         borderWidth: 1,
@@ -1305,11 +1460,11 @@ export default function InventoryScreen() {
                   <View style={{ flexDirection: "row", gap: 12 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                        Selling Price
+                        Buying Price
                       </Text>
                       <TextInput
-                        value={itemForm.unit_price}
-                        onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
+                        value={itemForm.cost_price}
+                        onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })}
                         placeholder="0.00"
                         keyboardType="decimal-pad"
                         style={{
@@ -1326,11 +1481,11 @@ export default function InventoryScreen() {
 
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                        Cost Price
+                        Selling Price
                       </Text>
                       <TextInput
-                        value={itemForm.cost_price}
-                        onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })}
+                        value={itemForm.unit_price}
+                        onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
                         placeholder="0.00"
                         keyboardType="decimal-pad"
                         style={{
@@ -1392,6 +1547,41 @@ export default function InventoryScreen() {
                       />
                     </View>
                   </View>
+
+                  {/* Enabled Checkbox */}
+                  <Pressable
+                    onPress={() => setItemForm({ ...itemForm, enabled: !itemForm.enabled })}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      padding: 14,
+                      backgroundColor: "#F8FAFC",
+                      borderWidth: 1,
+                      borderColor: "#E2E8F0",
+                      borderRadius: 12,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 6,
+                        borderWidth: 2,
+                        borderColor: itemForm.enabled ? "#10B981" : "#E2E8F0",
+                        backgroundColor: itemForm.enabled ? "#10B981" : "transparent",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 12,
+                      }}
+                    >
+                      {itemForm.enabled && (
+                        <Text style={{ fontSize: 14, fontWeight: "bold", color: "#FFFFFF" }}>✓</Text>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
+                      Item is Enabled
+                    </Text>
+                  </Pressable>
                 </View>
               </ScrollView>
 
@@ -1415,6 +1605,7 @@ export default function InventoryScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

@@ -10,10 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
+  Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '@/utils/auth/useAuth';
-import { login, signup } from '@/utils/frappeApi';
+import { login, signup, resetPassword } from '@/utils/frappeApi';
+import { Eye, EyeOff } from 'lucide-react-native';
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('signin'); // 'signin' or 'signup'
@@ -22,6 +26,10 @@ export default function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { setAuth } = useAuth();
 
   const handleSignIn = async () => {
@@ -61,7 +69,7 @@ export default function AuthScreen() {
       const result = await signup(email, email, password, fullName);
 
       // If signup succeeded but didn't auto-login, show success and switch to login
-      if (!result.user) {
+      if (!result.user || !result.logged_in) {
         Alert.alert(
           'Account Created',
           'Your account has been created successfully. Please login.',
@@ -87,10 +95,14 @@ export default function AuthScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       // Check if user was created but login failed
-      if (error.message && error.message.includes('created')) {
+      if (error.message && (
+        error.message.includes('created') ||
+        error.message.includes('Account creation completed') ||
+        error.message.includes('Please try logging in')
+      )) {
         Alert.alert(
           'Account Created',
-          'Your account has been created. Please login.',
+          'Your account has been created successfully. Please login with your credentials.',
           [
             {
               text: 'OK',
@@ -110,98 +122,206 @@ export default function AuthScreen() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetEmail) {
+      Alert.alert('Error', 'Please enter your email');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await resetPassword(resetEmail);
+      Alert.alert('Success', 'Reset password link sent to your email');
+      setResetMode(false);
+      setResetEmail('');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to send reset email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={styles.content}>
-          <Text style={styles.title}>Tookio Shop</Text>
-          <Text style={styles.subtitle}>
-            {mode === 'signin' ? 'Sign in to continue' : 'Create your account'}
-          </Text>
-
-          {mode === 'signup' && (
-            <TextInput
-              style={styles.input}
-              placeholder="Full Name"
-              value={fullName}
-              onChangeText={setFullName}
-              autoCapitalize="words"
-              editable={!loading}
-              returnKeyType="next"
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.content}>
+            <Image
+              source={require('@/assets/images/icon.png')}
+              style={styles.logo}
+              resizeMode="contain"
             />
-          )}
-
-          <TextInput
-            style={styles.input}
-            placeholder={mode === 'signup' ? 'Email' : 'Email or Username'}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            editable={!loading}
-            returnKeyType="next"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!loading}
-            returnKeyType={mode === 'signup' ? 'next' : 'done'}
-          />
-
-          {mode === 'signup' && (
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              editable={!loading}
-              returnKeyType="done"
-            />
-          )}
-
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={mode === 'signin' ? handleSignIn : handleSignUp}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {mode === 'signin' ? 'Sign In' : 'Sign Up'}
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => {
-              setMode(mode === 'signin' ? 'signup' : 'signin');
-              setPassword('');
-              setConfirmPassword('');
-            }}
-            disabled={loading}
-          >
-            <Text style={styles.switchText}>
-              {mode === 'signin'
-                ? "Don't have an account? Sign Up"
-                : 'Already have an account? Sign In'}
+            <Text style={styles.subtitle}>
+              {mode === 'signin' ? 'Sign in to continue' : 'Create your account'}
             </Text>
-          </TouchableOpacity>
+
+            {mode === 'signup' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  autoCapitalize="words"
+                  editable={!loading}
+                  returnKeyType="next"
+                />
+              </View>
+            )}
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>{mode === 'signup' ? 'Email' : 'Email or Username'}</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!loading}
+                returnKeyType="next"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.inputWithIcon}>
+                <TextInput
+                  style={styles.inputInContainer}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                  returnKeyType={mode === 'signup' ? 'next' : 'done'}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {mode === 'signup' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Confirm Password</Text>
+                <View style={styles.inputWithIcon}>
+                  <TextInput
+                    style={styles.inputInContainer}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                    editable={!loading}
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={mode === 'signin' ? handleSignIn : handleSignUp}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>
+                  {mode === 'signin' ? 'Sign In' : 'Sign Up'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.switchButton, loading && styles.buttonDisabled]}
+              onPress={() => {
+                setMode(mode === 'signin' ? 'signup' : 'signin');
+                setPassword('');
+                setConfirmPassword('');
+                setShowPassword(false);
+                setShowConfirmPassword(false);
+              }}
+              disabled={loading}
+            >
+              <Text style={styles.switchButtonText}>
+                {mode === 'signin'
+                  ? "Don't have an account? Sign Up"
+                  : 'Already have an account? Sign In'}
+              </Text>
+            </TouchableOpacity>
+
+            {mode === 'signin' && (
+              <TouchableOpacity
+                onPress={() => setResetMode(true)}
+                disabled={loading}
+                style={styles.resetLink}
+              >
+                <Text style={styles.resetText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <Modal
+        visible={resetMode}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setResetMode(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Reset Password</Text>
+            <Text style={styles.modalSubtitle}>Enter your email to receive reset link</Text>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!loading}
+                returnKeyType="done"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleResetPassword}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Send Reset Link</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setResetMode(false)}
+              disabled={loading}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
@@ -210,12 +330,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
   },
   content: {
     padding: 24,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   title: {
     fontSize: 32,
@@ -230,14 +359,42 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     color: '#666',
   },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
     padding: 16,
-    marginBottom: 16,
     fontSize: 16,
     backgroundColor: '#fff',
+    color: '#000',
+  },
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputInContainer: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#000',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 12,
+    padding: 4,
   },
   button: {
     backgroundColor: '#007AFF',
@@ -255,9 +412,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  switchText: {
+  switchButton: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  switchButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  resetLink: {
+    marginTop: 16,
+  },
+  resetText: {
     textAlign: 'center',
     color: '#007AFF',
     fontSize: 14,
+    textDecorationLine: 'underline',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+    color: '#333',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+    color: '#666',
+  },
+  cancelText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 16,
   },
 });

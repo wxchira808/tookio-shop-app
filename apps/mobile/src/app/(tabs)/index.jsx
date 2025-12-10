@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl, Modal } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl, Modal, Image } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getShops, getItems, getSales, getNotifications, markNotificationAsRead } from "@/utils/frappeApi";
+import { getShops, getItems, getSales, getNotifications, markNotificationAsRead, checkSession } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
 
 export default function Dashboard() {
@@ -47,19 +47,50 @@ export default function Dashboard() {
 
   const loadStats = async () => {
     try {
+      // Check session first
+      await checkSession();
+
       setLoading(true);
-      const [shopsRes, itemsRes, salesRes, notifsRes] = await Promise.all([
-        getShops(),
-        getItems(),
-        getSales(),
-        getNotifications(),
-      ]);
 
-      setNotifications(notifsRes?.notifications || []);
+      // Load data individually to handle session errors properly
+      let shops = [];
+      let items = [];
+      let sales = [];
+      let notifications = [];
 
-      const shops = shopsRes?.shops || [];
-      const items = itemsRes?.items || [];
-      let sales = salesRes?.sales || [];
+      try {
+        const shopsRes = await getShops();
+        shops = shopsRes?.shops || [];
+      } catch (error) {
+        if (handleApiError(error, signOut)) return; // Session expired, stop loading
+        console.error("Error loading shops:", error);
+      }
+
+      try {
+        const itemsRes = await getItems();
+        items = itemsRes?.items || [];
+      } catch (error) {
+        if (handleApiError(error, signOut)) return; // Session expired, stop loading
+        console.error("Error loading items:", error);
+      }
+
+      try {
+        const salesRes = await getSales();
+        sales = salesRes?.sales || [];
+      } catch (error) {
+        if (handleApiError(error, signOut)) return; // Session expired, stop loading
+        console.error("Error loading sales:", error);
+      }
+
+      try {
+        const notifsRes = await getNotifications();
+        notifications = notifsRes?.notifications || [];
+      } catch (error) {
+        if (handleApiError(error, signOut)) return; // Session expired, stop loading
+        console.error("Error loading notifications:", error);
+      }
+
+      setNotifications(notifications);
 
       // Filter sales by date
       if (dateFilter !== "all") {
@@ -86,10 +117,12 @@ export default function Dashboard() {
         });
       }
 
-      const totalRevenue = sales.reduce(
-        (sum, sale) => sum + parseFloat(sale.total_amount || 0),
-        0
-      );
+      const totalRevenue = sales
+        .filter(sale => sale.status !== 'Cancelled') // Exclude cancelled sales
+        .reduce(
+          (sum, sale) => sum + parseFloat(sale.total_amount || 0),
+          0
+        );
 
       const lowStock = items.filter(
         (item) => item.current_stock <= (item.low_stock_threshold || 5)
@@ -140,13 +173,6 @@ export default function Dashboard() {
       onPress: () => router.push("/purchases"),
     },
     {
-      title: "Stock",
-      subtitle: "Stock transactions",
-      icon: BarChart3,
-      color: "#8B5CF6",
-      onPress: () => router.push("/stock"),
-    },
-    {
       title: "Sales",
       subtitle: "Revenue tracking",
       icon: TrendingUp,
@@ -172,19 +198,41 @@ export default function Dashboard() {
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
-              Tookio Shop
-            </Text>
-            <Text style={{ fontSize: 14, color: "#64748B", marginTop: 2 }}>
-              Dashboard Overview
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+            <Image
+              source={require('@/assets/images/icon.png')}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 8,
+                marginRight: 12,
+              }}
+              resizeMode="contain"
+            />
+            <View>
+              <Text style={{ fontSize: 14, color: "#64748B", marginTop: 2 }}>
+                Dashboard Overview
+              </Text>
+            </View>
           </View>
 
           <View style={{ flexDirection: "row", gap: 10 }}>
             {/* Notifications Bell */}
             <Pressable
-              onPress={() => setShowNotificationsModal(true)}
+              onPress={() => {
+                setShowNotificationsModal(true);
+                // Mark all unread notifications as read when modal opens
+                const unreadNotifs = notifications.filter(n => !n.read);
+                unreadNotifs.forEach(notif => {
+                  markNotificationAsRead(notif.id);
+                });
+                // Update local state to remove badges immediately
+                if (unreadNotifs.length > 0) {
+                  setNotifications(notifications.map(n =>
+                    unreadNotifs.some(u => u.id === n.id) ? { ...n, read: 1 } : n
+                  ));
+                }
+              }}
               style={({ pressed }) => ({
                 width: 40,
                 height: 40,
@@ -197,26 +245,6 @@ export default function Dashboard() {
               })}
             >
               <Bell size={20} color="#0F172A" strokeWidth={2} />
-              {notifications.filter(n => !n.read).length > 0 && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    backgroundColor: "#EF4444",
-                    borderRadius: 8,
-                    minWidth: 16,
-                    height: 16,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingHorizontal: 4,
-                  }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFFFFF" }}>
-                    {notifications.filter(n => !n.read).length}
-                  </Text>
-                </View>
-              )}
             </Pressable>
 
             {/* Profile */}

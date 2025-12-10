@@ -35,7 +35,9 @@ export function SessionMonitor() {
               errorString.toLowerCase().includes('logged in') ||
               errorString.toLowerCase().includes('authentication') ||
               errorString.includes('User <strong>Guest</strong>') ||
-              (errorString.includes('Guest') && errorString.includes('does not have'));
+              (errorString.includes('Guest') && errorString.includes('does not have')) ||
+              errorString.toLowerCase().includes('not implemented') ||
+              errorString.toLowerCase().includes('not implemented');
 
             if (isSessionExpired) {
               console.log('🔒 Session expired detected by monitor (Guest user or 401)');

@@ -31,6 +31,7 @@ import {
   updateShop,
   deleteShop,
   getItems,
+  checkSession,
 } from "@/utils/frappeApi";
 import {
   getActiveShop,
@@ -69,6 +70,9 @@ export default function Shops() {
 
   const loadData = async () => {
     try {
+      // Check session first
+      await checkSession();
+
       setLoading(true);
       const [shopsRes, activeId] = await Promise.all([
         getShops(),

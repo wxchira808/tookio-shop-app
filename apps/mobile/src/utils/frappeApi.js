@@ -16,7 +16,7 @@ const AUTH_KEY = 'tookio-frappe-auth';
  * Make an authenticated API request to Frappe
  * @param {boolean} skipSessionCheck - Skip session expiry handling (for login/signup)
  */
-async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
+export async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
   try {
     const authData = await SecureStore.getItemAsync(AUTH_KEY);
     const auth = authData ? JSON.parse(authData) : null;
@@ -144,6 +144,44 @@ async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
   }
 }
 
+/**
+ * Check if the current session is valid
+ * @returns {Promise<boolean>} - True if session is valid, throws error if invalid
+ */
+export async function checkSession() {
+  try {
+    // Try to make a simple authenticated request to check session
+    // Use a more reliable endpoint that doesn't return "Not implemented"
+    await frappeRequest('/api/method/frappe.auth.get_logged_user', {}, true); // skipSessionCheck = true
+    return true;
+  } catch (error) {
+    // Handle "Not implemented" error - this doesn't necessarily mean session is invalid
+    if (error.message && error.message.includes('Not implemented')) {
+      console.log('get_logged_user returned Not implemented, assuming session is still valid');
+      return true; // Don't treat as session expiry
+    }
+
+    // Check for actual session expiry indicators
+    if (error.sessionExpired ||
+        (error.message && (
+          error.message.includes('session has expired') ||
+          error.message.includes('Session expired') ||
+          error.message.includes('Invalid login') ||
+          error.message.includes('Authentication failed')
+        ))) {
+      console.log('🔒 Actual session expiry detected');
+      await SecureStore.deleteItemAsync(AUTH_KEY);
+      const sessionError = new Error('Your session has expired. Please login again.');
+      sessionError.sessionExpired = true;
+      throw sessionError;
+    }
+
+    // For other errors, assume session is still valid to avoid false logouts
+    console.log('Session check failed with non-expiry error, assuming session is still valid:', error.message);
+    return true;
+  }
+}
+
 // ==================== AUTHENTICATION ====================
 
 export async function login(usr, pwd) {
@@ -174,6 +212,7 @@ export async function login(usr, pwd) {
         username: userDoc.data.name,
       };
 
+      /*
       // Fetch subscription using whitelisted method
       try {
         const subscriptionData = await frappeRequest(
@@ -203,6 +242,11 @@ export async function login(usr, pwd) {
         userDetails.subscription_tier = 'Free Plan';
         userDetails.subscription_expiry = null;
       }
+      */
+
+      // Tookio Shop is now completely FREE!
+      userDetails.subscription_tier = 'Free Plan';
+      userDetails.subscription_expiry = null;
     } catch (e) {
       console.log('Could not fetch user details, using username:', e.message);
       // Fallback: use username as both email and name
@@ -247,6 +291,7 @@ export async function signup(email, username, password, full_name) {
       body: JSON.stringify({
         email: email,
         full_name: full_name || username,
+        password: password,  // Add the password to the signup request
         redirect_to: '/',
       }),
     }, true);  // skipSessionCheck = true
@@ -260,6 +305,19 @@ export async function signup(email, username, password, full_name) {
       throw new Error('Account created successfully. Please login.');
     }
   } catch (error) {
+    // Handle the false positive "Customer role" error
+    if (error.message && (
+      error.message.includes('Please add Customer role to user') ||
+      error.message.includes('Customer role')
+    )) {
+      console.log('Customer role error detected - this is usually a false positive');
+      console.log('Error details:', error.message);
+      // Don't try to login - just inform the user to try logging in
+      throw new Error('Account creation completed. Please try logging in with your credentials.');
+    }
+
+    // Re-throw other errors
+    console.log('Signup failed with unhandled error:', error.message);
     throw new Error(error.message || 'Signup failed');
   }
 }
@@ -309,6 +367,7 @@ export async function refreshUserDetails() {
       username: userDoc.data.name,
     };
 
+    /*
     // Fetch subscription using whitelisted method
     try {
       const subscriptionData = await frappeRequest(
@@ -337,6 +396,11 @@ export async function refreshUserDetails() {
       userDetails.subscription_tier = 'Free Plan';
       userDetails.subscription_expiry = null;
     }
+    */
+
+    // Tookio Shop is now completely FREE!
+    userDetails.subscription_tier = 'Free Plan';
+    userDetails.subscription_expiry = null;
 
     console.log('✅ User details refreshed:', userDetails);
     return userDetails;
@@ -357,18 +421,19 @@ export async function getShops() {
   const items = itemsResponse.data || [];
 
   const shops = (response.data || []).map(shop => {
-    const shopItems = items.filter(item => item.shop === shop.name);
+    // Only count enabled items (enabled = 1 or true)
+    const shopItems = items.filter(item => item.shop === shop.name && (item.enabled === 1 || item.enabled === true));
 
     // Debug: Log first item to see field structure
     if (shopItems.length > 0) {
       console.log('🏪 First shop item for', shop.shop_name, ':', JSON.stringify(shopItems[0], null, 2));
     }
 
-    // Try different price field names (selling_price, unit_price, price, rate)
+    // Use buying price (cost_price or price field) for inventory value calculation
     const totalValue = shopItems.reduce((sum, item) => {
-      const price = item.selling_price || item.unit_price || item.price || item.rate || 0;
+      const buyingPrice = item.price || item.cost_price || 0; // Use buying price (cost)
       const stock = item.stock_quantity || item.current_stock || item.stock || 0;
-      return sum + (price * stock);
+      return sum + (buyingPrice * stock);
     }, 0);
 
     console.log('🏪 Shop', shop.shop_name, '- Items:', shopItems.length, ', Total Value:', totalValue);
@@ -462,6 +527,7 @@ export async function getItems() {
     shop: item.shop, // Add this for filtering in stock adjustment
     shop_id: item.shop,
     shop_name: item.shop_name,
+    enabled: item.enabled === 1 || item.enabled === true, // Handle both numeric (1/0) and boolean (true/false) values from Frappe
     created_at: item.creation,
     updated_at: item.modified,
   }));
@@ -475,7 +541,10 @@ export async function createItem(itemData) {
     price: itemData.cost_price || 0,
     selling_price: itemData.unit_price || 0,
     shop: itemData.shop_id,
+    stock_quantity: itemData.current_stock || 0,
+    low_stock_threshold: itemData.low_stock_threshold || 5,
     uom: 'Pcs',
+    enabled: itemData.enabled ? 1 : 0,
   };
 
   const response = await frappeRequest('/api/resource/Product', {
@@ -483,14 +552,33 @@ export async function createItem(itemData) {
     body: JSON.stringify(frappeData),
   });
 
+  // Create initial stock transaction if starting stock > 0
+  if (itemData.current_stock > 0) {
+    try {
+      await createStockTransaction({
+        shop_id: itemData.shop_id,
+        item_id: response.data.name, // Use the created item's ID
+        transaction_type: 'in',
+        quantity: itemData.current_stock,
+        notes: 'Initial stock on item creation',
+      });
+      console.log('Created initial stock transaction for new item');
+    } catch (stockError) {
+      console.error('Failed to create initial stock transaction:', stockError);
+      // Don't fail the item creation if stock transaction fails
+    }
+  }
+
   return {
     item: {
       id: response.data.name,
       item_name: response.data.item_name,
       unit_price: response.data.selling_price,
       cost_price: response.data.price,
-      current_stock: response.data.stock_quantity || 0,
+      current_stock: response.data.stock_quantity || itemData.current_stock || 0,
+      low_stock_threshold: response.data.low_stock_threshold || itemData.low_stock_threshold || 5,
       shop_id: response.data.shop,
+      enabled: response.data.enabled,
     }
   };
 }
@@ -503,6 +591,7 @@ export async function updateItem(itemId, itemData) {
     shop: itemData.shop,
     stock_quantity: itemData.current_stock,
     low_stock_threshold: itemData.low_stock_threshold,
+    enabled: itemData.enabled ? 1 : 0,
   };
 
   const response = await frappeRequest(`/api/resource/Product/${itemId}`, {
@@ -967,6 +1056,23 @@ export async function deletePurchase(purchaseId) {
     method: 'DELETE',
   });
   return { success: true };
+}
+
+// ==================== AUTHENTICATION FUNCTIONS ====================
+
+export async function resetPassword(email) {
+  try {
+    const response = await frappeRequest('/api/method/frappe.core.doctype.user.user.reset_password', {
+      method: 'POST',
+      body: JSON.stringify({
+        user: email,
+      }),
+    }, true);  // skipSessionCheck = true
+
+    return response;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to send reset email');
+  }
 }
 
 // ==================== HELPER FUNCTIONS ====================

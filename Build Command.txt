@@ -1,0 +1,13 @@
+cd /home/brian/Downloads/Tookio-shop-app/apps/mobile && export ANDROID_HOME=/usr/lib/android-sdk && export JAVA_HOME=/usr/lib/jvm/java-1.17.0-openjdk-amd64 && export PATH="/home/brian/.nvm/versions/node/v20.19.6/bin:$PATH" && timeout 1200 npx eas build --platform android --profile preview --local
+
+
+
+
+
+CLAUDE COMMAND
+
+cd /home/brian/Downloads/Tookio-shop-app/apps/mobile && \
+export ANDROID_HOME=/usr/lib/android-sdk && \
+export JAVA_HOME=/usr/lib/jvm/java-1.17.0-openjdk-amd64 && \
+export PATH="/home/brian/.nvm/versions/node/v20.19.6/bin:$PATH" && \
+timeout 1200 npx eas build --platform android --profile preview --local

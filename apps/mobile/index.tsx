@@ -22,14 +22,20 @@ import { ErrorBoundaryWrapper, SharedErrorBoundary } from './__create/SharedErro
 if (__DEV__) {
   LogBox.ignoreAllLogs();
   LogBox.uninstall();
-  function WrapperComponentProvider({
-    children,
-  }: {
-    children: ReactNode;
-  }) {
-    return <DeviceErrorBoundaryWrapper>{children}</DeviceErrorBoundaryWrapper>;
-  }
+  try {
+    function WrapperComponentProvider({
+      children,
+    }: {
+      children: ReactNode;
+    }) {
+      return <DeviceErrorBoundaryWrapper>{children}</DeviceErrorBoundaryWrapper>;
+    }
 
-  AppRegistry.setWrapperComponentProvider(() => WrapperComponentProvider);
-  AppRegistry.registerComponent('main', () => App);
+    AppRegistry.setWrapperComponentProvider(() => WrapperComponentProvider);
+    AppRegistry.registerComponent('main', () => App);
+  } catch (error) {
+    console.warn('Error setting up error boundary:', error);
+    // Fallback without error boundary
+    AppRegistry.registerComponent('main', () => App);
+  }
 }

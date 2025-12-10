@@ -1,3 +1,4 @@
+/*
 import { frappeRequest } from './frappeApi';
 
 /**
@@ -129,3 +130,54 @@ export async function createStripePaymentIntent(amount, currency, planName) {
     throw error;
   }
 }
+
+/**
+ * Initiate Pesapal payment
+ */
+export async function initiatePesapalPayment(phoneNumber, amount, planName) {
+  try {
+    const response = await frappeRequest('/api/method/tookio_shop.api.initiate_pesapal_payment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone_number: phoneNumber,
+        amount: amount,
+        plan_name: planName,
+      }),
+    });
+
+    return response.message;
+  } catch (error) {
+    console.error('Error initiating Pesapal payment:', error);
+    throw error;
+  }
+}
+
+/**
+ * Verify Pesapal payment status
+ */
+export async function verifyPesapalPayment(orderTrackingId) {
+  try {
+    const response = await frappeRequest('/api/method/tookio_shop.api.verify_pesapal_payment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        order_tracking_id: orderTrackingId,
+      }),
+    });
+
+    return response.message;
+  } catch (error) {
+    console.error('Error verifying Pesapal payment:', error);
+    throw error;
+  }
+}
+*/
+
+// Tookio Shop is now completely FREE!
+// All payment and subscription functionality has been commented out.
+// The app provides all features without any limitations or costs.

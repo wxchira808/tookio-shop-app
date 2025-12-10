@@ -55,7 +55,9 @@ coverage/
 .cache/
 .parcel-cache/
 .eslintcache
-
+# Metro cache
+.metro-cache/
+.apps/mobile/caches/.metro-cache/
 # Temporary files
 tmp/
 temp/

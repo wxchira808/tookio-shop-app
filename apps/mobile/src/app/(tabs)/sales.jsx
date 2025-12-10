@@ -22,10 +22,11 @@ import {
   Calendar,
   X,
   Minus,
+  Check,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
-import { getSales, getSaleById, createSale, cancelSale, getShops, getItems } from "@/utils/frappeApi";
+import { getSales, getSaleById, createSale, cancelSale, getShops, getItems, checkSession } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
 
 export default function Sales() {
@@ -61,6 +62,9 @@ export default function Sales() {
 
   const loadData = async () => {
     try {
+      // Check session first
+      await checkSession();
+
       setLoading(true);
       const [salesRes, shopsRes, itemsRes] = await Promise.all([
         getSales(),
@@ -120,6 +124,14 @@ export default function Sales() {
     setSaleItems(
       saleItems.map((si) =>
         si.item_id === itemId ? { ...si, quantity: parseInt(newQuantity) || 1 } : si
+      )
+    );
+  };
+
+  const updateItemPrice = (itemId, newPrice) => {
+    setSaleItems(
+      saleItems.map((si) =>
+        si.item_id === itemId ? { ...si, unit_price: parseFloat(newPrice) || 0 } : si
       )
     );
   };
@@ -299,9 +311,9 @@ export default function Sales() {
     );
   });
 
-  // Calculate totals
-  const totalRevenue = filteredSales.reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
-  const averageSale = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
+  // Calculate totals - exclude cancelled sales
+  const nonCancelledSales = filteredSales.filter(sale => sale.status !== 'Cancelled');
+  const totalRevenue = nonCancelledSales.reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
 
   if (loading && sales.length === 0) {
     return (
@@ -323,176 +335,149 @@ export default function Sales() {
   }
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: "#F8FAFC", paddingTop: insets.top }}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
     >
-      <StatusBar style="dark" />
-
-      {/* Header */}
       <View
-        style={{
-          paddingHorizontal: 20,
-          paddingVertical: 20,
-          backgroundColor: "#fff",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
+        style={{ flex: 1, backgroundColor: "#F8FAFC", paddingTop: insets.top }}
       >
-        <View>
-          <Text style={{ fontSize: 24, fontWeight: "bold", color: "#1F2937" }}>
-            Sales
-          </Text>
-          <Text style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}>
-            Track your revenue and transactions
-          </Text>
-        </View>
+        <StatusBar style="dark" />
 
-        <Pressable
-          onPress={handleNewSale}
-          style={({ pressed }) => ({
-            backgroundColor: "#EF4444",
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 8,
-            flexDirection: "row",
-            alignItems: "center",
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <Plus size={16} color="#fff" />
-          <Text style={{ color: "#fff", marginLeft: 4, fontWeight: "600" }}>
-            New Sale
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Search Bar */}
-      <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
-        <TextInput
+        {/* Header */}
+        <View
           style={{
-            backgroundColor: "#F3F4F6",
-            borderRadius: 8,
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            fontSize: 16,
-            color: "#1F2937",
+            paddingHorizontal: 20,
+            paddingVertical: 20,
+            backgroundColor: "#fff",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
-          placeholder="Search sales by customer name, ID, or notes..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#9CA3AF"
-          returnKeyType="search"
-        />
-      </View>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Stats Cards */}
-        <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "#fff",
-                borderRadius: 12,
-                padding: 16,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 4,
-                elevation: 2,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <DollarSign size={20} color="#10B981" />
-                <Text style={{ fontSize: 14, color: "#6B7280", marginLeft: 8 }}>
-                  Total Revenue
-                </Text>
-              </View>
-              <Text
-                style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}
-              >
-                {formatCurrency(totalRevenue, false)}
-              </Text>
-            </View>
-
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "#fff",
-                borderRadius: 12,
-                padding: 16,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 4,
-                elevation: 2,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <ShoppingCart size={20} color="#357AFF" />
-                <Text style={{ fontSize: 14, color: "#6B7280", marginLeft: 8 }}>
-                  Total Sales
-                </Text>
-              </View>
-              <Text
-                style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}
-              >
-                {sales.length}
-              </Text>
-            </View>
-          </View>
-
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 12,
-              padding: 16,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 4,
-              elevation: 2,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
-              <TrendingUp size={20} color="#F59E0B" />
-              <Text style={{ fontSize: 14, color: "#6B7280", marginLeft: 8 }}>
-                Average Sale Value
-              </Text>
-            </View>
-            <Text
-              style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}
-            >
-              {formatCurrency(averageSale, false)}
+        >
+          <View>
+            <Text style={{ fontSize: 24, fontWeight: "bold", color: "#1F2937" }}>
+              Sales
+            </Text>
+            <Text style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}>
+              Track your revenue and transactions
             </Text>
           </View>
+
+          <Pressable
+            onPress={handleNewSale}
+            style={({ pressed }) => ({
+              backgroundColor: "#EF4444",
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Plus size={16} color="#fff" />
+            <Text style={{ color: "#fff", marginLeft: 4, fontWeight: "600" }}>
+              New Sale
+            </Text>
+          </Pressable>
         </View>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Search Bar - Inside ScrollView */}
+          <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+            <TextInput
+              style={{
+                backgroundColor: "#F3F4F6",
+                borderRadius: 8,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                fontSize: 16,
+                color: "#1F2937",
+              }}
+              placeholder="Search sales by customer name, ID, or notes..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#9CA3AF"
+              returnKeyType="search"
+            />
+          </View>
+
+          {/* Stats Cards */}
+          <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
+            <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: "#fff",
+                  borderRadius: 12,
+                  padding: 16,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 4,
+                  elevation: 2,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <DollarSign size={20} color="#10B981" />
+                  <Text style={{ fontSize: 14, color: "#6B7280", marginLeft: 8 }}>
+                    Total Revenue
+                  </Text>
+                </View>
+                <Text
+                  style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}
+                >
+                  {formatCurrency(totalRevenue, false)}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: "#fff",
+                  borderRadius: 12,
+                  padding: 16,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 4,
+                  elevation: 2,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <ShoppingCart size={20} color="#357AFF" />
+                  <Text style={{ fontSize: 14, color: "#6B7280", marginLeft: 8 }}>
+                    Total Sales
+                  </Text>
+                </View>
+                <Text
+                  style={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}
+                >
+                  {nonCancelledSales.length}
+                </Text>
+              </View>
+            </View>
+          </View>
 
         {/* Sales List */}
         {sales.length > 0 ? (
@@ -603,12 +588,14 @@ export default function Sales() {
               </Pressable>
             </View>
 
-            {filteredSales.map((sale) => (
+            {filteredSales.map((sale) => {
+              const isCancelled = sale.status === 'Cancelled';
+              return (
               <Pressable
                 key={sale.id}
                 onPress={() => handleSalePress(sale)}
                 style={({ pressed }) => ({
-                  backgroundColor: "#fff",
+                  backgroundColor: isCancelled ? "#F8FAFC" : "#fff",
                   borderRadius: 12,
                   padding: 16,
                   marginBottom: 12,
@@ -617,7 +604,7 @@ export default function Sales() {
                   shadowOpacity: 0.05,
                   shadowRadius: 4,
                   elevation: 2,
-                  opacity: pressed ? 0.7 : 1,
+                  opacity: isCancelled ? 0.6 : pressed ? 0.7 : 1,
                 })}
               >
                 <View
@@ -639,13 +626,13 @@ export default function Sales() {
                         width: 48,
                         height: 48,
                         borderRadius: 12,
-                        backgroundColor: "#EF444415",
+                        backgroundColor: isCancelled ? "#FEE2E2" : "#EF444415",
                         alignItems: "center",
                         justifyContent: "center",
                         marginRight: 16,
                       }}
                     >
-                      <ShoppingCart size={24} color="#EF4444" />
+                      <ShoppingCart size={24} color={isCancelled ? "#DC2626" : "#EF4444"} />
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -653,13 +640,14 @@ export default function Sales() {
                         style={{
                           fontSize: 16,
                           fontWeight: "600",
-                          color: "#1F2937",
+                          color: isCancelled ? "#9CA3AF" : "#1F2937",
+                          textDecorationLine: isCancelled ? "line-through" : "none",
                         }}
                       >
                         Sale #{sale.id}
                       </Text>
                       <Text
-                        style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}
+                        style={{ fontSize: 14, color: isCancelled ? "#9CA3AF" : "#6B7280", marginTop: 2 }}
                       >
                         {sale.shop_name}
                       </Text>
@@ -669,6 +657,7 @@ export default function Sales() {
                           flexDirection: "row",
                           marginTop: 8,
                           alignItems: "center",
+                          flexWrap: "wrap",
                         }}
                       >
                         <View
@@ -678,10 +667,27 @@ export default function Sales() {
                             paddingVertical: 4,
                             borderRadius: 6,
                             marginRight: 8,
+                            marginBottom: 4,
                           }}
                         >
                           <Text style={{ fontSize: 12, color: "#6B7280" }}>
                             {formatDate(sale.sale_date)}
+                          </Text>
+                        </View>
+
+                        {/* Status Badge */}
+                        <View
+                          style={{
+                            backgroundColor: isCancelled ? "#FEE2E2" : sale.status === "Submitted" ? "#D1FAE5" : "#F3F4F6",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                            marginRight: 8,
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, fontWeight: "600", color: isCancelled ? "#DC2626" : sale.status === "Submitted" ? "#059669" : "#6B7280" }}>
+                            {sale.status}
                           </Text>
                         </View>
 
@@ -692,6 +698,7 @@ export default function Sales() {
                               paddingHorizontal: 8,
                               paddingVertical: 4,
                               borderRadius: 6,
+                              marginBottom: 4,
                             }}
                           >
                             <Text style={{ fontSize: 12, color: "#92400E" }}>
@@ -708,7 +715,7 @@ export default function Sales() {
                       style={{
                         fontSize: 18,
                         fontWeight: "bold",
-                        color: "#10B981",
+                        color: isCancelled ? "#9CA3AF" : "#10B981",
                       }}
                     >
                       {formatCurrency(sale.total_amount)}
@@ -716,7 +723,8 @@ export default function Sales() {
                   </View>
                 </View>
               </Pressable>
-            ))}
+            );
+            })}
           </View>
         ) : (
           <View
@@ -855,16 +863,24 @@ export default function Sales() {
                 <View style={{ padding: 20, gap: 16, paddingBottom: 40 }}>
                   {/* Shop Selection */}
                   <View>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "600",
-                        color: "#374151",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Shop *
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "600",
+                          color: "#374151",
+                        }}
+                      >
+                        Shop
+                      </Text>
+                      <Text style={{ fontSize: 14, color: "#EF4444", marginLeft: 4 }}>*</Text>
+                      <Text style={{ fontSize: 12, color: "#EF4444", marginLeft: 2 }}>Required</Text>
+                    </View>
+                    {!selectedShopId && (
+                      <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 8, fontStyle: "italic" }}>
+                        Please select a shop for this sale
+                      </Text>
+                    )}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       <View style={{ flexDirection: "row", gap: 8 }}>
                         {shops.map((shop) => (
@@ -879,6 +895,8 @@ export default function Sales() {
                                 selectedShopId === shop.id.toString()
                                   ? "#EF4444"
                                   : "#F3F4F6",
+                              flexDirection: "row",
+                              alignItems: "center",
                             }}
                           >
                             <Text
@@ -889,10 +907,14 @@ export default function Sales() {
                                   selectedShopId === shop.id.toString()
                                     ? "#fff"
                                     : "#6B7280",
+                                marginRight: selectedShopId === shop.id.toString() ? 6 : 0,
                               }}
                             >
                               {shop.shop_name}
                             </Text>
+                            {selectedShopId === shop.id.toString() && (
+                              <Check size={14} color="#fff" />
+                            )}
                           </Pressable>
                         ))}
                       </View>
@@ -912,117 +934,137 @@ export default function Sales() {
                       Customer Details
                     </Text>
                     <View style={{ gap: 12 }}>
-                      <TextInput
-                        value={customerName}
-                        onChangeText={setCustomerName}
-                        placeholder="Customer Name *"
-                        style={{
-                          borderWidth: 1,
-                          borderColor: "#E5E7EB",
-                          borderRadius: 8,
-                          paddingHorizontal: 12,
-                          paddingVertical: 10,
-                          fontSize: 14,
-                          backgroundColor: "#fff",
-                        }}
-                      />
-                      <TextInput
-                        value={customerMobile}
-                        onChangeText={setCustomerMobile}
-                        placeholder="Customer Mobile Number *"
-                        keyboardType="phone-pad"
-                        style={{
-                          borderWidth: 1,
-                          borderColor: "#E5E7EB",
-                          borderRadius: 8,
-                          paddingHorizontal: 12,
-                          paddingVertical: 10,
-                          fontSize: 14,
-                          backgroundColor: "#fff",
-                        }}
-                      />
-                      <View style={{ flexDirection: "row", gap: 8 }}>
-                        <Pressable
-                          onPress={() => setPaymentMethod("Cash")}
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                          Customer Name *
+                        </Text>
+                        <TextInput
+                          value={customerName}
+                          onChangeText={setCustomerName}
+                          placeholder="Enter customer name"
                           style={{
-                            flex: 1,
-                            paddingVertical: 10,
-                            borderRadius: 8,
                             borderWidth: 1,
-                            borderColor: paymentMethod === "Cash" ? "#EF4444" : "#E5E7EB",
-                            backgroundColor: paymentMethod === "Cash" ? "#FEF2F2" : "#fff",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "500",
-                              color: paymentMethod === "Cash" ? "#EF4444" : "#6B7280",
-                            }}
-                          >
-                            Cash
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setPaymentMethod("Mpesa")}
-                          style={{
-                            flex: 1,
-                            paddingVertical: 10,
+                            borderColor: "#E5E7EB",
                             borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: paymentMethod === "Mpesa" ? "#EF4444" : "#E5E7EB",
-                            backgroundColor: paymentMethod === "Mpesa" ? "#FEF2F2" : "#fff",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "500",
-                              color: paymentMethod === "Mpesa" ? "#EF4444" : "#6B7280",
-                            }}
-                          >
-                            M-Pesa
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setPaymentMethod("Bank")}
-                          style={{
-                            flex: 1,
+                            paddingHorizontal: 12,
                             paddingVertical: 10,
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: paymentMethod === "Bank" ? "#EF4444" : "#E5E7EB",
-                            backgroundColor: paymentMethod === "Bank" ? "#FEF2F2" : "#fff",
-                            alignItems: "center",
+                            fontSize: 14,
+                            backgroundColor: "#fff",
                           }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "500",
-                              color: paymentMethod === "Bank" ? "#EF4444" : "#6B7280",
-                            }}
-                          >
-                            Bank
-                          </Text>
-                        </Pressable>
+                        />
                       </View>
-                      <TextInput
-                        value={deliveryLocation}
-                        onChangeText={setDeliveryLocation}
-                        placeholder="Delivery Location (Optional)"
-                        style={{
-                          borderWidth: 1,
-                          borderColor: "#E5E7EB",
-                          borderRadius: 8,
-                          paddingHorizontal: 12,
-                          paddingVertical: 10,
-                          fontSize: 14,
-                          backgroundColor: "#fff",
-                        }}
-                      />
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                          Customer Mobile Number *
+                        </Text>
+                        <TextInput
+                          value={customerMobile}
+                          onChangeText={setCustomerMobile}
+                          placeholder="Enter mobile number"
+                          keyboardType="phone-pad"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: "#E5E7EB",
+                            borderRadius: 8,
+                            paddingHorizontal: 12,
+                            paddingVertical: 10,
+                            fontSize: 14,
+                            backgroundColor: "#fff",
+                          }}
+                        />
+                      </View>
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
+                          Payment Method *
+                        </Text>
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Pressable
+                            onPress={() => setPaymentMethod("Cash")}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 10,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: paymentMethod === "Cash" ? "#EF4444" : "#E5E7EB",
+                              backgroundColor: paymentMethod === "Cash" ? "#FEF2F2" : "#fff",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                fontWeight: "500",
+                                color: paymentMethod === "Cash" ? "#EF4444" : "#6B7280",
+                              }}
+                            >
+                              Cash
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => setPaymentMethod("Mpesa")}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 10,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: paymentMethod === "Mpesa" ? "#EF4444" : "#E5E7EB",
+                              backgroundColor: paymentMethod === "Mpesa" ? "#FEF2F2" : "#fff",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                fontWeight: "500",
+                                color: paymentMethod === "Mpesa" ? "#EF4444" : "#6B7280",
+                              }}
+                            >
+                              M-Pesa
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => setPaymentMethod("Bank")}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 10,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: paymentMethod === "Bank" ? "#EF4444" : "#E5E7EB",
+                              backgroundColor: paymentMethod === "Bank" ? "#FEF2F2" : "#fff",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                fontWeight: "500",
+                                color: paymentMethod === "Bank" ? "#EF4444" : "#6B7280",
+                              }}
+                            >
+                              Bank
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
+                          Delivery Location (Optional)
+                        </Text>
+                        <TextInput
+                          value={deliveryLocation}
+                          onChangeText={setDeliveryLocation}
+                          placeholder="Enter delivery location"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: "#E5E7EB",
+                            borderRadius: 8,
+                            paddingHorizontal: 12,
+                            paddingVertical: 10,
+                            fontSize: 14,
+                            backgroundColor: "#fff",
+                          }}
+                        />
+                      </View>
                     </View>
                   </View>
 
@@ -1073,7 +1115,8 @@ export default function Sales() {
                             const matchesSearch = itemSearchQuery
                               ? product.item_name.toLowerCase().includes(itemSearchQuery.toLowerCase())
                               : true;
-                            return matchesShop && matchesSearch;
+                            const isEnabled = product.enabled !== false; // Only show enabled items
+                            return matchesShop && matchesSearch && isEnabled;
                           })
                           .map((product) => {
                             const isSelected = saleItems.some((si) => si.item_id === product.id);
@@ -1203,13 +1246,21 @@ export default function Sales() {
                               }}>
                                 Price
                               </Text>
-                              <Text style={{
-                                fontSize: 14,
-                                fontWeight: "600",
-                                color: "#10B981",
-                              }}>
-                                {formatCurrency(item.unit_price)}
-                              </Text>
+                              <TextInput
+                                value={item.unit_price.toString()}
+                                onChangeText={(text) => updateItemPrice(item.item_id, text)}
+                                keyboardType="decimal-pad"
+                                selectTextOnFocus={true}
+                                style={{
+                                  borderWidth: 1,
+                                  borderColor: "#E5E7EB",
+                                  borderRadius: 6,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 6,
+                                  fontSize: 14,
+                                  backgroundColor: "#fff",
+                                }}
+                              />
                             </View>
                             <View style={{ flex: 1 }}>
                               <Text style={{
@@ -1691,6 +1742,7 @@ export default function Sales() {
           </View>
         </View>
       </Modal>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
