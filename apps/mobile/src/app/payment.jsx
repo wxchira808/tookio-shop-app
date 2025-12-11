@@ -1,9 +1,10 @@
 import { View, Text, ScrollView, Pressable, Alert, Image } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft, Heart, CreditCard } from "lucide-react-native";
+import { ArrowLeft, Heart, CreditCard, Copy, Smartphone } from "lucide-react-native";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
+import * as Clipboard from 'expo-clipboard';
 
 export default function DonateScreen() {
   const insets = useSafeAreaInsets();
@@ -14,6 +15,15 @@ export default function DonateScreen() {
       await WebBrowser.openBrowserAsync('https://www.paypal.com/donate?hosted_button_id=642Y6XCHLBJFE');
     } catch (error) {
       Alert.alert("Error", "Unable to open PayPal. Please try again.");
+    }
+  };
+
+  const handleCopyMpesaNumber = async () => {
+    try {
+      await Clipboard.setStringAsync('0743169908');
+      Alert.alert("Copied!", "M-Pesa number copied to clipboard");
+    } catch (error) {
+      Alert.alert("Error", "Failed to copy number");
     }
   };
 
@@ -126,7 +136,23 @@ export default function DonateScreen() {
             </Text>
           </Pressable>
 
-          <View style={{ alignItems: "center", marginBottom: 24 }}>
+          <Pressable
+            onPress={handleCopyMpesaNumber}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? "#16A34A" : "#22C55E",
+              borderRadius: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 32,
+              alignItems: "center",
+              marginBottom: 16,
+            })}
+          >
+            <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
+              💚 Donate with M-Pesa
+            </Text>
+          </Pressable>
+
+          <View style={{ alignItems: "center", marginBottom: 16 }}>
             <Text style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", marginBottom: 8 }}>
               Secure donations powered by PayPal
             </Text>
@@ -138,10 +164,28 @@ export default function DonateScreen() {
             </View>
           </View>
 
+          <View style={{ alignItems: "center", marginBottom: 24 }}>
+            <Text style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", marginBottom: 8 }}>
+              Send directly to M-Pesa number
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F1F5F9", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+              <Smartphone size={16} color="#22C55E" strokeWidth={2} />
+              <Text style={{ fontSize: 14, color: "#0F172A", marginLeft: 6, fontWeight: "600", fontFamily: "monospace" }}>
+                0743169908
+              </Text>
+              <Pressable
+                onPress={handleCopyMpesaNumber}
+                style={{ marginLeft: 8, padding: 4 }}
+              >
+                <Copy size={14} color="#64748B" strokeWidth={2} />
+              </Pressable>
+            </View>
+          </View>
+
           <Text style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", lineHeight: 18 }}>
             Your support helps us maintain and improve Tookio Shop.{'\n'}
             Every contribution makes a difference! 🙏{'\n'}
-            Donations are processed securely through PayPal.
+            Donations are processed securely through PayPal or M-Pesa.
           </Text>
         </View>
       </ScrollView>

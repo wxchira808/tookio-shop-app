@@ -77,7 +77,7 @@ export default function Sales() {
       }
 
       if (shopsRes && shopsRes.shops) {
-        setShops(shopsRes.shops);
+        setShops(shopsRes.shops.filter(shop => shop.enabled === 1));
       }
 
       if (itemsRes && itemsRes.items) {

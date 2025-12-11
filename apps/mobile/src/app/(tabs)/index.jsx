@@ -60,7 +60,7 @@ export default function Dashboard() {
 
       try {
         const shopsRes = await getShops();
-        shops = shopsRes?.shops || [];
+        shops = (shopsRes?.shops || []).filter(shop => shop.enabled === 1);
       } catch (error) {
         if (handleApiError(error, signOut)) return; // Session expired, stop loading
         console.error("Error loading shops:", error);

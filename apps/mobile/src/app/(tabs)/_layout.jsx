@@ -35,8 +35,11 @@ export default function TabLayout() {
           backgroundColor: "#fff",
           borderTopWidth: 1,
           borderColor: "#E5E7EB",
-          paddingTop: 4,
-          paddingBottom: 10,
+          paddingTop: 15,
+          paddingBottom: 40,
+          marginBottom: 10,
+          bottom: 15,
+          paddingHorizontal: 10,
         },
         tabBarActiveTintColor: "#357AFF",
         tabBarInactiveTintColor: "#6B6B6B",
@@ -48,7 +51,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: "Home",
           tabBarIcon: ({ color, size }) => <Home color={color} size={24} />,
         }}
       />

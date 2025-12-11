@@ -449,6 +449,7 @@ export async function getShops() {
       updated_at: shop.modified,
       item_count: shopItems.length,
       total_value: totalValue,
+      enabled: shop.enabled === 1 || shop.enabled === true ? 1 : 0, // Ensure consistent numeric 1/0 format
     };
   });
 
@@ -462,6 +463,7 @@ export async function createShop(shopData) {
     address: shopData.address || '',
     mobile_number: shopData.mobile_number || '0700000000',
     email_address: shopData.email_address || 'shop@example.com',
+    enabled: shopData.enabled ? 1 : 0, // Convert to 1/0 for Check field
   };
 
   const response = await frappeRequest('/api/resource/Shop', {
@@ -475,6 +477,7 @@ export async function createShop(shopData) {
       shop_name: response.data.shop_name,
       description: response.data.location,
       created_at: response.data.creation,
+      enabled: response.data.enabled === 1 || response.data.enabled === true ? 1 : 0,
     }
   };
 }
@@ -488,6 +491,7 @@ export async function updateShop(shopId, shopData) {
   if (shopData.address) frappeData.address = shopData.address;
   if (shopData.mobile_number) frappeData.mobile_number = shopData.mobile_number;
   if (shopData.email_address) frappeData.email_address = shopData.email_address;
+  if (shopData.hasOwnProperty('enabled')) frappeData.enabled = shopData.enabled;
 
   const response = await frappeRequest(`/api/resource/Shop/${shopId}`, {
     method: 'PUT',
@@ -499,6 +503,7 @@ export async function updateShop(shopId, shopData) {
       id: response.data.name,
       shop_name: response.data.shop_name,
       description: response.data.location,
+      enabled: response.data.enabled,
     }
   };
 }
@@ -513,24 +518,37 @@ export async function deleteShop(shopId) {
 // ==================== PRODUCT DOCTYPE ====================
 
 export async function getItems() {
-  const response = await frappeRequest('/api/resource/Product?fields=["*"]&limit_page_length=999');
+  const [itemsResponse, shopsResponse] = await Promise.all([
+    frappeRequest('/api/resource/Product?fields=["*"]&limit_page_length=999'),
+    frappeRequest('/api/resource/Shop?fields=["name","enabled"]&limit_page_length=999'),
+  ]);
 
-  const items = (response.data || []).map(item => ({
-    id: item.name,
-    item_name: item.item_name,
-    description: item.description || '',
-    sku: item.name, // Use Frappe's auto-generated name as SKU
-    unit_price: item.selling_price || 0,
-    cost_price: item.price || 0,
-    current_stock: item.stock_quantity || 0,
-    low_stock_threshold: item.low_stock_threshold || 5,
-    shop: item.shop, // Add this for filtering in stock adjustment
-    shop_id: item.shop,
-    shop_name: item.shop_name,
-    enabled: item.enabled === 1 || item.enabled === true, // Handle both numeric (1/0) and boolean (true/false) values from Frappe
-    created_at: item.creation,
-    updated_at: item.modified,
-  }));
+  // Create a set of disabled shop IDs for quick lookup
+  const disabledShops = new Set();
+  (shopsResponse.data || []).forEach(shop => {
+    if (shop.enabled !== 1) {
+      disabledShops.add(shop.name);
+    }
+  });
+
+  const items = (itemsResponse.data || [])
+    .filter(item => !disabledShops.has(item.shop)) // Exclude items from disabled shops
+    .map(item => ({
+      id: item.name,
+      item_name: item.item_name,
+      description: item.description || '',
+      sku: item.name, // Use Frappe's auto-generated name as SKU
+      unit_price: item.selling_price || 0,
+      cost_price: item.price || 0,
+      current_stock: item.stock_quantity || 0,
+      low_stock_threshold: item.low_stock_threshold || 5,
+      shop: item.shop, // Add this for filtering in stock adjustment
+      shop_id: item.shop,
+      shop_name: item.shop_name,
+      enabled: item.enabled === 1 || item.enabled === true, // Handle both numeric (1/0) and boolean (true/false) values from Frappe
+      created_at: item.creation,
+      updated_at: item.modified,
+    }));
 
   return { items };
 }
@@ -551,23 +569,6 @@ export async function createItem(itemData) {
     method: 'POST',
     body: JSON.stringify(frappeData),
   });
-
-  // Create initial stock transaction if starting stock > 0
-  if (itemData.current_stock > 0) {
-    try {
-      await createStockTransaction({
-        shop_id: itemData.shop_id,
-        item_id: response.data.name, // Use the created item's ID
-        transaction_type: 'in',
-        quantity: itemData.current_stock,
-        notes: 'Initial stock on item creation',
-      });
-      console.log('Created initial stock transaction for new item');
-    } catch (stockError) {
-      console.error('Failed to create initial stock transaction:', stockError);
-      // Don't fail the item creation if stock transaction fails
-    }
-  }
 
   return {
     item: {
@@ -644,13 +645,17 @@ export async function getSales() {
 
   // Fetch shops and products for mapping
   const [shopsResponse, itemsResponse] = await Promise.all([
-    frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
+    frappeRequest('/api/resource/Shop?fields=["name","shop_name","enabled"]&limit_page_length=999'),
     frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
   ]);
 
   const shopsMap = {};
+  const disabledShops = new Set();
   (shopsResponse.data || []).forEach(shop => {
     shopsMap[shop.name] = shop.shop_name;
+    if (shop.enabled !== 1) {
+      disabledShops.add(shop.name);
+    }
   });
 
   const itemsMap = {};
@@ -658,7 +663,9 @@ export async function getSales() {
     itemsMap[item.name] = item.item_name;
   });
 
-  const sales = (response.data || []).map(sale => {
+  const sales = (response.data || [])
+    .filter(sale => !disabledShops.has(sale.shop)) // Exclude sales from disabled shops
+    .map(sale => {
     // Use either separately fetched items or items from parent document
     const saleItems = useParentItems ? (sale.items || []) : (saleItemsMap[sale.name] || sale.items || []);
 
@@ -997,17 +1004,30 @@ export async function markNotificationAsRead(notificationId) {
 
 export async function getPurchases() {
   try {
-    const response = await frappeRequest('/api/resource/Tookio Purchase?fields=["*"]&limit_page_length=999&order_by=date desc');
+    const [purchasesResponse, shopsResponse] = await Promise.all([
+      frappeRequest('/api/resource/Tookio Purchase?fields=["*"]&limit_page_length=999&order_by=date desc'),
+      frappeRequest('/api/resource/Shop?fields=["name","enabled"]&limit_page_length=999'),
+    ]);
 
-    const purchases = (response.data || []).map(purchase => ({
-      id: purchase.name,
-      date: purchase.date,
-      shop: purchase.shop,
-      shop_name: purchase.shop_name || purchase.shop,  // Fetch shop name if available
-      description: purchase.description,
-      amount: purchase.amount,
-      category: purchase.category,
-    }));
+    // Create a set of disabled shop IDs for quick lookup
+    const disabledShops = new Set();
+    (shopsResponse.data || []).forEach(shop => {
+      if (shop.enabled !== 1) {
+        disabledShops.add(shop.name);
+      }
+    });
+
+    const purchases = (purchasesResponse.data || [])
+      .filter(purchase => !disabledShops.has(purchase.shop)) // Exclude purchases from disabled shops
+      .map(purchase => ({
+        id: purchase.name,
+        date: purchase.date,
+        shop: purchase.shop,
+        shop_name: purchase.shop_name || purchase.shop,  // Fetch shop name if available
+        description: purchase.description,
+        amount: purchase.amount,
+        category: purchase.category,
+      }));
 
     return { purchases };
   } catch (error) {

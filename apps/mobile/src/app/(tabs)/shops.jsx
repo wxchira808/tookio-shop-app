@@ -20,7 +20,6 @@ import {
   ChevronRight,
   X,
   Edit,
-  Trash2,
   Check,
 } from "lucide-react-native";
 import { router } from "expo-router";
@@ -29,7 +28,6 @@ import {
   getShops,
   createShop,
   updateShop,
-  deleteShop,
   getItems,
   checkSession,
 } from "@/utils/frappeApi";
@@ -62,6 +60,7 @@ export default function Shops() {
   const [address, setAddress] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [emailAddress, setEmailAddress] = useState("");
+  const [enabled, setEnabled] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -121,6 +120,7 @@ export default function Shops() {
         address: address.trim() || null,
         mobile_number: mobileNumber.trim() || null,
         email_address: emailAddress.trim() || null,
+        enabled: enabled ? 1 : 0, // Convert boolean to 1/0
       });
 
       if (result && result.shop) {
@@ -131,6 +131,7 @@ export default function Shops() {
         setAddress("");
         setMobileNumber("");
         setEmailAddress("");
+        setEnabled(true);
         setShowAddModal(false);
         
         // Set as active shop if it's the first one
@@ -164,6 +165,7 @@ export default function Shops() {
         address: address.trim() || null,
         mobile_number: mobileNumber.trim() || null,
         email_address: emailAddress.trim() || null,
+        enabled: enabled ? 1 : 0, // Convert boolean to 1/0
       });
 
       if (result && result.shop) {
@@ -174,6 +176,7 @@ export default function Shops() {
         setAddress("");
         setMobileNumber("");
         setEmailAddress("");
+        setEnabled(true);
         setShowEditModal(false);
         setEditingShop(null);
         await loadData();
@@ -184,40 +187,6 @@ export default function Shops() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleDeleteShop = (shop) => {
-    Alert.alert(
-      "Delete Shop",
-      `Are you sure you want to delete "${shop.shop_name}"? This will also delete all items, purchases, and sales associated with this shop.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const result = await deleteShop(shop.id);
-              
-              if (result && result.success) {
-                Alert.alert("Success", "Shop deleted successfully!");
-                
-                // Clear active shop if it was deleted
-                if (activeShopId === shop.id) {
-                  setActiveShopId(null);
-                  await saveActiveShop(null);
-                }
-                
-                await loadData();
-              }
-            } catch (error) {
-              console.error("Error deleting shop:", error);
-              Alert.alert("Error", error.message || "Failed to delete shop");
-            }
-          },
-        },
-      ]
-    );
   };
 
   const handleSetActiveShop = async (shopId) => {
@@ -234,6 +203,7 @@ export default function Shops() {
     setAddress(shop.address || "");
     setMobileNumber(shop.mobile_number || "");
     setEmailAddress(shop.email_address || "");
+    setEnabled(shop.enabled === 1); // Convert 1 to true, anything else to false
     setShowEditModal(true);
   };
 
@@ -244,6 +214,7 @@ export default function Shops() {
     setAddress("");
     setMobileNumber("");
     setEmailAddress("");
+    setEnabled(true);
     setShowAddModal(true);
   };
 
@@ -447,7 +418,7 @@ export default function Shops() {
                           )}
                         </View>
 
-                        <View style={{ flexDirection: "row", marginTop: 8, gap: 8 }}>
+                        <View style={{ flexDirection: "row", marginTop: 8, gap: 8, flexWrap: "wrap" }}>
                           <View
                             style={{
                               backgroundColor: "#F3F4F6",
@@ -479,6 +450,7 @@ export default function Shops() {
                               paddingHorizontal: 8,
                               paddingVertical: 4,
                               borderRadius: 6,
+                              flexShrink: 1,
                             }}
                           >
                             <Text style={{ fontSize: 12, color: "#357AFF", fontWeight: "500" }}>
@@ -501,33 +473,38 @@ export default function Shops() {
                       borderTopColor: "#F3F4F6",
                     }}
                   >
-                    {!isActive && (
-                      <Pressable
-                        onPress={() => handleSetActiveShop(shop.id)}
-                        style={({ pressed }) => ({
-                          flex: 1,
-                          backgroundColor: "#357AFF15",
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: pressed ? 0.7 : 1,
-                        })}
+                    {/* Enabled Status Badge */}
+                    <View
+                      style={{
+                        flex: 1,
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        backgroundColor: shop.enabled === 1 ? "#D1FAE515" : "#FEE2E215",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: shop.enabled === 1 ? "#10B981" : "#EF4444",
+                          marginRight: 6,
+                        }}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "600",
+                          color: shop.enabled === 1 ? "#10B981" : "#EF4444",
+                        }}
                       >
-                        <Check size={16} color="#357AFF" />
-                        <Text
-                          style={{
-                            color: "#357AFF",
-                            marginLeft: 4,
-                            fontWeight: "600",
-                            fontSize: 14,
-                          }}
-                        >
-                          Set Active
-                        </Text>
-                      </Pressable>
-                    )}
+                        {shop.enabled === 1 ? "Enabled" : "Disabled"}
+                      </Text>
+                    </View>
                     <Pressable
                       onPress={() => openEditModal(shop)}
                       style={({ pressed }) => ({
@@ -551,31 +528,6 @@ export default function Shops() {
                         }}
                       >
                         Edit
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleDeleteShop(shop)}
-                      style={({ pressed }) => ({
-                        flex: 1,
-                        backgroundColor: "#EF444415",
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        opacity: pressed ? 0.7 : 1,
-                      })}
-                    >
-                      <Trash2 size={16} color="#EF4444" />
-                      <Text
-                        style={{
-                          color: "#EF4444",
-                          marginLeft: 4,
-                          fontWeight: "600",
-                          fontSize: 14,
-                        }}
-                      >
-                        Delete
                       </Text>
                     </Pressable>
                   </View>
@@ -900,6 +852,55 @@ export default function Shops() {
                     backgroundColor: "#fff",
                   }}
                 />
+              </View>
+
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: 8,
+                  }}
+                >
+                  Shop Status
+                </Text>
+                <Pressable
+                  onPress={() => setEnabled(!enabled)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: 16,
+                    backgroundColor: "#F8FAFC",
+                    borderWidth: 1,
+                    borderColor: "#E2E8F0",
+                    borderRadius: 12,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 6,
+                      borderWidth: 2,
+                      borderColor: enabled ? "#10B981" : "#E2E8F0",
+                      backgroundColor: enabled ? "#10B981" : "transparent",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 12,
+                    }}
+                  >
+                    {enabled && (
+                      <Text style={{ fontSize: 14, fontWeight: "bold", color: "#FFFFFF" }}>✓</Text>
+                    )}
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "#0F172A" }}>
+                    {enabled ? "Enabled" : "Disabled"}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: "#64748B", marginLeft: 8 }}>
+                    {enabled ? "Shop is active and visible" : "Shop is hidden from sales/inventory"}
+                  </Text>
+                </Pressable>
               </View>
             </View>
           </ScrollView>

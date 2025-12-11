@@ -69,7 +69,7 @@ export default function PurchasesScreen() {
       ]);
 
       setPurchases(purchasesRes?.purchases || []);
-      setShops(shopsRes?.shops || []);
+      setShops((shopsRes?.shops || []).filter(shop => shop.enabled === 1));
     } catch (error) {
       console.error("Error loading purchases:", error);
       if (!handleApiError(error, signOut)) {

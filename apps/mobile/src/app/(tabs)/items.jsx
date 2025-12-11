@@ -96,7 +96,7 @@ export default function InventoryScreen() {
       ]);
 
       setItems(itemsRes?.items || []);
-      setShops(shopsRes?.shops || []);
+      setShops((shopsRes?.shops || []).filter(shop => shop.enabled === 1));
       setStockHistory(stockRes?.transactions || []);
 
       // Don't auto-select a shop - show all items by default
@@ -325,7 +325,7 @@ export default function InventoryScreen() {
     const matchesShop = !selectedShop || item.shop === selectedShop;
     const matchesSearch = !searchQuery ||
       item.item_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = enabledFilter === null || (enabledFilter ? item.enabled !== false : item.enabled === false);
+    const matchesStatus = enabledFilter === null || (enabledFilter ? item.enabled === 1 : item.enabled === 0);
     return matchesShop && matchesSearch && matchesStatus;
   });
 
