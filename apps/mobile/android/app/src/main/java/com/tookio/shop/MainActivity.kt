@@ -1,4 +1,4 @@
-package co.ke.tookio.shop
+package com.tookio.shop
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

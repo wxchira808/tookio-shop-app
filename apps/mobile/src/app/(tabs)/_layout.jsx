@@ -6,8 +6,9 @@ import {
   Store,
   Package,
   BarChart3,
-  TrendingUp,
-  ShoppingCart, // Add ShoppingCart icon for purchases
+  DollarSign,
+  ShoppingCart,
+  User,
 } from "lucide-react-native";
 
 export default function TabLayout() {
@@ -43,8 +44,9 @@ export default function TabLayout() {
         },
         tabBarActiveTintColor: "#357AFF",
         tabBarInactiveTintColor: "#6B6B6B",
+        tabBarShowLabel: true,
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 9,
         },
       }}
     >
@@ -52,21 +54,21 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => <Home color={color} size={24} />,
+          tabBarIcon: ({ color, size }) => <Home color={color} size={32} />,
         }}
       />
       <Tabs.Screen
         name="shops"
         options={{
           title: "Shops",
-          tabBarIcon: ({ color, size }) => <Store color={color} size={24} />,
+          tabBarIcon: ({ color, size }) => <Store color={color} size={32} />,
         }}
       />
       <Tabs.Screen
         name="items"
         options={{
           title: "Inventory",
-          tabBarIcon: ({ color, size}) => <Package color={color} size={24} />,
+          tabBarIcon: ({ color, size}) => <Package color={color} size={32} />,
         }}
       />
       <Tabs.Screen
@@ -74,7 +76,7 @@ export default function TabLayout() {
         options={{
           title: "Purchases",
           tabBarIcon: ({ color, size }) => (
-            <ShoppingCart color={color} size={24} />
+            <ShoppingCart color={color} size={32} />
           ),
         }}
       />
@@ -84,7 +86,7 @@ export default function TabLayout() {
           title: "Stock",
           href: null, // Hidden - stock management moved to Inventory tab
           tabBarIcon: ({ color, size }) => (
-            <BarChart3 color={color} size={24} />
+            <BarChart3 color={color} size={32} />
           ),
         }}
       />
@@ -93,8 +95,24 @@ export default function TabLayout() {
         options={{
           title: "Sales",
           tabBarIcon: ({ color, size }) => (
-            <TrendingUp color={color} size={24} />
+            <DollarSign color={color} size={32} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <User color={color} size={32} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="subscription"
+        options={{
+          href: null,
+          title: "Subscription",
         }}
       />
     </Tabs>

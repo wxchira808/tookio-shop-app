@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import { AlertModal } from './polyfills/web/alerts.web';
 import './global.css';
+import { OfflineBanner } from './src/components/OfflineBanner';
 
 const GlobalErrorReporter = () => {
   useEffect(() => {
@@ -46,6 +47,7 @@ const Wrapper = memo(() => {
           },
         }}
       >
+        <OfflineBanner />
         <App />
         <GlobalErrorReporter />
         <Toaster />

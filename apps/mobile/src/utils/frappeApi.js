@@ -1109,3 +1109,31 @@ export async function saveAuth(auth) {
 export async function clearAuth() {
   await SecureStore.deleteItemAsync(AUTH_KEY);
 }
+
+// ==================== SUBSCRIPTION FUNCTIONS ====================
+
+export async function getSubscriptionPlans() {
+  const response = await frappeRequest('/api/method/tookio_shop.api.get_subscription_plans');
+  return response.message;
+}
+
+export async function getUserSubscription() {
+  const response = await frappeRequest('/api/method/tookio_shop.api.get_user_subscription');
+  return response.message;
+}
+
+export async function submitPaymentConfirmation(subscriptionPlan, userName) {
+  const response = await frappeRequest('/api/method/tookio_shop.api.submit_payment_confirmation', {
+    method: 'POST',
+    body: JSON.stringify({
+      subscription_plan: subscriptionPlan,
+      user_name: userName,
+    }),
+  });
+  return response.message;
+}
+
+export async function checkUserLimits() {
+  const response = await frappeRequest('/api/method/tookio_shop.api.check_user_limits');
+  return response.message;
+}

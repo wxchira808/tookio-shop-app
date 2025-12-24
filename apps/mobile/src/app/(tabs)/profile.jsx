@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, Alert, Linking, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, Linking, RefreshControl, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, handleApiError } from "@/utils/auth/useAuth";
@@ -14,10 +14,13 @@ import {
   Calendar,
   ChevronRight,
   RefreshCw,
+  Package,
+  ShoppingBag,
+  FileText,
 } from "lucide-react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useState, useCallback, useRef } from "react";
-import { refreshUserDetails, checkSession } from "@/utils/frappeApi";
+import { refreshUserDetails, checkSession, getUserSubscription } from "@/utils/frappeApi";
 import * as SecureStore from "expo-secure-store";
 import { authKey } from "@/utils/auth/store";
 
@@ -27,6 +30,22 @@ export default function Profile() {
   const { data: user, loading } = useUser();
   const [refreshing, setRefreshing] = useState(false);
   const isRefreshingRef = useRef(false);
+  const [subscription, setSubscription] = useState(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+
+  // Fetch subscription data
+  const fetchSubscriptionData = useCallback(async () => {
+    try {
+      setLoadingSubscription(true);
+      const data = await getUserSubscription();
+      setSubscription(data);
+    } catch (error) {
+      console.error("Error fetching subscription:", error);
+      handleApiError(error, signOut);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  }, [signOut]);
 
   // Refresh user details from server
   const handleRefresh = useCallback(async () => {
@@ -44,6 +63,9 @@ export default function Profile() {
       await checkSession();
 
       const updatedUser = await refreshUserDetails();
+
+      // Also refresh subscription data
+      await fetchSubscriptionData();
 
       // Update auth in SecureStore and state
       const authData = await SecureStore.getItemAsync(authKey);
@@ -72,14 +94,15 @@ export default function Profile() {
       setRefreshing(false);
       isRefreshingRef.current = false;
     }
-  }, [setAuth]);
+  }, [setAuth, fetchSubscriptionData]);
 
   // Auto-refresh when screen comes into focus (only once)
   useFocusEffect(
     useCallback(() => {
       console.log('📱 Profile screen focused, refreshing subscription data...');
+      fetchSubscriptionData();
       handleRefresh();
-    }, []) // Empty dependency array - only run on focus
+    }, [fetchSubscriptionData]) // Dependency on fetchSubscriptionData
   );
 
   const handleSignOut = () => {
@@ -96,58 +119,16 @@ export default function Profile() {
     ]);
   };
 
-  /*
-  const getSubscriptionTier = () => {
-    const tier = user?.subscription_tier || "free";
-    return tier.toLowerCase();
-  };
-
-  const getSubscriptionColor = (tier) => {
-    const tierLower = tier.toLowerCase();
-    if (tierLower.includes("business") || tierLower.includes("enterprise")) {
-      return "#6366F1"; // Indigo for business/enterprise
+  const getSubscriptionColor = (planName) => {
+    if (!planName) return "#64748B";
+    const name = planName.toLowerCase();
+    if (name.includes("premium") || name.includes("enterprise")) {
+      return "#6366F1"; // Indigo for premium
     }
-    if (tierLower.includes("pro") || tierLower.includes("premium")) {
-      return "#10B981"; // Green for pro/premium
+    if (name.includes("starter") || name.includes("pro")) {
+      return "#10B981"; // Green for starter
     }
-    if (tierLower.includes("starter") || tierLower.includes("basic")) {
-      return "#F59E0B"; // Amber for starter/basic
-    }
-    return "#64748B"; // Slate gray for free
-  };
-
-  const getSubscriptionLabel = (tier) => {
-    const tierLower = tier.toLowerCase();
-
-    // Capitalize the tier name properly
-    const capitalize = (str) => {
-      return str.split(' ').map(word =>
-        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-      ).join(' ');
-    };
-
-    // If it's "free", return "Free Plan"
-    if (tierLower === "free") {
-      return "Free Plan";
-    }
-
-    // Otherwise return the tier name capitalized
-    return capitalize(tier);
-  };
-  */
-
-  const formatExpiryDate = (dateString) => {
-    if (!dateString) return null;
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch {
-      return null;
-    }
+    return "#64748B"; // Gray for free
   };
 
   if (loading) {
@@ -166,11 +147,9 @@ export default function Profile() {
     );
   }
 
-  // Tookio Shop is now completely FREE!
-  // const currentTier = getSubscriptionTier();
-  // const subscriptionColor = getSubscriptionColor(currentTier);
-  // const subscriptionLabel = getSubscriptionLabel(currentTier);
-  // const expiryDate = user?.subscription_expiry;
+  const planName = subscription?.subscription_plan || "Free Plan";
+  const planColor = getSubscriptionColor(planName);
+  const isFree = planName.toLowerCase().includes("free");
 
   return (
     <View
@@ -278,60 +257,154 @@ export default function Profile() {
               }}
             />
 
-            {/* Free Plan Info */}
-            <View>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Your Plan
-                </Text>
-                <Crown size={16} color="#10B981" />
+            {/* Subscription Info */}
+            {loadingSubscription ? (
+              <View style={{ alignItems: "center", paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color="#10B981" />
               </View>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "700",
-                  color: "#10B981",
-                  marginBottom: 8,
-                }}
-              >
-                Tookio Shop Free
-              </Text>
-              <Text style={{ fontSize: 14, color: "#64748B", lineHeight: 20 }}>
-                Complete access to all features • No limits • No payments • Forever free
-              </Text>
-            </View>
+            ) : (
+              <View>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    Your Plan
+                  </Text>
+                  <Crown size={16} color={planColor} />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    color: planColor,
+                    marginBottom: 8,
+                  }}
+                >
+                  {planName}
+                </Text>
+
+                {/* Usage Stats */}
+                {subscription && (
+                  <View style={{ marginTop: 12 }}>
+                    {/* Expiry Date */}
+                    {subscription.subscription_end_date && (
+                      <View style={{ marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+                        <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>
+                          Expires on
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#0F172A" }}>
+                          {new Date(subscription.subscription_end_date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <ShoppingBag size={14} color="#64748B" />
+                        <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Shops</Text>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
+                        {subscription.current_shops || 0} / {subscription.shop_limit === 0 ? "∞" : subscription.shop_limit}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Package size={14} color="#64748B" />
+                        <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Products</Text>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
+                        {subscription.current_products || 0} / {subscription.products_limit === 0 ? "∞" : subscription.products_limit}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <FileText size={14} color="#64748B" />
+                        <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Invoices</Text>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
+                        {subscription.current_sales_invoices || 0} / {subscription.sales_invoice_limit === 0 ? "∞" : subscription.sales_invoice_limit}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {isFree && (
+                  <Text style={{ fontSize: 13, color: "#64748B", marginTop: 12, lineHeight: 18 }}>
+                    Upgrade to unlock higher limits and premium features
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Support Us Button */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-          <Pressable
-            onPress={() => router.push("/payment")}
-            style={({ pressed }) => ({
-              backgroundColor: "#EF4444",
-              borderRadius: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 20,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.9 : 1,
-            })}
-          >
-            <Crown size={20} color="#FFFFFF" strokeWidth={2.5} />
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: '700',
-                color: '#FFFFFF',
-                marginLeft: 10,
-                letterSpacing: -0.3,
-              }}
+        {/* Upgrade Button (only show for free plan) */}
+        {!loadingSubscription && isFree && (
+          <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+            <Pressable
+              onPress={() => router.push("/(tabs)/subscription")}
+              style={({ pressed }) => ({
+                backgroundColor: "#10B981",
+                borderRadius: 16,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.9 : 1,
+              })}
             >
-              ❤️ Support Tookio Shop
-            </Text>
-          </Pressable>
-        </View>
+              <Crown size={20} color="#FFFFFF" strokeWidth={2.5} />
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: '700',
+                  color: '#FFFFFF',
+                  marginLeft: 10,
+                  letterSpacing: -0.3,
+                }}
+              >
+                Upgrade Plan
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* View Subscription Details (for paid plans) */}
+        {!loadingSubscription && !isFree && (
+          <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+            <Pressable
+              onPress={() => router.push("/(tabs)/subscription")}
+              style={({ pressed }) => ({
+                backgroundColor: "#FFFFFF",
+                borderRadius: 16,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
+                borderWidth: 1,
+                borderColor: "#F1F5F9",
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.9 : 1,
+              })}
+            >
+              <Crown size={20} color={planColor} strokeWidth={2.5} />
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: planColor,
+                  marginLeft: 10,
+                  letterSpacing: -0.3,
+                }}
+              >
+                Manage Subscription
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Actions */}
         <View style={{ paddingHorizontal: 20 }}>

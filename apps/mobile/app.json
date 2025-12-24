@@ -3,6 +3,7 @@
     "name": "Tookio Shop",
     "slug": "tookio-shop",
     "version": "1.0.0",
+    "icon": "./assets/images/icon.png",
     "newArchEnabled": true,
     "plugins": [
       [
@@ -27,17 +28,26 @@
             "useFrameworks": "static"
           },
           "android": {
-            "useFrameworks": "static"
-          },
-          "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ],
       "expo-asset"
     ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.tookio.shop",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
     "web": {
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png"
@@ -54,6 +64,9 @@
         "projectId": "baeffd80-ea2c-4f67-aa93-6c5c50c08156"
       }
     },
-    "runtimeVersion": "1.0.0"
+    "runtimeVersion": "1.0.0",
+    "ios": {
+      "bundleIdentifier": "com.tookio.shop"
+    }
   }
 }
