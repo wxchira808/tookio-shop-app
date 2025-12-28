@@ -359,14 +359,12 @@ export async function refreshUserDetails() {
     const username = userInfo.message;
 
     // Fetch full user details from User doctype
-    const userDoc = await frappeRequest(`/api/resource/User/${username}?fields=["email","full_name","name","subscription_tier","subscription_expiry"]`);
+    const userDoc = await frappeRequest(`/api/resource/User/${username}?fields=["email","full_name","name"]`);
 
     let userDetails = {
       email: userDoc.data.email,
       name: userDoc.data.full_name || userDoc.data.name,
       username: userDoc.data.name,
-      subscription_tier: userDoc.data.subscription_tier || 'Free Plan',
-      subscription_expiry: userDoc.data.subscription_expiry,
     };
 
     // Fetch subscription using whitelisted method
@@ -382,12 +380,20 @@ export async function refreshUserDetails() {
         if (subData.has_subscription && subData.subscription_plan !== 'Free Plan') {
           userDetails.subscription_tier = subData.subscription_plan;
           userDetails.subscription_expiry = subData.subscription_end_date;
+        } else {
+          userDetails.subscription_tier = 'Free Plan';
+          userDetails.subscription_expiry = null;
         }
 
         console.log('📋 Subscription plan:', userDetails.subscription_tier);
+      } else {
+        userDetails.subscription_tier = 'Free Plan';
+        userDetails.subscription_expiry = null;
       }
     } catch (e) {
       console.log('❌ Could not fetch subscription plan:', e.message);
+      userDetails.subscription_tier = 'Free Plan';
+      userDetails.subscription_expiry = null;
     }
 
     console.log('✅ User details refreshed:', userDetails);
