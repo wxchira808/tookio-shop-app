@@ -359,48 +359,36 @@ export async function refreshUserDetails() {
     const username = userInfo.message;
 
     // Fetch full user details from User doctype
-    const userDoc = await frappeRequest(`/api/resource/User/${username}?fields=["email","full_name","name"]`);
+    const userDoc = await frappeRequest(`/api/resource/User/${username}?fields=["email","full_name","name","subscription_tier","subscription_expiry"]`);
 
     let userDetails = {
       email: userDoc.data.email,
       name: userDoc.data.full_name || userDoc.data.name,
       username: userDoc.data.name,
+      subscription_tier: userDoc.data.subscription_tier || 'Free Plan',
+      subscription_expiry: userDoc.data.subscription_expiry,
     };
 
-    /*
     // Fetch subscription using whitelisted method
     try {
       const subscriptionData = await frappeRequest(
-        '/api/method/tookio_shop.api.get_user_subscription',
-        { method: 'POST' }
+        '/api/method/tookio_shop.api.get_user_subscription'
       );
-
-      console.log('📋 Subscription API response:', JSON.stringify(subscriptionData, null, 2));
 
       if (subscriptionData && subscriptionData.message) {
         const subData = subscriptionData.message;
 
-        userDetails.subscription_tier = subData.subscription_plan || 'Free Plan';
-        userDetails.subscription_expiry = null;
-        userDetails.customer_name = subData.customer_name;
+        // Override with actual subscription data if user has a subscription
+        if (subData.has_subscription && subData.subscription_plan !== 'Free Plan') {
+          userDetails.subscription_tier = subData.subscription_plan;
+          userDetails.subscription_expiry = subData.subscription_end_date;
+        }
 
         console.log('📋 Subscription plan:', userDetails.subscription_tier);
-        console.log('📋 Customer:', userDetails.customer_name);
-      } else {
-        console.log('⚠️ No subscription data returned');
-        userDetails.subscription_tier = 'Free Plan';
-        userDetails.subscription_expiry = null;
       }
     } catch (e) {
       console.log('❌ Could not fetch subscription plan:', e.message);
-      userDetails.subscription_tier = 'Free Plan';
-      userDetails.subscription_expiry = null;
     }
-    */
-
-    // Tookio Shop is now completely FREE!
-    userDetails.subscription_tier = 'Free Plan';
-    userDetails.subscription_expiry = null;
 
     console.log('✅ User details refreshed:', userDetails);
     return userDetails;
