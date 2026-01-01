@@ -14,6 +14,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
+import { AdBanner } from "@/components/AdBanner";
 import {
   Store,
   Plus,
@@ -1133,6 +1134,9 @@ export default function Shops() {
           </View>
         </View>
       </Modal>
+
+      {/* Slim Ad Banner */}
+      <AdBanner variant="slim" context="shops" />
     </View>
   );
 }

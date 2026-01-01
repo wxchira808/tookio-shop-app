@@ -2,6 +2,7 @@ import { View, Text, ScrollView, Pressable, Alert, Linking, RefreshControl, Acti
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, handleApiError } from "@/utils/auth/useAuth";
+import { AdBanner } from "@/components/AdBanner";
 import useUser from "@/utils/auth/useUser";
 import {
   User,
@@ -518,6 +519,9 @@ export default function Profile() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Slim Ad Banner */}
+      <AdBanner variant="slim" />
     </View>
   );
 }

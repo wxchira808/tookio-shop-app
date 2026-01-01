@@ -4,8 +4,10 @@
 			"path": "."
 		},
 		{
-			"path": "../../frappe-bench/apps/tookio_shop"
+			"path": "../tookio_shop"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
 }

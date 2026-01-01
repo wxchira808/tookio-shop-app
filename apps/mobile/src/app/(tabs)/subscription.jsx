@@ -9,6 +9,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,12 +24,16 @@ import {
   submitPaymentConfirmation,
   checkUserLimits,
   checkSession,
+  refreshUserDetails,
+  switchToFreePlan,
 } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
+import * as SecureStore from "expo-secure-store";
+import { authKey } from "@/utils/auth/store";
 
 export default function Subscription() {
   useRequireAuth();
-  const { signOut } = useAuth();
+  const { signOut, setAuth } = useAuth();
   const { data: user } = useUser();
   const insets = useSafeAreaInsets();
 
@@ -41,6 +46,7 @@ export default function Subscription() {
   const [processing, setProcessing] = useState(false);
   const [userName, setUserName] = useState("");
   const [paymentStep, setPaymentStep] = useState(1); // 1 = payment instructions, 2 = confirm details
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -80,43 +86,35 @@ export default function Subscription() {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
   const handleSelectPlan = async (plan) => {
-    const isFreeDowngrade = currentSubscription?.current_subscription && 
-                           !currentSubscription.current_subscription.includes("Free") && 
-                           plan.subscription_name.includes("Free");
-    
-    const hasActiveNonFreePlan = currentSubscription?.current_subscription && 
-                                 !currentSubscription.current_subscription.includes("Free");
-    
+    const isActive = currentSubscription?.status?.toLowerCase() === "active";
+
+    const isFreeDowngrade =
+      currentSubscription?.current_subscription &&
+      !currentSubscription.current_subscription.includes("Free") &&
+      plan.subscription_name.includes("Free") &&
+      isActive;
+
+    const hasActiveNonFreePlan =
+      currentSubscription?.current_subscription &&
+      !currentSubscription.current_subscription.includes("Free") &&
+      isActive;
+
     if (isFreeDowngrade) {
       Alert.alert(
-        "Downgrade to Free Plan",
-        "You may lose access to your current plan features. Do you want to continue?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Continue",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                // Switch to free plan by submitting with Free Plan
-                await submitPaymentConfirmation(plan.name, "Free Plan Switch");
-                Alert.alert("Success", "Your plan has been downgraded to Free Plan.", [
-                  {
-                    text: "OK",
-                    onPress: () => loadData(),
-                  },
-                ]);
-              } catch (error) {
-                Alert.alert("Error", "Failed to switch to Free Plan");
-              }
-            },
-          },
-        ]
+        "Free Plan",
+        "Your current subscription will automatically downgrade to Free Plan when it expires. No action needed!",
+        [{ text: "OK", style: "cancel" }]
       );
       return;
     }
-    
+
     if (hasActiveNonFreePlan && !plan.subscription_name.includes("Free")) {
       Alert.alert(
         "Active Subscription",
@@ -125,7 +123,53 @@ export default function Subscription() {
       );
       return;
     }
-    
+
+    // Handle Free Plan selection (no payment required)
+    if (plan.subscription_name.includes("Free")) {
+      try {
+        setProcessing(true);
+        const result = await switchToFreePlan();
+
+        if (result && result.success) {
+          // Refresh user details and auth state after switching
+          try {
+            const updatedUser = await refreshUserDetails();
+            const authData = await SecureStore.getItemAsync(authKey);
+            if (authData) {
+              const auth = JSON.parse(authData);
+              const updatedAuth = {
+                ...auth,
+                user: {
+                  ...auth.user,
+                  ...updatedUser,
+                },
+              };
+              await SecureStore.setItemAsync(authKey, JSON.stringify(updatedAuth));
+              setAuth(updatedAuth);
+            }
+          } catch (refreshError) {
+            console.error("Error refreshing after free plan switch:", refreshError);
+          }
+
+          Alert.alert("Success", "You have successfully switched to the Free Plan!", [
+            {
+              text: "OK",
+              onPress: () => {
+                loadData();
+              },
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error("Error switching to free plan:", error);
+        Alert.alert("Error", error.message || "Failed to switch to free plan");
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
+    // For paid plans, show payment modal
     setSelectedPlan(plan);
     setPaymentStep(1);
     setUserName("");
@@ -147,7 +191,27 @@ export default function Subscription() {
       const result = await submitPaymentConfirmation(selectedPlan.name, userName.trim());
       
       if (result && result.success) {
-        Alert.alert("Success", result.message, [
+        // Refresh user details and auth state after upgrade
+        try {
+          const updatedUser = await refreshUserDetails();
+          const authData = await SecureStore.getItemAsync(authKey);
+          if (authData) {
+            const auth = JSON.parse(authData);
+            const updatedAuth = {
+              ...auth,
+              user: {
+                ...auth.user,
+                ...updatedUser,
+              },
+            };
+            await SecureStore.setItemAsync(authKey, JSON.stringify(updatedAuth));
+            setAuth(updatedAuth);
+          }
+        } catch (refreshError) {
+          console.error("Error refreshing after upgrade:", refreshError);
+        }
+
+        Alert.alert("Success", "Your account has been upgraded successfully! You now have access to premium features.", [
           {
             text: "OK",
             onPress: () => {
@@ -173,6 +237,13 @@ export default function Subscription() {
     if (planName.includes("Starter")) return "#3B82F6";
     if (planName.includes("Premium")) return "#8B5CF6";
     return "#6B7280";
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return null;
+    const parsed = new Date(dateString);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   };
 
   if (loading) {
@@ -230,53 +301,86 @@ export default function Subscription() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Current Subscription */}
-        {currentSubscription && (
-          <View style={{ padding: 20 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600", color: "#1F2937", marginBottom: 12 }}>
-              Current Plan
-            </Text>
-            <View
-              style={{
-                backgroundColor: "#fff",
-                borderRadius: 12,
-                padding: 16,
-                borderWidth: 2,
-                borderColor: "#10B981",
-              }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "600", color: "#1F2937" }}>
-                {currentSubscription.current_subscription || "Free Plan"}
+        {currentSubscription && (() => {
+          const endDate = currentSubscription.subscription_end_date
+            ? new Date(currentSubscription.subscription_end_date)
+            : null;
+          const isExpired =
+            currentSubscription.status?.toLowerCase() === "expired" ||
+            (endDate && endDate.getTime() < Date.now());
+          const statusLabel = currentSubscription.status || (isExpired ? "Expired" : "Active");
+          const cardBorder = isExpired ? "#EF4444" : "#10B981";
+          const badgeBg = isExpired ? "#FEE2E2" : "#ECFDF3";
+          const badgeText = isExpired ? "#B91C1C" : "#166534";
+          const formattedDate = formatDate(currentSubscription.subscription_end_date);
+
+          return (
+            <View style={{ padding: 20 }}>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#1F2937", marginBottom: 12 }}>
+                Current Plan
               </Text>
-              <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>
-                Status: {currentSubscription.status}
-              </Text>
-              {limits && (
-                <View style={{ marginTop: 12, gap: 8 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Shops</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: limits.shops.exceeded ? "#EF4444" : "#10B981" }}>
-                      {limits.shops.used} / {limits.shops.limit}
+              <View
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 12,
+                  padding: 16,
+                  borderWidth: 2,
+                  borderColor: cardBorder,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: "600", color: "#1F2937" }}>
+                  {currentSubscription.current_subscription || "Free Plan"}
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                  <View
+                    style={{
+                      backgroundColor: badgeBg,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: badgeText }}>
+                      {statusLabel.toUpperCase()}
                     </Text>
                   </View>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Products</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: limits.products.exceeded ? "#EF4444" : "#10B981" }}>
-                      {limits.products.used} / {limits.products.limit}
+                  {formattedDate && (
+                    <Text style={{ fontSize: 12, color: isExpired ? "#B91C1C" : "#6B7280", marginLeft: 10 }}>
+                      {isExpired ? "Expired on" : "Renews on"} {formattedDate}
                     </Text>
-                  </View>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Sales Invoices</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: limits.sales_invoices.exceeded ? "#EF4444" : "#10B981" }}>
-                      {limits.sales_invoices.used} / {limits.sales_invoices.limit || "Unlimited"}
-                    </Text>
-                  </View>
+                  )}
                 </View>
-              )}
+                {limits && (
+                  <View style={{ marginTop: 12, gap: 8 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 12, color: "#6B7280" }}>Shops</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: limits.shops.exceeded ? "#EF4444" : "#10B981" }}>
+                        {limits.shops.used} / {limits.shops.limit}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 12, color: "#6B7280" }}>Products</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: limits.products.exceeded ? "#EF4444" : "#10B981" }}>
+                        {limits.products.used} / {limits.products.limit}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: 12, color: "#6B7280" }}>Sales Invoices</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: limits.sales_invoices.exceeded ? "#EF4444" : "#10B981" }}>
+                        {limits.sales_invoices.used} / {limits.sales_invoices.limit || "Unlimited"}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
-        )}
+          );
+        })()}
 
         {/* Available Plans */}
         <View style={{ padding: 20, paddingTop: 0 }}>
@@ -335,13 +439,13 @@ export default function Subscription() {
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Store size={16} color={planColor} />
                     <Text style={{ fontSize: 14, color: "#374151", marginLeft: 8 }}>
-                      {plan.shop_limit} {plan.shop_limit === 1 ? "Shop" : "Shops"}
+                      {plan.shop_limit === 0 ? "Unlimited Shops" : `${plan.shop_limit} ${plan.shop_limit === 1 ? "Shop" : "Shops"}`}
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Package size={16} color={planColor} />
                     <Text style={{ fontSize: 14, color: "#374151", marginLeft: 8 }}>
-                      {plan.products_limit} Products
+                      {plan.products_limit === 0 ? "Unlimited Products" : `${plan.products_limit} Products`}
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -528,7 +632,7 @@ export default function Subscription() {
                         ℹ️ Confirm Your Details
                       </Text>
                       <Text style={{ fontSize: 13, color: "#1E3A8A", lineHeight: 18 }}>
-                        Please confirm your details below. We'll verify your payment shortly.
+                        Please confirm your details below. Your account will be upgraded immediately after payment confirmation.
                       </Text>
                     </View>
 

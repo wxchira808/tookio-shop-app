@@ -16,8 +16,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain"
+          "imageWidth": 300,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
         }
       ],
       "expo-audio",
@@ -38,8 +39,10 @@
       "expo-asset"
     ],
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+      "icon": "./assets/images/icon.png",
+      "splash": {
+        "image": "./assets/images/splash-icon.png",
+        "resizeMode": "contain",
         "backgroundColor": "#ffffff"
       },
       "package": "com.tookio.shop",

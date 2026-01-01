@@ -40,6 +40,7 @@ import {
   checkSession,
 } from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
+import { AdBanner } from "@/components/AdBanner";
 
 export default function InventoryScreen() {
   useRequireAuth();
@@ -1606,6 +1607,9 @@ export default function InventoryScreen() {
         </View>
       </Modal>
       </View>
+
+      {/* Slim Ad Banner */}
+      <AdBanner variant="slim" context="items" />
     </KeyboardAvoidingView>
   );
 }

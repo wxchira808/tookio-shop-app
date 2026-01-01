@@ -5,6 +5,8 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { initializeMobileAds } from "@/utils/ads/admobConfig";
+
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
@@ -22,6 +24,8 @@ export default function RootLayout() {
   const { initiate, isReady } = useAuth();
 
   useEffect(() => {
+    // Initialize Mobile Ads on app start
+    initializeMobileAds();
     initiate();
   }, [initiate]);
 

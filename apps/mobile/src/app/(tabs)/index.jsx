@@ -2,6 +2,7 @@ import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl, M
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
+import { AdBanner } from "@/components/AdBanner";
 import {
   Store,
   Package,
@@ -852,6 +853,9 @@ export default function Dashboard() {
           </View>
         </View>
       </Modal>
+
+      {/* Ad Banner for Free Users */}
+      <AdBanner />
     </View>
   );
 }

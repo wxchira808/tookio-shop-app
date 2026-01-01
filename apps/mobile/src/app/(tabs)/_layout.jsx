@@ -1,6 +1,7 @@
 import { Tabs, Redirect } from "expo-router";
 import { useAuth } from "@/utils/auth/useAuth";
 import { View, ActivityIndicator } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
   Store,
@@ -13,6 +14,7 @@ import {
 
 export default function TabLayout() {
   const { isAuthenticated, isReady } = useAuth();
+  const insets = useSafeAreaInsets();
 
   // Show loading while checking auth state
   if (!isReady) {
@@ -37,16 +39,22 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderColor: "#E5E7EB",
           paddingTop: 15,
-          paddingBottom: 40,
-          marginBottom: 10,
-          bottom: 15,
+          paddingBottom: insets.bottom + 60,
+          marginBottom: 0,
+          bottom: 0,
           paddingHorizontal: 10,
         },
         tabBarActiveTintColor: "#357AFF",
         tabBarInactiveTintColor: "#6B6B6B",
         tabBarShowLabel: true,
         tabBarLabelStyle: {
-          fontSize: 9,
+          fontSize: 10,
+          fontWeight: '600',
+          marginTop: 5,
+          color: '#000',
+        },
+        tabBarItemStyle: {
+          paddingVertical: 8,
         },
       }}
     >

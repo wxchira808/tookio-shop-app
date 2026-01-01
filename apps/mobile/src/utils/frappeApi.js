@@ -1127,6 +1127,13 @@ export async function submitPaymentConfirmation(subscriptionPlan, userName) {
   return response.message;
 }
 
+export async function switchToFreePlan() {
+  const response = await frappeRequest('/api/method/tookio_shop.api.switch_to_free_plan', {
+    method: 'POST',
+  });
+  return response.message;
+}
+
 export async function checkUserLimits() {
   const response = await frappeRequest('/api/method/tookio_shop.api.check_user_limits');
   return response.message;
