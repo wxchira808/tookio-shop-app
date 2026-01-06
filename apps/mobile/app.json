@@ -16,7 +16,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 300,
+          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
@@ -32,7 +32,8 @@
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
             "minSdkVersion": 24,
-            "enableMinifyInReleaseBuilds": true
+            "enableMinifyInReleaseBuilds": true,
+            "extraProguardRules": "-keepattributes Signature"
           }
         }
       ],
@@ -40,6 +41,10 @@
     ],
     "android": {
       "icon": "./assets/images/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
       "splash": {
         "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
@@ -49,7 +54,13 @@
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      ],
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-2653266687589484~7788238441",
+        "react-native-google-mobile-ads": {
+          "android_app_id": "ca-app-pub-2653266687589484~7788238441"
+        }
+      }
     },
     "web": {
       "bundler": "metro",

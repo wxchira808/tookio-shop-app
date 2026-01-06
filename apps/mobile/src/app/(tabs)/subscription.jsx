@@ -360,19 +360,19 @@ export default function Subscription() {
                     <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                       <Text style={{ fontSize: 12, color: "#6B7280" }}>Shops</Text>
                       <Text style={{ fontSize: 12, fontWeight: "600", color: limits.shops.exceeded ? "#EF4444" : "#10B981" }}>
-                        {limits.shops.used} / {limits.shops.limit}
+                        {currentSubscription?.current_subscription && !currentSubscription.current_subscription.includes("Free") ? `${limits.shops.used} / Unlimited` : `${limits.shops.used} / ${limits.shops.limit}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                       <Text style={{ fontSize: 12, color: "#6B7280" }}>Products</Text>
                       <Text style={{ fontSize: 12, fontWeight: "600", color: limits.products.exceeded ? "#EF4444" : "#10B981" }}>
-                        {limits.products.used} / {limits.products.limit}
+                        {currentSubscription?.current_subscription && !currentSubscription.current_subscription.includes("Free") ? `${limits.products.used} / Unlimited` : `${limits.products.used} / ${limits.products.limit}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                       <Text style={{ fontSize: 12, color: "#6B7280" }}>Sales Invoices</Text>
                       <Text style={{ fontSize: 12, fontWeight: "600", color: limits.sales_invoices.exceeded ? "#EF4444" : "#10B981" }}>
-                        {limits.sales_invoices.used} / {limits.sales_invoices.limit || "Unlimited"}
+                        {currentSubscription?.current_subscription && !currentSubscription.current_subscription.includes("Free") ? `${limits.sales_invoices.used} / Unlimited` : `${limits.sales_invoices.used} / ${limits.sales_invoices.limit || "Unlimited"}`}
                       </Text>
                     </View>
                   </View>
@@ -387,9 +387,13 @@ export default function Subscription() {
           <Text style={{ fontSize: 18, fontWeight: "600", color: "#1F2937", marginBottom: 12 }}>
             Available Plans
           </Text>
-          {plans.map((plan) => {
+          {plans
+            .sort((a, b) => a.price - b.price) // Sort by price ascending
+            .map((plan, index) => {
             const isCurrentPlan = currentSubscription?.current_subscription === plan.subscription_name;
             const planColor = getPlanColor(plan.subscription_name);
+            const isPremiumPlan = index === plans.length - 1 && plan.price > 0; // Highest priced paid plan
+            const isStarterPlan = index === 1 && plan.price > 0; // Middle priced paid plan
 
             return (
               <View
@@ -439,19 +443,19 @@ export default function Subscription() {
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Store size={16} color={planColor} />
                     <Text style={{ fontSize: 14, color: "#374151", marginLeft: 8 }}>
-                      {plan.shop_limit === 0 ? "Unlimited Shops" : `${plan.shop_limit} ${plan.shop_limit === 1 ? "Shop" : "Shops"}`}
+                      {isPremiumPlan ? "Unlimited Shops" : (plan.shop_limit === 0 ? "Unlimited Shops" : `${plan.shop_limit} ${plan.shop_limit === 1 ? "Shop" : "Shops"}`)}
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Package size={16} color={planColor} />
                     <Text style={{ fontSize: 14, color: "#374151", marginLeft: 8 }}>
-                      {plan.products_limit === 0 ? "Unlimited Products" : `${plan.products_limit} Products`}
+                      {isPremiumPlan ? "Unlimited Products" : (plan.products_limit === 0 ? "Unlimited Products" : `${plan.products_limit} Products`)}
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <FileText size={16} color={planColor} />
                     <Text style={{ fontSize: 14, color: "#374151", marginLeft: 8 }}>
-                      {plan.sales_invoice_limit === 0 ? "Unlimited" : plan.sales_invoice_limit} Sales Invoices
+                      {isPremiumPlan ? "Unlimited Sales Invoices" : (plan.sales_invoice_limit === 0 ? "Unlimited" : plan.sales_invoice_limit) + " Sales Invoices"}
                     </Text>
                   </View>
                 </View>
@@ -469,7 +473,10 @@ export default function Subscription() {
                     })}
                   >
                     <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>
-                      {plan.price === 0 ? "Switch to Free" : "Upgrade Now"}
+                      {plan.price === 0 ? "Switch to Free" : 
+                       (currentSubscription?.current_subscription && 
+                        !currentSubscription.current_subscription.includes("Free") && 
+                        isStarterPlan ? "Switch to Starter" : "Upgrade Now")}
                     </Text>
                   </Pressable>
                 )}

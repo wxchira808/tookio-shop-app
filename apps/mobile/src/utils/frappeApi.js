@@ -1130,6 +1130,7 @@ export async function submitPaymentConfirmation(subscriptionPlan, userName) {
 export async function switchToFreePlan() {
   const response = await frappeRequest('/api/method/tookio_shop.api.switch_to_free_plan', {
     method: 'POST',
+    body: JSON.stringify({}),
   });
   return response.message;
 }

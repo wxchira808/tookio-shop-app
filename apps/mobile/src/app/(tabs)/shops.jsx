@@ -22,6 +22,7 @@ import {
   X,
   Edit,
   Check,
+  Trash2,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
@@ -29,6 +30,7 @@ import {
   getShops,
   createShop,
   updateShop,
+  deleteShop,
   getItems,
   checkSession,
 } from "@/utils/frappeApi";
@@ -188,6 +190,47 @@ export default function Shops() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDeleteShop = async () => {
+    if (!editingShop) return;
+
+    Alert.alert(
+      "Delete Shop",
+      `Are you sure you want to delete "${editingShop.shop_name}"? This action cannot be undone and will also delete all items in this shop.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              await deleteShop(editingShop.id);
+
+              // If the deleted shop was the active shop, clear the active shop
+              if (activeShopId === editingShop.id) {
+                setActiveShopId(null);
+                await saveActiveShop(null);
+              }
+
+              Alert.alert("Success", "Shop deleted successfully!");
+              setShowEditModal(false);
+              setEditingShop(null);
+              await loadData();
+            } catch (error) {
+              console.error("Error deleting shop:", error);
+              Alert.alert("Error", error.message || "Failed to delete shop");
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSetActiveShop = async (shopId) => {
@@ -660,16 +703,33 @@ export default function Shops() {
               >
                 {showEditModal ? "Edit Shop" : "Add New Shop"}
               </Text>
-              <Pressable
-                onPress={() => {
-                  setShowAddModal(false);
-                  setShowEditModal(false);
-                  setEditingShop(null);
-                }}
-                style={{ padding: 4 }}
-              >
-                <X size={24} color="#6B7280" />
-              </Pressable>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                {showEditModal && (
+                  <Pressable
+                    onPress={handleDeleteShop}
+                    disabled={submitting}
+                    style={({ pressed }) => ({
+                      padding: 8,
+                      borderRadius: 8,
+                      backgroundColor: pressed ? "#FEE2E215" : "transparent",
+                      opacity: submitting ? 0.5 : 1,
+                    })}
+                  >
+                    <Trash2 size={20} color="#EF4444" />
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() => {
+                    setShowAddModal(false);
+                    setShowEditModal(false);
+                    setEditingShop(null);
+                  }}
+                  disabled={submitting}
+                  style={{ padding: 4, opacity: submitting ? 0.5 : 1 }}
+                >
+                  <X size={24} color="#6B7280" />
+                </Pressable>
+              </View>
             </View>
 
             {/* Form */}
@@ -907,31 +967,96 @@ export default function Shops() {
           </ScrollView>
 
           <View style={{ padding: 20, paddingTop: 0 }}>
-            <Pressable
-              onPress={showEditModal ? handleEditShop : handleAddShop}
-              disabled={submitting}
-              style={({ pressed }) => ({
-                backgroundColor: "#357AFF",
-                borderRadius: 12,
-                paddingVertical: 16,
-                alignItems: "center",
-                opacity: pressed || submitting ? 0.7 : 1,
-              })}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: "#fff",
-                  }}
+            {showEditModal ? (
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Pressable
+                  onPress={handleDeleteShop}
+                  disabled={submitting}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    backgroundColor: "#EF4444",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    opacity: pressed || submitting ? 0.7 : 1,
+                  })}
                 >
-                  {showEditModal ? "Update Shop" : "Create Shop"}
-                </Text>
-              )}
-            </Pressable>
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Trash2 size={16} color="#fff" />
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "600",
+                          color: "#fff",
+                          marginLeft: 8,
+                        }}
+                      >
+                        Delete
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+                <Pressable
+                  onPress={handleEditShop}
+                  disabled={submitting}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    backgroundColor: "#357AFF",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    opacity: pressed || submitting ? 0.7 : 1,
+                  })}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Check size={16} color="#fff" />
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "600",
+                          color: "#fff",
+                          marginLeft: 8,
+                        }}
+                      >
+                        Update
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={handleAddShop}
+                disabled={submitting}
+                style={({ pressed }) => ({
+                  backgroundColor: "#357AFF",
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                  opacity: pressed || submitting ? 0.7 : 1,
+                })}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#fff",
+                    }}
+                  >
+                    Create Shop
+                  </Text>
+                )}
+              </Pressable>
+            )}
           </View>
             </KeyboardAvoidingView>
           </View>

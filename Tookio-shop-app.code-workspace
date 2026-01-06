@@ -8,6 +8,28 @@
 		}
 	],
 	"settings": {
-		"java.compile.nullAnalysis.mode": "automatic"
+		"java.compile.nullAnalysis.mode": "automatic",
+		"java.configuration.updateBuildConfiguration": "automatic",
+		"files.exclude": {
+			"**/node_modules": true,
+			"**/.gradle": true
+		},
+		"search.exclude": {
+			"**/node_modules": true,
+			"**/.gradle": true,
+			"**/.expo": true,
+			"**/build": true
+		},
+		"[java]": {
+			"editor.defaultFormatter": "redhat.java"
+		},
+		"java.project.sourcePaths": [
+			"apps/mobile/android/app/src"
+		],
+		"java.project.excludedFolders": [
+			"apps/mobile/node_modules",
+			"apps/mobile/android/.gradle",
+			"apps/mobile/android/app/build"
+		]
 	}
 }

@@ -10,7 +10,7 @@ import {
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ErrorBoundaryWrapper } from '../../__create/SharedErrorBoundary';
+import { ErrorBoundaryWrapper } from '../__create/SharedErrorBoundary';
 
 interface ParentSitemap {
   expoPages?: Array<{

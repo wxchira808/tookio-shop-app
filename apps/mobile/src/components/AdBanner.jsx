@@ -1,17 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { X } from 'lucide-react-native';
-import { useShowAds } from '@/utils/ads/useAdsManager';
+import { useShowAds } from '../utils/ads/useAdsManager';
 import { router } from 'expo-router';
-
-// Your Google AdMob credentials
-export const ADMOB_APP_ID = 'ca-app-pub-2653266687589484~7788238441';
-export const ADMOB_BANNER_AD_UNIT_ID = 'ca-app-pub-2653266687589484/2148898954';
 
 /**
  * Banner Ad Component
- * Shows only to free plan users
- * Context-aware ads for different screens
+ * Shows upgrade prompts to free plan users
+ * (AdMob integration temporarily disabled due to Expo compatibility issues)
  */
 export const AdBanner = ({ style = {}, variant = 'default', context = 'dashboard' }) => {
   const showAds = useShowAds();
@@ -19,80 +15,37 @@ export const AdBanner = ({ style = {}, variant = 'default', context = 'dashboard
 
   if (!showAds || dismissed) return null;
 
-  // Context-specific ads
-  const getAdsForContext = (ctx) => {
+  // Context-specific upgrade prompts
+  const getUpgradePromptForContext = (ctx) => {
     switch (ctx) {
       case 'shops':
-        return [
-          {
-            id: 1,
-            title: 'Upgrade to Pro',
-            description: 'Unlock unlimited shops and advanced management',
-            cta: 'Upgrade Now',
-          },
-          {
-            id: 2,
-            title: 'Multiple Shop Support',
-            description: 'Manage multiple locations with premium features',
-            cta: 'Go Premium',
-          },
-        ];
+        return {
+          title: 'Upgrade to Pro',
+          description: 'Unlock unlimited shops and advanced management',
+          cta: 'Upgrade Now',
+        };
       case 'items':
-        return [
-          {
-            id: 1,
-            title: 'Unlimited Inventory',
-            description: 'Remove item limits and unlock advanced tracking',
-            cta: 'Upgrade Now',
-          },
-          {
-            id: 2,
-            title: 'Advanced Inventory',
-            description: 'Barcode scanning, categories, and bulk operations',
-            cta: 'Go Premium',
-          },
-        ];
+        return {
+          title: 'Unlimited Inventory',
+          description: 'Remove item limits and unlock advanced tracking',
+          cta: 'Upgrade Now',
+        };
       case 'sales':
-        return [
-          {
-            id: 1,
-            title: 'Unlimited Invoices',
-            description: 'Generate unlimited sales invoices and reports',
-            cta: 'Upgrade Now',
-          },
-          {
-            id: 2,
-            title: 'Advanced Sales',
-            description: 'Customer management, recurring invoices, and analytics',
-            cta: 'Go Premium',
-          },
-        ];
+        return {
+          title: 'Unlimited Invoices',
+          description: 'Generate unlimited sales invoices and reports',
+          cta: 'Upgrade Now',
+        };
       default: // dashboard
-        return [
-          {
-            id: 1,
-            title: 'Upgrade to Pro',
-            description: 'Remove ads and unlock premium features',
-            cta: 'Learn More',
-          },
-          {
-            id: 2,
-            title: 'Sync Across Devices',
-            description: 'Premium feature: Cloud backup for your data',
-            cta: 'Go Premium',
-          },
-          {
-            id: 3,
-            title: 'Advanced Analytics',
-            description: 'Get detailed insights with premium analytics',
-            cta: 'Upgrade',
-          },
-        ];
+        return {
+          title: 'Upgrade to Pro',
+          description: 'Remove ads and unlock premium features',
+          cta: 'Learn More',
+        };
     }
   };
 
-  const ads = getAdsForContext(context);
-  const currentAd = ads[Math.floor(Math.random() * ads.length)];
+  const prompt = getUpgradePromptForContext(context);
 
   const handleUpgrade = () => {
     router.push('/subscription');
@@ -103,10 +56,10 @@ export const AdBanner = ({ style = {}, variant = 'default', context = 'dashboard
       <View style={[styles.slimContainer, style]}>
         <View style={styles.slimContent}>
           <View style={styles.slimTextContainer}>
-            <Text style={styles.slimTitle}>{currentAd.title}</Text>
+            <Text style={styles.slimTitle}>{prompt.title}</Text>
           </View>
           <TouchableOpacity style={styles.slimCtaButton} onPress={handleUpgrade}>
-            <Text style={styles.slimCtaText}>{currentAd.cta}</Text>
+            <Text style={styles.slimCtaText}>{prompt.cta}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setDismissed(true)} style={styles.slimClose}>
             <X color="#999" size={16} />
@@ -120,15 +73,15 @@ export const AdBanner = ({ style = {}, variant = 'default', context = 'dashboard
     <View style={[styles.container, style]}>
       <View style={styles.adContent}>
         <View style={styles.textContainer}>
-          <Text style={styles.title}>{currentAd.title}</Text>
-          <Text style={styles.description}>{currentAd.description}</Text>
+          <Text style={styles.title}>{prompt.title}</Text>
+          <Text style={styles.description}>{prompt.description}</Text>
         </View>
         <TouchableOpacity onPress={() => setDismissed(true)}>
           <X color="#999" size={20} />
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.ctaButton} onPress={handleUpgrade}>
-        <Text style={styles.ctaText}>{currentAd.cta}</Text>
+        <Text style={styles.ctaText}>{prompt.cta}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -213,3 +166,5 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
+
+export default AdBanner;

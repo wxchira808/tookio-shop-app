@@ -18,6 +18,7 @@ import {
   Package,
   ShoppingBag,
   FileText,
+  AlertTriangle,
 } from "lucide-react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useState, useCallback, useRef } from "react";
@@ -151,6 +152,12 @@ export default function Profile() {
   const planName = subscription?.subscription_plan || "Free Plan";
   const planColor = getSubscriptionColor(planName);
   const isFree = planName.toLowerCase().includes("free");
+  const subscriptionEnd = subscription?.subscription_end_date
+    ? new Date(subscription.subscription_end_date)
+    : null;
+  const isExpired =
+    subscription?.status?.toLowerCase() === "expired" ||
+    (subscriptionEnd && subscriptionEnd.getTime() < Date.now());
 
   return (
     <View
@@ -271,33 +278,57 @@ export default function Profile() {
                   </Text>
                   <Crown size={16} color={planColor} />
                 </View>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "700",
-                    color: planColor,
-                    marginBottom: 8,
-                  }}
-                >
-                  {planName}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "700",
+                      color: planColor,
+                    }}
+                  >
+                    {planName}
+                  </Text>
+
+                  {isExpired && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "#FEE2E2",
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <AlertTriangle size={14} color="#B91C1C" />
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#B91C1C", marginLeft: 6 }}>
+                        Expired
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
                 {/* Usage Stats */}
                 {subscription && (
                   <View style={{ marginTop: 12 }}>
                     {/* Expiry Date */}
-                    {subscription.subscription_end_date && (
+                    {subscriptionEnd && (
                       <View style={{ marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
                         <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>
-                          Expires on
+                          {isExpired ? "Expired on" : "Expires on"}
                         </Text>
-                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#0F172A" }}>
-                          {new Date(subscription.subscription_end_date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: isExpired ? "#B91C1C" : "#0F172A" }}>
+                          {subscriptionEnd.toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
                           })}
                         </Text>
+                        {isExpired && (
+                          <Text style={{ fontSize: 12, color: "#B91C1C", marginTop: 6 }}>
+                            Renew or switch plans to regain full access.
+                          </Text>
+                        )}
                       </View>
                     )}
                     
@@ -307,7 +338,7 @@ export default function Profile() {
                         <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Shops</Text>
                       </View>
                       <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
-                        {subscription.current_shops || 0} / {subscription.shop_limit === 0 ? "∞" : subscription.shop_limit}
+                        {!isFree ? `${subscription.current_shops || 0} / Unlimited` : `${subscription.current_shops || 0} / ${subscription.shop_limit === 0 ? "∞" : subscription.shop_limit}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
@@ -316,7 +347,7 @@ export default function Profile() {
                         <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Products</Text>
                       </View>
                       <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
-                        {subscription.current_products || 0} / {subscription.products_limit === 0 ? "∞" : subscription.products_limit}
+                        {!isFree ? `${subscription.current_products || 0} / Unlimited` : `${subscription.current_products || 0} / ${subscription.products_limit === 0 ? "∞" : subscription.products_limit}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
@@ -325,7 +356,7 @@ export default function Profile() {
                         <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Invoices</Text>
                       </View>
                       <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
-                        {subscription.current_sales_invoices || 0} / {subscription.sales_invoice_limit === 0 ? "∞" : subscription.sales_invoice_limit}
+                        {!isFree ? `${subscription.current_sales_invoices || 0} / Unlimited` : `${subscription.current_sales_invoices || 0} / ${subscription.sales_invoice_limit === 0 ? "∞" : subscription.sales_invoice_limit}`}
                       </Text>
                     </View>
                   </View>

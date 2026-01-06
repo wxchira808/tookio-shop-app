@@ -24,9 +24,9 @@ export default function Index() {
         <Image
           source={require('@/assets/images/icon.png')}
           style={{
-            width: 120,
-            height: 120,
-            borderRadius: 30,
+            width: 60,
+            height: 60,
+            borderRadius: 15,
             marginBottom: 32,
           }}
           resizeMode="contain"

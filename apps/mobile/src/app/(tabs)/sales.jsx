@@ -50,6 +50,7 @@ export default function Sales() {
   const [searchQuery, setSearchQuery] = useState("");
   const [itemSearchQuery, setItemSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("all"); // all, today, week, month
+  const [selectedShop, setSelectedShop] = useState(""); // Shop filter
 
   // New customer fields
   const [customerName, setCustomerName] = useState("");
@@ -279,8 +280,11 @@ export default function Sales() {
     );
   };
 
-  // Filter sales by search query and date
+  // Filter sales by search query, date, and shop
   const filteredSales = sales.filter((sale) => {
+    // Shop filtering
+    if (selectedShop && sale.shop !== selectedShop) return false;
+
     // Date filtering
     if (dateFilter !== "all") {
       const saleDate = new Date(sale.sale_date || sale.created_at);
@@ -589,6 +593,48 @@ export default function Sales() {
               </Pressable>
             </View>
 
+            {/* Shop Filter */}
+            <View style={{ marginTop: 16 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    onPress={() => setSelectedShop("")}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: !selectedShop ? "#EF4444" : "#FFFFFF",
+                      borderWidth: 1,
+                      borderColor: !selectedShop ? "#EF4444" : "#E2E8F0",
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: !selectedShop ? "#FFFFFF" : "#64748B" }}>
+                      All Shops
+                    </Text>
+                  </Pressable>
+
+                  {shops.map(shop => (
+                    <Pressable
+                      key={shop.id}
+                      onPress={() => setSelectedShop(shop.id)}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        backgroundColor: selectedShop === shop.id ? "#EF4444" : "#FFFFFF",
+                        borderWidth: 1,
+                        borderColor: selectedShop === shop.id ? "#EF4444" : "#E2E8F0",
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: selectedShop === shop.id ? "#FFFFFF" : "#64748B" }}>
+                        {shop.shop_name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
             {filteredSales.map((sale) => {
               const isCancelled = sale.status === 'Cancelled';
               return (
@@ -597,9 +643,9 @@ export default function Sales() {
                 onPress={() => handleSalePress(sale)}
                 style={({ pressed }) => ({
                   backgroundColor: isCancelled ? "#F8FAFC" : "#fff",
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 12,
+                  borderRadius: 8,
+                  padding: 8,
+                  marginBottom: 4,
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.05,
@@ -624,22 +670,22 @@ export default function Sales() {
                   >
                     <View
                       style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 6,
                         backgroundColor: isCancelled ? "#FEE2E2" : "#EF444415",
                         alignItems: "center",
                         justifyContent: "center",
-                        marginRight: 16,
+                        marginRight: 8,
                       }}
                     >
-                      <ShoppingCart size={24} color={isCancelled ? "#DC2626" : "#EF4444"} />
+                      <ShoppingCart size={14} color={isCancelled ? "#DC2626" : "#EF4444"} />
                     </View>
 
                     <View style={{ flex: 1 }}>
                       <Text
                         style={{
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: "600",
                           color: isCancelled ? "#9CA3AF" : "#1F2937",
                           textDecorationLine: isCancelled ? "line-through" : "none",
@@ -648,7 +694,7 @@ export default function Sales() {
                         Sale #{sale.id}
                       </Text>
                       <Text
-                        style={{ fontSize: 14, color: isCancelled ? "#9CA3AF" : "#6B7280", marginTop: 2 }}
+                        style={{ fontSize: 12, color: isCancelled ? "#9CA3AF" : "#6B7280", marginTop: 1 }}
                       >
                         {sale.shop_name}
                       </Text>
@@ -656,7 +702,7 @@ export default function Sales() {
                       <View
                         style={{
                           flexDirection: "row",
-                          marginTop: 8,
+                          marginTop: 4,
                           alignItems: "center",
                           flexWrap: "wrap",
                         }}
@@ -664,14 +710,14 @@ export default function Sales() {
                         <View
                           style={{
                             backgroundColor: "#F3F4F6",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                            marginRight: 8,
-                            marginBottom: 4,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 4,
+                            marginRight: 6,
+                            marginBottom: 2,
                           }}
                         >
-                          <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                          <Text style={{ fontSize: 11, color: "#6B7280" }}>
                             {formatDate(sale.sale_date)}
                           </Text>
                         </View>
@@ -680,14 +726,14 @@ export default function Sales() {
                         <View
                           style={{
                             backgroundColor: isCancelled ? "#FEE2E2" : sale.status === "Submitted" ? "#D1FAE5" : "#F3F4F6",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                            marginRight: 8,
-                            marginBottom: 4,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 4,
+                            marginRight: 6,
+                            marginBottom: 2,
                           }}
                         >
-                          <Text style={{ fontSize: 12, fontWeight: "600", color: isCancelled ? "#DC2626" : sale.status === "Submitted" ? "#059669" : "#6B7280" }}>
+                          <Text style={{ fontSize: 11, fontWeight: "600", color: isCancelled ? "#DC2626" : sale.status === "Submitted" ? "#059669" : "#6B7280" }}>
                             {sale.status}
                           </Text>
                         </View>
@@ -696,13 +742,13 @@ export default function Sales() {
                           <View
                             style={{
                               backgroundColor: "#FEF3C7",
-                              paddingHorizontal: 8,
-                              paddingVertical: 4,
-                              borderRadius: 6,
-                              marginBottom: 4,
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 4,
+                              marginBottom: 2,
                             }}
                           >
-                            <Text style={{ fontSize: 12, color: "#92400E" }}>
+                            <Text style={{ fontSize: 11, color: "#92400E" }}>
                               {sale.notes}
                             </Text>
                           </View>
@@ -714,7 +760,7 @@ export default function Sales() {
                   <View style={{ alignItems: "flex-end" }}>
                     <Text
                       style={{
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: "bold",
                         color: isCancelled ? "#9CA3AF" : "#10B981",
                       }}
@@ -1412,6 +1458,7 @@ export default function Sales() {
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
               maxHeight: "80%",
+              paddingBottom: insets.bottom, // Add safe area padding for Android navigation buttons
             }}
           >
             <View

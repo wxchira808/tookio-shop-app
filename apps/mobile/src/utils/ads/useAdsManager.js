@@ -1,5 +1,6 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useAuthStore } from '@/utils/auth/store';
+import { getUserSubscription } from '@/utils/frappeApi';
 
 /**
  * Hook to manage ads display based on user subscription plan
@@ -7,21 +8,44 @@ import { useAuthStore } from '@/utils/auth/store';
  */
 export const useShowAds = () => {
   const { auth } = useAuthStore();
+  const [subscription, setSubscription] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (!auth) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const subData = await getUserSubscription();
+        setSubscription(subData);
+      } catch (error) {
+        console.error('Error fetching subscription for ads:', error);
+        // Default to showing ads if we can't fetch subscription
+        setSubscription({ current_subscription: 'Free Plan' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubscription();
+  }, [auth]);
 
   return useMemo(() => {
-    if (!auth) return false;
-    
-    // Check if user has a subscription/plan field
-    const userPlan = auth?.plan || auth?.subscription || auth?.tier;
-    
-    // Show ads if user is on free plan or has no plan
-    const isFreePlan = !userPlan || 
-                       userPlan.toLowerCase() === 'free' || 
-                       userPlan.toLowerCase() === 'freemium' ||
-                       userPlan === null;
-    
+    if (!auth || loading) return false;
+
+    // Check subscription data from API
+    const currentSub = subscription?.current_subscription;
+
+    // Show ads if user is on free plan or has no subscription
+    const isFreePlan = !currentSub ||
+                       currentSub.toLowerCase().includes('free') ||
+                       currentSub === 'Free Plan';
+
     return isFreePlan;
-  }, [auth]);
+  }, [auth, subscription, loading]);
 };
 
 /**
