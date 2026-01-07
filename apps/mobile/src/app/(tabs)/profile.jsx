@@ -473,11 +473,7 @@ export default function Profile() {
                 borderBottomWidth: 1,
                 borderBottomColor: "#F1F5F9",
               })}
-              onPress={() => {
-                Linking.openURL('https://shop.tookio.co.ke/app/user').catch((err) => {
-                  Alert.alert("Error", "Could not open account settings");
-                });
-              }}
+              onPress={() => router.push("/(tabs)/account-details")}
             >
               <View
                 style={{

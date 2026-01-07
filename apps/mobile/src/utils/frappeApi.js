@@ -284,40 +284,60 @@ export async function login(usr, pwd) {
 }
 
 export async function signup(email, username, password, full_name) {
-  // Use Frappe's standard signup (you mentioned you have custom code for this)
   try {
-    const response = await frappeRequest('/api/method/frappe.core.doctype.user.user.sign_up', {
+    // Create user directly with password instead of using sign_up
+    const userData = {
+      name: email,
+      email: email,
+      first_name: full_name || username,
+      enabled: 1,
+      user_type: "Website User",
+      send_welcome_email: 0, // Don't send welcome email
+    };
+
+    // Create the user
+    const createResponse = await frappeRequest('/api/resource/User', {
       method: 'POST',
       body: JSON.stringify({
-        email: email,
-        full_name: full_name || username,
-        password: password,  // Add the password to the signup request
-        redirect_to: '/',
+        data: userData,
       }),
-    }, true);  // skipSessionCheck = true
+    }, true); // skipSessionCheck
 
-    // Try to login immediately after signup
-    try {
-      return await login(email, password);
-    } catch (loginError) {
-      // User was created but auto-login failed
-      console.log('User created but auto-login failed:', loginError.message);
-      throw new Error('Account created successfully. Please login.');
+    if (createResponse.data) {
+      // Now set the password using the reset password method
+      try {
+        await frappeRequest('/api/method/frappe.core.doctype.user.user.update_password', {
+          method: 'POST',
+          body: JSON.stringify({
+            user: email,
+            password: password,
+            logout_all_sessions: 0,
+          }),
+        }, true);
+      } catch (passwordError) {
+        console.log('Password setting failed, but user was created:', passwordError.message);
+        // User was created but password setting failed
+        throw new Error('Account created successfully. Please try logging in with your credentials.');
+      }
+
+      // Try to login immediately after user creation
+      try {
+        return await login(email, password);
+      } catch (loginError) {
+        console.log('User created but auto-login failed:', loginError.message);
+        // User was created but auto-login failed
+        throw new Error('Account created successfully. Please try logging in with your credentials.');
+      }
+    } else {
+      throw new Error('Failed to create account');
     }
   } catch (error) {
-    // Handle the false positive "Customer role" error
-    if (error.message && (
-      error.message.includes('Please add Customer role to user') ||
-      error.message.includes('Customer role')
-    )) {
-      console.log('Customer role error detected - this is usually a false positive');
-      console.log('Error details:', error.message);
-      // Don't try to login - just inform the user to try logging in
-      throw new Error('Account creation completed. Please try logging in with your credentials.');
+    // Handle specific errors
+    if (error.message && error.message.includes('already exists')) {
+      throw new Error('An account with this email already exists');
     }
 
-    // Re-throw other errors
-    console.log('Signup failed with unhandled error:', error.message);
+    console.log('Signup failed:', error.message);
     throw new Error(error.message || 'Signup failed');
   }
 }
@@ -1102,6 +1122,63 @@ export async function saveAuth(auth) {
 
 export async function clearAuth() {
   await SecureStore.deleteItemAsync(AUTH_KEY);
+}
+
+// ==================== USER PROFILE FUNCTIONS ====================
+
+export async function updateUserProfile(updates) {
+  try {
+    const currentUser = await getCurrentUser();
+    const userName = currentUser.message;
+
+    // Handle password updates separately
+    if (updates.new_password && updates.current_password) {
+      const passwordResponse = await frappeRequest('/api/method/frappe.core.doctype.user.user.update_password', {
+        method: 'POST',
+        body: JSON.stringify({
+          user: userName,
+          current_password: updates.current_password,
+          new_password: updates.new_password,
+          logout_all_sessions: 0,
+        }),
+      });
+
+      if (!passwordResponse.message || passwordResponse.message !== 'Password updated') {
+        return { success: false, error: 'Failed to update password' };
+      }
+
+      // Remove password fields from updates
+      const { current_password, new_password, ...profileUpdates } = updates;
+
+      // If only password was being updated, return success
+      if (Object.keys(profileUpdates).length === 0) {
+        return { success: true, message: 'Password updated successfully' };
+      }
+
+      updates = profileUpdates;
+    }
+
+    // Handle profile updates
+    if (Object.keys(updates).length > 0) {
+      const response = await frappeRequest(`/api/resource/User/${userName}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          data: updates,
+        }),
+      });
+
+      if (response.data) {
+        return { success: true, data: response.data, message: 'Profile updated successfully' };
+      } else {
+        return { success: false, error: 'Failed to update profile' };
+      }
+    }
+
+    return { success: true, message: 'Update completed successfully' };
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return { success: false, error: error.message || 'Failed to update profile' };
+  }
 }
 
 // ==================== SUBSCRIPTION FUNCTIONS ====================
