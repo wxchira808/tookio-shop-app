@@ -139,7 +139,14 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
     console.log('✅ Success');
     return data;
   } catch (error) {
-    console.error(`❌ Error [${endpoint}]:`, error.message);
+    // Don't log expected errors for known restricted endpoints
+    const isExpectedError = 
+      endpoint.includes('generate_keys') || 
+      endpoint.includes('Tookio Sales Invoice Item');
+    
+    if (!isExpectedError) {
+      console.error(`❌ Error [${endpoint}]:`, error.message);
+    }
     throw error;
   }
 }
@@ -184,7 +191,7 @@ export async function checkSession() {
 
 // ==================== AUTHENTICATION ====================
 
-export async function login(usr, pwd) {
+export async function login(usr, pwd, providedKeys = null) {
   const formData = new URLSearchParams();
   formData.append('usr', usr);
   formData.append('pwd', pwd);
@@ -198,9 +205,23 @@ export async function login(usr, pwd) {
     body: formData.toString(),
   }, true);  // skipSessionCheck = true
 
-  if (response.message === 'Logged In') {
-    const userInfo = await getCurrentUser();
-    const username = userInfo.message;
+  console.log('🔑 Login response:', JSON.stringify(response));
+
+  // If 200 OK and has a message or full_name, it's likely a success
+  // Frappe login usually returns 'Logged In', but we'll be flexible
+  const isMessageSuccess = typeof response.message === 'string' && (response.message === 'Logged In' || response.message.includes('Logged In'));
+  const isSuccess = isMessageSuccess || response.full_name || response.sid;
+
+  if (isSuccess) {
+    let username = usr; // Fallback to passed username
+    try {
+      const userInfo = await getCurrentUser();
+      if (userInfo && userInfo.message) {
+        username = userInfo.message;
+      }
+    } catch (e) {
+      console.log('⚠️ Could not get current user after login, using provided username:', e.message);
+    }
 
     // Fetch full user details from User doctype
     let userDetails = null;
@@ -211,38 +232,6 @@ export async function login(usr, pwd) {
         name: userDoc.data.full_name || userDoc.data.name,
         username: userDoc.data.name,
       };
-
-      /*
-      // Fetch subscription using whitelisted method
-      try {
-        const subscriptionData = await frappeRequest(
-          '/api/method/tookio_shop.api.get_user_subscription',
-          { method: 'POST' },
-          true // skipSessionCheck during login
-        );
-
-        console.log('📋 Subscription API response:', JSON.stringify(subscriptionData, null, 2));
-
-        if (subscriptionData && subscriptionData.message) {
-          const subData = subscriptionData.message;
-
-          userDetails.subscription_tier = subData.subscription_plan || 'Free Plan';
-          userDetails.subscription_expiry = null;
-          userDetails.customer_name = subData.customer_name;
-
-          console.log('📋 Subscription plan:', userDetails.subscription_tier);
-          console.log('📋 Customer:', userDetails.customer_name);
-        } else {
-          console.log('⚠️ No subscription data returned');
-          userDetails.subscription_tier = 'Free Plan';
-          userDetails.subscription_expiry = null;
-        }
-      } catch (e) {
-        console.log('❌ Could not fetch subscription plan:', e.message);
-        userDetails.subscription_tier = 'Free Plan';
-        userDetails.subscription_expiry = null;
-      }
-      */
 
       // Tookio Shop is now completely FREE!
       userDetails.subscription_tier = 'Free Plan';
@@ -258,16 +247,18 @@ export async function login(usr, pwd) {
       };
     }
 
-    // Try to get API keys for token auth
-    let apiKeys = null;
-    try {
-      const keysResponse = await frappeRequest('/api/method/frappe.core.doctype.user.user.generate_keys', {
-        method: 'POST',
-        body: JSON.stringify({ user: username }),
-      }, true);  // skipSessionCheck = true
-      apiKeys = keysResponse.message;
-    } catch (e) {
-      console.log('Could not get API keys, using session auth');
+    // Try to get API keys for token auth (only if not already provided)
+    let apiKeys = providedKeys;
+    if (!apiKeys) {
+      try {
+        const keysResponse = await frappeRequest('/api/method/frappe.core.doctype.user.user.generate_keys', {
+          method: 'POST',
+          body: JSON.stringify({ user: username }),
+        }, true);  // skipSessionCheck = true
+        apiKeys = keysResponse.message;
+      } catch (e) {
+        console.log('Could not get API keys, using session auth');
+      }
     }
 
     await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify({
@@ -285,60 +276,73 @@ export async function login(usr, pwd) {
 
 export async function signup(email, username, password, full_name) {
   try {
-    // Create user directly with password instead of using sign_up
-    const userData = {
-      name: email,
-      email: email,
-      first_name: full_name || username,
-      enabled: 1,
-      user_type: "Website User",
-      send_welcome_email: 0, // Don't send welcome email
-    };
+    // Validate password first
+    if (!password || password.length < 6) {
+      throw new Error('Password must be at least 6 characters long');
+    }
 
-    // Create the user
-    const createResponse = await frappeRequest('/api/resource/User', {
+    // Use our new whitelisted signup method instead of direct resource POST
+    // This allows Guest users to sign up and solves the "User None is disabled" error
+    const signupResponse = await frappeRequest('/api/method/tookio_shop.api.user_signup', {
       method: 'POST',
       body: JSON.stringify({
-        data: userData,
+        email: email,
+        full_name: full_name || username,
+        password: password
       }),
     }, true); // skipSessionCheck
 
-    if (createResponse.data) {
-      // Now set the password using the reset password method
-      try {
-        await frappeRequest('/api/method/frappe.core.doctype.user.user.update_password', {
-          method: 'POST',
-          body: JSON.stringify({
-            user: email,
-            password: password,
-            logout_all_sessions: 0,
-          }),
-        }, true);
-      } catch (passwordError) {
-        console.log('Password setting failed, but user was created:', passwordError.message);
-        // User was created but password setting failed
-        throw new Error('Account created successfully. Please try logging in with your credentials.');
-      }
+    if (signupResponse.message && signupResponse.message.success) {
+      console.log('User created successfully via API');
+      const { api_key, api_secret } = signupResponse.message;
+
+      // Wait a tiny bit for the user to be fully committed and ready for login
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       // Try to login immediately after user creation
       try {
-        return await login(email, password);
+        // Pass the API keys to the login function if we got them
+        return await login(email, password, { api_key, api_secret });
       } catch (loginError) {
         console.log('User created but auto-login failed:', loginError.message);
-        // User was created but auto-login failed
-        throw new Error('Account created successfully. Please try logging in with your credentials.');
+        throw new Error('Account created successfully. Please login with your credentials.');
       }
     } else {
       throw new Error('Failed to create account');
     }
   } catch (error) {
-    // Handle specific errors
-    if (error.message && error.message.includes('already exists')) {
-      throw new Error('An account with this email already exists');
+    console.error('Signup error:', error);
+
+    // Handle specific Frappe validation errors
+    if (error.message) {
+      if (error.message.includes('already exists')) {
+        throw new Error('An account with this email already exists');
+      }
+      if (error.message.includes('password') || error.message.includes('Password')) {
+        throw new Error(error.message);
+      }
+      if (error.message.includes('disabled')) {
+        throw new Error('Account creation is currently disabled. Please contact support.');
+      }
+      if (error.message.includes('Email')) {
+        throw new Error('Please enter a valid email address');
+      }
     }
 
-    console.log('Signup failed:', error.message);
-    throw new Error(error.message || 'Signup failed');
+    // Re-throw the error if it's already user-friendly
+    if (error.message && (
+      error.message.includes('Account created') ||
+      error.message.includes('Please try logging') ||
+      error.message.includes('already exists') ||
+      error.message.includes('password') ||
+      error.message.includes('Password') ||
+      error.message.includes('Email')
+    )) {
+      throw error;
+    }
+
+    // Generic error for unknown issues
+    throw new Error('Signup failed. Please try again or contact support.');
   }
 }
 
@@ -640,20 +644,26 @@ export async function getSales() {
 
   try {
     const [saleItemsResponse, shopsResponse, itemsResponse] = await Promise.all([
-      frappeRequest('/api/resource/Tookio Sales Invoice Item?fields=["*"]&limit_page_length=9999'),
+      frappeRequest('/api/resource/Tookio Sales Invoice Item?fields=["*"]&limit_page_length=9999').catch(() => {
+        // Child table access denied - expected behavior, use parent items instead
+        useParentItems = true;
+        return { data: [] };
+      }),
       frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
       frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
     ]);
 
     // Create a map of sale items by parent (sale invoice)
-    (saleItemsResponse.data || []).forEach(item => {
-      if (!saleItemsMap[item.parent]) {
-        saleItemsMap[item.parent] = [];
-      }
-      saleItemsMap[item.parent].push(item);
-    });
+    if (!useParentItems) {
+      (saleItemsResponse.data || []).forEach(item => {
+        if (!saleItemsMap[item.parent]) {
+          saleItemsMap[item.parent] = [];
+        }
+        saleItemsMap[item.parent].push(item);
+      });
+    }
   } catch (error) {
-    console.log('⚠️ Could not fetch child table separately (permission denied?), using parent document items');
+    console.log('⚠️ Using parent document items for sales data');
     useParentItems = true;
   }
 

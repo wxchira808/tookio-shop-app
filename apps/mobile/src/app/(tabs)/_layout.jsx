@@ -117,6 +117,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="account-details"
+        options={{
+          href: null,
+          title: "Account Management",
+        }}
+      />
+      <Tabs.Screen
         name="subscription"
         options={{
           href: null,

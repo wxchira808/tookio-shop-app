@@ -5,13 +5,34 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:3000",
+        "EXPO_PUBLIC_BASE_URL": "http://localhost:3000",
+        "EXPO_PUBLIC_PROXY_BASE_URL": "http://localhost:3000",
+        "EXPO_PUBLIC_APP_NAME": "Tookio Shop",
+        "EXPO_PUBLIC_APP_SCHEME": "tookioshop"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_BASE_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_PROXY_BASE_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_APP_NAME": "Tookio Shop",
+        "EXPO_PUBLIC_APP_SCHEME": "tookioshop"
+      }
     },
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_BASE_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_PROXY_BASE_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_APP_NAME": "Tookio Shop",
+        "EXPO_PUBLIC_APP_SCHEME": "tookioshop"
+      }
     }
   },
   "submit": {
