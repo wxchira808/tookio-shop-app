@@ -54,69 +54,31 @@ export default function AuthScreen() {
   };
 
   const handleSignUp = async () => {
-    if (!email || !password || !confirmPassword || !fullName) {
+    if (!email || !fullName) {
       Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
     setLoading(true);
     try {
-      const result = await signup(email, email, password, fullName);
+      const result = await signup(email, fullName);
 
-      // If signup succeeded but didn't auto-login, show success and switch to login
-      if (!result.user || !result.logged_in) {
-        Alert.alert(
-          'Account Created',
-          'Your account has been created successfully. Please login.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setMode('signin');
-                setPassword('');
-                setConfirmPassword('');
-              },
+      Alert.alert(
+        'Check Your Email',
+        result.message || 'We sent you a verification link. Open it to set your password, then return here to sign in.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setMode('signin');
+              setPassword('');
+              setConfirmPassword('');
             },
-          ]
-        );
-        return;
-      }
-
-      // Auto-login successful
-      setAuth({
-        user: result.user,
-        logged_in: true,
-      });
-      router.replace('/(tabs)');
+          },
+        ]
+      );
     } catch (error) {
-      // Check if user was created but login failed
-      if (error.message && (
-        error.message.includes('created') ||
-        error.message.includes('Account creation completed') ||
-        error.message.includes('Please try logging in')
-      )) {
-        Alert.alert(
-          'Account Created',
-          'Your account has been created successfully. Please login with your credentials.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setMode('signin');
-                setPassword('');
-                setConfirmPassword('');
-              },
-            },
-          ]
-        );
-      } else {
-        Alert.alert('Signup Failed', error.message || 'Could not create account');
-      }
+      Alert.alert('Signup Failed', error.message || 'Could not create account');
     } finally {
       setLoading(false);
     }
@@ -189,43 +151,23 @@ export default function AuthScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.inputWithIcon}>
-                <TextInput
-                  style={styles.inputInContainer}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  editable={!loading}
-                  returnKeyType={mode === 'signup' ? 'next' : 'done'}
-                />
-                <TouchableOpacity
-                  style={styles.eyeIcon}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {mode === 'signup' && (
+            {mode === 'signin' && (
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Confirm Password</Text>
+                <Text style={styles.label}>Password</Text>
                 <View style={styles.inputWithIcon}>
                   <TextInput
                     style={styles.inputInContainer}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showConfirmPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
                     editable={!loading}
                     returnKeyType="done"
                   />
                   <TouchableOpacity
                     style={styles.eyeIcon}
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onPress={() => setShowPassword(!showPassword)}
                   >
-                    {showConfirmPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
+                    {showPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
                   </TouchableOpacity>
                 </View>
               </View>

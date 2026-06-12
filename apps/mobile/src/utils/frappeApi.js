@@ -12,6 +12,24 @@ import * as SecureStore from 'expo-secure-store';
 const FRAPPE_URL = 'https://shop.tookio.co.ke';
 const AUTH_KEY = 'tookio-frappe-auth';
 
+function isSessionInvalidMessage(message) {
+  if (!message || typeof message !== 'string') {
+    return false;
+  }
+
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('session has expired') ||
+    normalized.includes('session expired') ||
+    normalized.includes('login to access') ||
+    normalized.includes('you are not permitted to access this resource') ||
+    normalized.includes('guest') && normalized.includes('does not have') ||
+    normalized.includes('invalid login') ||
+    normalized.includes('authentication failed') ||
+    normalized.includes('not logged in')
+  );
+}
+
 /**
  * Make an authenticated API request to Frappe
  * @param {boolean} skipSessionCheck - Skip session expiry handling (for login/signup)
@@ -51,8 +69,19 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
     console.log(`📊 Response status: ${response.status}, ok: ${response.ok}`);
 
     if (!response.ok) {
-      // Handle session expiry ONLY on 401 Unauthorized
-      // Don't treat 403 (Forbidden/Permission Denied) as session expiry
+      // Treat 401/403 auth failures as session expiry when the backend says login is required.
+      if ((response.status === 401 || response.status === 403) && !skipSessionCheck) {
+        const responseText = typeof data === 'string' ? data : JSON.stringify(data || {});
+        if (isSessionInvalidMessage(responseText)) {
+          console.log('🔒 Session expired or invalid auth detected, logging out...');
+          await SecureStore.deleteItemAsync(AUTH_KEY);
+
+          const sessionError = new Error('Your session has expired. Please login again.');
+          sessionError.sessionExpired = true;
+          throw sessionError;
+        }
+      }
+
       if (response.status === 401 && !skipSessionCheck) {
         console.log('🔒 Session expired, logging out...');
         await SecureStore.deleteItemAsync(AUTH_KEY);
@@ -80,8 +109,7 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
 
         // Check if error indicates Guest user or session expired
         if (!skipSessionCheck && (
-          parsedError.includes('User <strong>Guest</strong>') ||
-          (parsedError.includes('Guest') && parsedError.includes('does not have')) ||
+          isSessionInvalidMessage(parsedError) ||
           parsedError.includes('Not implemented') ||
           parsedError.includes('not implemented')
         )) {
@@ -98,6 +126,7 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
 
       // Check message field for "Not implemented" error
       if (data.message && !skipSessionCheck && (
+        isSessionInvalidMessage(data.message) ||
         data.message.includes('Not implemented') ||
         data.message.includes('not implemented')
       )) {
@@ -116,7 +145,7 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
     if (data && !skipSessionCheck) {
       const checkMessage = (msg) => {
         if (typeof msg === 'string') {
-          return msg.includes('Not implemented') || msg.includes('not implemented');
+          return isSessionInvalidMessage(msg) || msg.includes('Not implemented') || msg.includes('not implemented');
         }
         return false;
       };
@@ -157,25 +186,11 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
  */
 export async function checkSession() {
   try {
-    // Try to make a simple authenticated request to check session
-    // Use a more reliable endpoint that doesn't return "Not implemented"
-    await frappeRequest('/api/method/frappe.auth.get_logged_user', {}, true); // skipSessionCheck = true
+    // Use a logged-in endpoint that should succeed for authenticated users.
+    await frappeRequest('/api/method/tookio_shop.api.get_user_subscription');
     return true;
   } catch (error) {
-    // Handle "Not implemented" error - this doesn't necessarily mean session is invalid
-    if (error.message && error.message.includes('Not implemented')) {
-      console.log('get_logged_user returned Not implemented, assuming session is still valid');
-      return true; // Don't treat as session expiry
-    }
-
-    // Check for actual session expiry indicators
-    if (error.sessionExpired ||
-        (error.message && (
-          error.message.includes('session has expired') ||
-          error.message.includes('Session expired') ||
-          error.message.includes('Invalid login') ||
-          error.message.includes('Authentication failed')
-        ))) {
+    if (error.sessionExpired || isSessionInvalidMessage(error.message)) {
       console.log('🔒 Actual session expiry detected');
       await SecureStore.deleteItemAsync(AUTH_KEY);
       const sessionError = new Error('Your session has expired. Please login again.');
@@ -274,42 +289,25 @@ export async function login(usr, pwd, providedKeys = null) {
   throw new Error('Login failed');
 }
 
-export async function signup(email, username, password, full_name) {
+export async function signup(email, full_name) {
   try {
-    // Validate password first
-    if (!password || password.length < 6) {
-      throw new Error('Password must be at least 6 characters long');
+    if (!email || !full_name) {
+      throw new Error('Full name and email are required');
     }
 
-    // Use our new whitelisted signup method instead of direct resource POST
-    // This allows Guest users to sign up and solves the "User None is disabled" error
-    const signupResponse = await frappeRequest('/api/method/tookio_shop.api.user_signup', {
+    const signupResponse = await frappeRequest('/api/method/tookio_shop.api.request_mobile_signup', {
       method: 'POST',
       body: JSON.stringify({
-        email: email,
-        full_name: full_name || username,
-        password: password
+        email,
+        full_name,
       }),
     }, true); // skipSessionCheck
 
     if (signupResponse.message && signupResponse.message.success) {
-      console.log('User created successfully via API');
-      const { api_key, api_secret } = signupResponse.message;
-
-      // Wait a tiny bit for the user to be fully committed and ready for login
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      // Try to login immediately after user creation
-      try {
-        // Pass the API keys to the login function if we got them
-        return await login(email, password, { api_key, api_secret });
-      } catch (loginError) {
-        console.log('User created but auto-login failed:', loginError.message);
-        throw new Error('Account created successfully. Please login with your credentials.');
-      }
-    } else {
-      throw new Error('Failed to create account');
+      return signupResponse.message;
     }
+
+    throw new Error('Failed to start signup');
   } catch (error) {
     console.error('Signup error:', error);
 
@@ -317,9 +315,6 @@ export async function signup(email, username, password, full_name) {
     if (error.message) {
       if (error.message.includes('already exists')) {
         throw new Error('An account with this email already exists');
-      }
-      if (error.message.includes('password') || error.message.includes('Password')) {
-        throw new Error(error.message);
       }
       if (error.message.includes('disabled')) {
         throw new Error('Account creation is currently disabled. Please contact support.');
@@ -331,11 +326,7 @@ export async function signup(email, username, password, full_name) {
 
     // Re-throw the error if it's already user-friendly
     if (error.message && (
-      error.message.includes('Account created') ||
-      error.message.includes('Please try logging') ||
       error.message.includes('already exists') ||
-      error.message.includes('password') ||
-      error.message.includes('Password') ||
       error.message.includes('Email')
     )) {
       throw error;
@@ -1200,6 +1191,40 @@ export async function getSubscriptionPlans() {
 
 export async function getUserSubscription() {
   const response = await frappeRequest('/api/method/tookio_shop.api.get_user_subscription');
+  return response.message;
+}
+
+export async function calculateSubscriptionUpgradeCost(userSubscription, newSubscription) {
+  const response = await frappeRequest('/api/method/tookio_shop.api.calculate_subscription_upgrade_cost', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_subscription: userSubscription,
+      new_subscription: newSubscription,
+    }),
+  });
+  return response.message;
+}
+
+export async function initiateSubscriptionPayment(userSubscription, newSubscription, phoneNumber, amount) {
+  const response = await frappeRequest('/api/method/tookio_shop.api.initiate_subscription_payment', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_subscription: userSubscription,
+      new_subscription: newSubscription,
+      phone_number: phoneNumber,
+      amount,
+    }),
+  });
+  return response.message;
+}
+
+export async function checkSubscriptionPaymentStatus(transactionId) {
+  const response = await frappeRequest('/api/method/tookio_shop.api.check_subscription_payment_status', {
+    method: 'POST',
+    body: JSON.stringify({
+      transaction_id: transactionId,
+    }),
+  });
   return response.message;
 }
 

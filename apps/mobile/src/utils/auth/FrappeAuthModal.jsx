@@ -21,7 +21,6 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
 
   // Form fields
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
 
@@ -53,25 +52,28 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
   };
 
   const handleSignUp = async () => {
-    if (!email || !username || !password || !fullName) {
+    if (!email || !fullName) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     setLoading(true);
     try {
-      const result = await signup(email, username, password, fullName);
+      const result = await signup(email, fullName);
 
-      // Store auth data
-      setAuth({
-        user: result.user,
-        logged_in: true,
-      });
-
-      // Close modal
-      onClose();
-
-      Alert.alert('Success', 'Account created successfully!');
+      Alert.alert(
+        'Check Your Email',
+        result.message || 'We sent you a verification link. Open it to set your password, then return here to sign in.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setCurrentMode('signin');
+              setPassword('');
+            },
+          },
+        ]
+      );
     } catch (error) {
       Alert.alert('Signup Failed', error.message || 'Could not create account');
     } finally {
@@ -83,7 +85,6 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
     setCurrentMode(currentMode === 'signin' ? 'signup' : 'signin');
     // Clear fields
     setEmail('');
-    setUsername('');
     setPassword('');
     setFullName('');
   };
@@ -209,8 +210,8 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
                   />
                 </View>
 
-                {currentMode === 'signup' && (
-                  <View style={{ marginBottom: 16 }}>
+                {currentMode === 'signin' && (
+                  <View style={{ marginBottom: 24 }}>
                     <Text
                       style={{
                         fontSize: 14,
@@ -219,14 +220,14 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
                         marginBottom: 8,
                       }}
                     >
-                      Username
+                      Password
                     </Text>
                     <TextInput
-                      value={username}
-                      onChangeText={setUsername}
-                      placeholder="Choose a username"
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Enter your password"
                       placeholderTextColor="#9CA3AF"
-                      autoCapitalize="none"
+                      secureTextEntry
                       style={{
                         backgroundColor: '#F9FAFB',
                         borderWidth: 1,
@@ -239,35 +240,6 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
                     />
                   </View>
                 )}
-
-                <View style={{ marginBottom: 24 }}>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: '500',
-                      color: '#374151',
-                      marginBottom: 8,
-                    }}
-                  >
-                    Password
-                  </Text>
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Enter your password"
-                    placeholderTextColor="#9CA3AF"
-                    secureTextEntry
-                    style={{
-                      backgroundColor: '#F9FAFB',
-                      borderWidth: 1,
-                      borderColor: '#E5E7EB',
-                      borderRadius: 8,
-                      padding: 12,
-                      fontSize: 16,
-                      color: '#1F2937',
-                    }}
-                  />
-                </View>
 
                 {/* Submit Button */}
                 <Pressable

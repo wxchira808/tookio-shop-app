@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { create } from "zustand";
 import { Modal, View } from "react-native";
 import { useAuthModal, useAuthStore, authKey } from "./store";
-import { logout as frappeLogout } from "@/utils/frappeApi";
+import { checkSession, logout as frappeLogout } from "@/utils/frappeApi";
 
 /**
  * This hook provides authentication functionality.
@@ -18,9 +18,26 @@ export const useAuth = () => {
 
   const initiate = useCallback(() => {
     SecureStore.getItemAsync(authKey).then((auth) => {
+      const parsedAuth = auth ? JSON.parse(auth) : null;
+
+      if (!parsedAuth) {
+        useAuthStore.setState({
+          auth: null,
+          isReady: true,
+        });
+        return;
+      }
+
       useAuthStore.setState({
-        auth: auth ? JSON.parse(auth) : null,
+        auth: parsedAuth,
         isReady: true,
+      });
+
+      checkSession().catch(async () => {
+        await SecureStore.deleteItemAsync(authKey);
+        useAuthStore.setState({ auth: null, isReady: true });
+        close();
+        router.replace('/auth');
       });
     });
   }, []);
@@ -87,7 +104,9 @@ export const handleApiError = (error, signOut, fallbackMessage = "An error occur
   // Check if error indicates session expiry
   if (error?.sessionExpired ||
       error?.message?.includes('session has expired') ||
-      error?.message?.includes('Session expired')) {
+      error?.message?.includes('Session expired') ||
+      error?.message?.includes('Login to access') ||
+      error?.message?.includes('not permitted to access this resource')) {
     console.log('🔒 Session expired error detected, signing out...');
     signOut();
     return true;
