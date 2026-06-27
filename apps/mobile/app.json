@@ -66,7 +66,10 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "display": "standalone",
+      "themeColor": "#242424",
+      "backgroundColor": "#FFFFFF"
     },
     "experiments": {
       "typedRoutes": true

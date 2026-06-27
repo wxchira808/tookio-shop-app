@@ -1,30 +1,31 @@
-import { View, Text, ScrollView, Pressable, Alert, Linking, RefreshControl, ActivityIndicator } from "react-native";
+import { View, Text, Alert, RefreshControl, ActivityIndicator, BackHandler, ScrollView } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, handleApiError } from "@/utils/auth/useAuth";
-import { AdBanner } from "@/components/AdBanner";
 import useUser from "@/utils/auth/useUser";
 import {
-  User,
-  Mail,
   Crown,
   LogOut,
   ArrowLeft,
   Settings,
-  ExternalLink,
-  Calendar,
-  ChevronRight,
-  RefreshCw,
-  Package,
-  ShoppingBag,
-  FileText,
-  AlertTriangle,
 } from "lucide-react-native";
-import { router, useFocusEffect } from "expo-router";
-import { useState, useCallback, useRef } from "react";
+import { router } from "expo-router";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { refreshUserDetails, checkSession, getUserSubscription } from "@/utils/frappeApi";
-import * as SecureStore from "expo-secure-store";
+import { getStorageItem, setJsonStorageItem } from "@/utils/authStorage";
 import { authKey } from "@/utils/auth/store";
+import { AdBanner } from "@/components/AdBanner";
+import {
+  AppButton,
+  Badge,
+  Card,
+  IconButton,
+  ListRow,
+  PageHeader,
+  Screen,
+  Section,
+} from "@/components/frappe-ui";
+import { colors, spacing, type } from "@/theme/frappeTheme";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
@@ -35,520 +36,171 @@ export default function Profile() {
   const [subscription, setSubscription] = useState(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
 
-  // Fetch subscription data
-  const fetchSubscriptionData = useCallback(async () => {
+  const loadProfileData = useCallback(async ({ showSpinner = false } = {}) => {
     try {
+      if (isRefreshingRef.current) {
+        return;
+      }
+
+      isRefreshingRef.current = true;
       setLoadingSubscription(true);
+      if (showSpinner) {
+        setRefreshing(true);
+      }
       const data = await getUserSubscription();
       setSubscription(data);
-    } catch (error) {
-      console.error("Error fetching subscription:", error);
-      handleApiError(error, signOut);
-    } finally {
-      setLoadingSubscription(false);
-    }
-  }, [signOut]);
-
-  // Refresh user details from server
-  const handleRefresh = useCallback(async () => {
-    // Prevent multiple simultaneous refreshes
-    if (isRefreshingRef.current) {
-      console.log('🔄 Refresh already in progress, skipping...');
-      return;
-    }
-
-    try {
-      isRefreshingRef.current = true;
-      setRefreshing(true);
-
-      // Check session first
       await checkSession();
-
       const updatedUser = await refreshUserDetails();
 
-      // Also refresh subscription data
-      await fetchSubscriptionData();
-
-      // Update auth in SecureStore and state
-      const authData = await SecureStore.getItemAsync(authKey);
+      const authData = await getStorageItem(authKey);
       if (authData) {
         const auth = JSON.parse(authData);
-        const updatedAuth = {
-          ...auth,
-          user: {
-            ...auth.user,
-            ...updatedUser,
-          },
-        };
-        await SecureStore.setItemAsync(authKey, JSON.stringify(updatedAuth));
+        const updatedAuth = { ...auth, user: { ...auth.user, ...updatedUser } };
+        await setJsonStorageItem(authKey, updatedAuth);
         setAuth(updatedAuth);
       }
     } catch (error) {
       console.error("Error refreshing user details:", error);
-      // Check for session timeout first
-      if (!handleApiError(error, signOut)) {
-        // Don't show alert on focus refresh, only on manual refresh
-        if (refreshing) {
-          Alert.alert("Error", "Failed to refresh user details");
-        }
+      if (!handleApiError(error, signOut) && showSpinner) {
+        Alert.alert("Error", "Failed to refresh account details.");
       }
     } finally {
+      setLoadingSubscription(false);
       setRefreshing(false);
       isRefreshingRef.current = false;
     }
-  }, [setAuth, fetchSubscriptionData]);
+  }, [setAuth, signOut]);
 
-  // Auto-refresh when screen comes into focus (only once)
-  useFocusEffect(
-    useCallback(() => {
-      console.log('📱 Profile screen focused, refreshing subscription data...');
-      fetchSubscriptionData();
-      handleRefresh();
-    }, [fetchSubscriptionData]) // Dependency on fetchSubscriptionData
-  );
+  const handleRefresh = useCallback(async () => {
+    await loadProfileData({ showSpinner: true });
+  }, [loadProfileData]);
+
+  useEffect(() => {
+    loadProfileData();
+  }, [loadProfileData]);
+
+  useEffect(() => {
+    const backAction = () => {
+      router.replace("/(tabs)");
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, []);
 
   const handleSignOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: () => signOut(),
-      },
+    Alert.alert("Sign out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign out", style: "destructive", onPress: () => signOut() },
     ]);
-  };
-
-  const getSubscriptionColor = (planName) => {
-    if (!planName) return "#64748B";
-    const name = planName.toLowerCase();
-    if (name.includes("premium") || name.includes("enterprise")) {
-      return "#6366F1"; // Indigo for premium
-    }
-    if (name.includes("starter") || name.includes("pro")) {
-      return "#10B981"; // Green for starter
-    }
-    return "#64748B"; // Gray for free
   };
 
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#FAFAFA",
-          paddingTop: insets.top,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ fontSize: 16, color: "#64748B" }}>Loading...</Text>
-      </View>
+      <Screen insets={insets}>
+        <StatusBar style="dark" />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="large" color={colors.inkGray6} />
+        </View>
+      </Screen>
     );
   }
 
   const planName = subscription?.subscription_plan || "Free Plan";
-  const planColor = getSubscriptionColor(planName);
   const isFree = planName.toLowerCase().includes("free");
-  const subscriptionEnd = subscription?.subscription_end_date
-    ? new Date(subscription.subscription_end_date)
-    : null;
-  const isExpired =
-    subscription?.status?.toLowerCase() === "expired" ||
-    (subscriptionEnd && subscriptionEnd.getTime() < Date.now());
+  const isExpired = subscription?.status?.toLowerCase() === "expired";
+  const usageRows = [
+    { label: "Shops", value: `${subscription?.current_shops || 0}` },
+    { label: "Products", value: `${subscription?.current_products || 0}` },
+    { label: "Invoices", value: `${subscription?.current_sales_invoices || 0}` },
+  ];
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.surfaceBase, paddingTop: insets.top }}>
       <StatusBar style="dark" />
-
-      {/* Header */}
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingVertical: 16,
-          backgroundColor: "#FFFFFF",
-          flexDirection: "row",
-          alignItems: "center",
-          borderBottomWidth: 1,
-          borderBottomColor: "#F1F5F9",
-        }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: pressed ? "#F1F5F9" : "transparent",
-            alignItems: "center",
-            justifyContent: "center",
-            marginRight: 12,
-          })}
-        >
-          <ArrowLeft size={22} color="#0F172A" />
-        </Pressable>
-        <Text style={{ fontSize: 20, fontWeight: "700", color: "#0F172A", letterSpacing: -0.5 }}>
-          Account
-        </Text>
-      </View>
+      <PageHeader
+        title="Account"
+        left={
+          <IconButton
+            icon={ArrowLeft}
+            onPress={() => router.replace("/(tabs)")}
+          />
+        }
+      />
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
       >
-        {/* Profile Header Card */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16 }}>
-          <View
-            style={{
-              backgroundColor: "#FFFFFF",
-              borderRadius: 20,
-              padding: 24,
-              borderWidth: 1,
-              borderColor: "#F1F5F9",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: "#F8FAFC",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderWidth: 2,
-                  borderColor: "#10B98120",
-                }}
-              >
-                <User size={28} color="#10B981" strokeWidth={2} />
-              </View>
-              <View style={{ marginLeft: 16, flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 22,
-                    fontWeight: "700",
-                    color: "#0F172A",
-                    letterSpacing: -0.5,
-                    marginBottom: 4,
-                  }}
-                >
-                  {user?.name || "User"}
-                </Text>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Mail size={14} color="#64748B" />
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      color: "#64748B",
-                      marginLeft: 6,
-                    }}
-                  >
-                    {user?.email}
-                  </Text>
+
+      <Section>
+        <Card style={{ padding: spacing.xl, gap: spacing.sm }}>
+          <Text style={type.cardTitle}>{user?.name || "User"}</Text>
+          <Text style={type.bodyMuted}>{user?.email}</Text>
+        </Card>
+      </Section>
+
+      <Section label="Plan">
+        <Card style={{ padding: spacing.xl, gap: spacing.md }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={type.cardTitle}>{planName}</Text>
+            <Badge label={isExpired ? "Expired" : "Active"} theme={isExpired ? "red" : isFree ? "gray" : "blue"} />
+          </View>
+
+          {loadingSubscription ? (
+            <ActivityIndicator color={colors.inkGray6} />
+          ) : (
+            <View style={{ gap: spacing.sm }}>
+              {usageRows.map((row) => (
+                <View key={row.label} style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={type.bodyMuted}>{row.label}</Text>
+                  <Text style={type.body}>{row.value}</Text>
                 </View>
-              </View>
+              ))}
             </View>
+          )}
 
-            <View
-              style={{
-                height: 1,
-                backgroundColor: "#F1F5F9",
-                marginBottom: 20,
-              }}
-            />
+          <AppButton
+            label={isFree ? "Upgrade plan" : "Manage subscription"}
+            onPress={() => router.push("/(tabs)/subscription")}
+            variant={isFree ? "solid" : "outline"}
+          />
+        </Card>
+      </Section>
 
-            {/* Subscription Info */}
-            {loadingSubscription ? (
-              <View style={{ alignItems: "center", paddingVertical: 20 }}>
-                <ActivityIndicator size="small" color="#10B981" />
-              </View>
-            ) : (
-              <View>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    Your Plan
-                  </Text>
-                  <Crown size={16} color={planColor} />
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "700",
-                      color: planColor,
-                    }}
-                  >
-                    {planName}
-                  </Text>
+      <Section label="Settings" style={{ marginBottom: spacing.xl }}>
+        <Card>
+          <ListRow
+            title="Account settings"
+            subtitle="Profile details and password"
+            onPress={() => router.push("/(tabs)/account-details")}
+            badge={<Settings size={16} color={colors.inkGray5} strokeWidth={1.8} />}
+          />
+          <ListRow
+            title="Subscription"
+            subtitle="Billing and limits"
+            onPress={() => router.push("/(tabs)/subscription")}
+            badge={<Crown size={16} color={colors.inkGray5} strokeWidth={1.8} />}
+          />
+          <ListRow
+            title="Sign out"
+            subtitle="End your current session"
+            onPress={handleSignOut}
+            badge={<LogOut size={16} color={colors.red} strokeWidth={1.8} />}
+          />
+        </Card>
+      </Section>
 
-                  {isExpired && (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: "#FEE2E2",
-                        borderRadius: 999,
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                      }}
-                    >
-                      <AlertTriangle size={14} color="#B91C1C" />
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#B91C1C", marginLeft: 6 }}>
-                        Expired
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Usage Stats */}
-                {subscription && (
-                  <View style={{ marginTop: 12 }}>
-                    {/* Expiry Date */}
-                    {subscriptionEnd && (
-                      <View style={{ marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-                        <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>
-                          {isExpired ? "Expired on" : "Expires on"}
-                        </Text>
-                        <Text style={{ fontSize: 14, fontWeight: "600", color: isExpired ? "#B91C1C" : "#0F172A" }}>
-                          {subscriptionEnd.toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </Text>
-                        {isExpired && (
-                          <Text style={{ fontSize: 12, color: "#B91C1C", marginTop: 6 }}>
-                            Renew or switch plans to regain full access.
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                    
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <ShoppingBag size={14} color="#64748B" />
-                        <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Shops</Text>
-                      </View>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
-                        {!isFree ? `${subscription.current_shops || 0} / Unlimited` : `${subscription.current_shops || 0} / ${subscription.shop_limit === 0 ? "∞" : subscription.shop_limit}`}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <Package size={14} color="#64748B" />
-                        <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Products</Text>
-                      </View>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
-                        {!isFree ? `${subscription.current_products || 0} / Unlimited` : `${subscription.current_products || 0} / ${subscription.products_limit === 0 ? "∞" : subscription.products_limit}`}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <FileText size={14} color="#64748B" />
-                        <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 6 }}>Invoices</Text>
-                      </View>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}>
-                        {!isFree ? `${subscription.current_sales_invoices || 0} / Unlimited` : `${subscription.current_sales_invoices || 0} / ${subscription.sales_invoice_limit === 0 ? "∞" : subscription.sales_invoice_limit}`}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                {isFree && (
-                  <Text style={{ fontSize: 13, color: "#64748B", marginTop: 12, lineHeight: 18 }}>
-                    Upgrade to unlock higher limits and premium features
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Upgrade Button (only show for free plan) */}
-        {!loadingSubscription && isFree && (
-          <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-            <Pressable
-              onPress={() => router.push("/(tabs)/subscription")}
-              style={({ pressed }) => ({
-                backgroundColor: "#10B981",
-                borderRadius: 16,
-                paddingVertical: 16,
-                paddingHorizontal: 20,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.9 : 1,
-              })}
-            >
-              <Crown size={20} color="#FFFFFF" strokeWidth={2.5} />
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: '700',
-                  color: '#FFFFFF',
-                  marginLeft: 10,
-                  letterSpacing: -0.3,
-                }}
-              >
-                Upgrade Plan
-              </Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* View Subscription Details (for paid plans) */}
-        {!loadingSubscription && !isFree && (
-          <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-            <Pressable
-              onPress={() => router.push("/(tabs)/subscription")}
-              style={({ pressed }) => ({
-                backgroundColor: "#FFFFFF",
-                borderRadius: 16,
-                paddingVertical: 16,
-                paddingHorizontal: 20,
-                borderWidth: 1,
-                borderColor: "#F1F5F9",
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.9 : 1,
-              })}
-            >
-              <Crown size={20} color={planColor} strokeWidth={2.5} />
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: planColor,
-                  marginLeft: 10,
-                  letterSpacing: -0.3,
-                }}
-              >
-                Manage Subscription
-              </Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* Actions */}
-        <View style={{ paddingHorizontal: 20 }}>
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "600",
-              color: "#64748B",
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-              marginBottom: 12,
-              paddingLeft: 4,
-            }}
-          >
-            Settings
-          </Text>
-
-          <View
-            style={{
-              backgroundColor: "#FFFFFF",
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#F1F5F9",
-              overflow: "hidden",
-            }}
-          >
-            <Pressable
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                paddingVertical: 16,
-                paddingHorizontal: 20,
-                backgroundColor: pressed ? "#F8FAFC" : "transparent",
-                borderBottomWidth: 1,
-                borderBottomColor: "#F1F5F9",
-              })}
-              onPress={() => router.push("/(tabs)/account-details")}
-            >
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: "#F8FAFC",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Settings size={20} color="#0F172A" strokeWidth={2} />
-              </View>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: "#0F172A",
-                  marginLeft: 16,
-                  flex: 1,
-                }}
-              >
-                Account Settings
-              </Text>
-              <ChevronRight size={20} color="#CBD5E1" />
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                paddingVertical: 16,
-                paddingHorizontal: 20,
-                backgroundColor: pressed ? "#FEF2F2" : "transparent",
-              })}
-              onPress={handleSignOut}
-            >
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: "#FEF2F2",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <LogOut size={20} color="#EF4444" strokeWidth={2} />
-              </View>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: "#EF4444",
-                  marginLeft: 16,
-                  flex: 1,
-                }}
-              >
-                Sign Out
-              </Text>
-              <ChevronRight size={20} color="#FCA5A5" />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* App Version */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 24, alignItems: "center" }}>
-          <Text style={{ fontSize: 12, color: "#94A3B8" }}>
-            Tookio Shop v1.0.0
-          </Text>
-        </View>
       </ScrollView>
 
-      {/* Slim Ad Banner */}
-      <AdBanner variant="slim" />
+      <AdBanner variant="slim" context="dashboard" />
     </View>
   );
 }

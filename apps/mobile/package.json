@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "scripts": {
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "web:dev": "expo start --web",
+    "web:export": "expo export --platform web"
   },
   "dependencies": {
     "@expo-google-fonts/dev": "^0.4.7",

@@ -798,8 +798,8 @@ export default function Stock() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              maxHeight: "80%",
-              paddingBottom: insets.bottom,
+              maxHeight: "84%",
+              paddingBottom: insets.bottom + 8,
             }}
           >
             <View

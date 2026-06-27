@@ -6,11 +6,57 @@
  * mobile app format and Frappe DocType format.
  */
 
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+import {
+  deleteStorageItem,
+  getJsonStorageItem,
+  getStorageItem,
+  setJsonStorageItem,
+} from './authStorage';
 
-// Frappe site URL
-const FRAPPE_URL = 'https://shop.tookio.co.ke';
+const DEFAULT_FRAPPE_URL = 'https://shop.tookio.co.ke';
 const AUTH_KEY = 'tookio-frappe-auth';
+
+function getFrappeUrl() {
+  if (Platform.OS === 'web') {
+    const configUrl = globalThis?.tookioShopConfig?.siteUrl;
+    const browserUrl = typeof window !== 'undefined' ? window.location.origin : null;
+    
+    // In local development, window.location.origin will point to the Metro dev server (usually localhost:8081 or 8082).
+    // In that case, we should use process.env.EXPO_PUBLIC_FRAPPE_URL or DEFAULT_FRAPPE_URL instead of the local dev server origin.
+    const isDevServer = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+      (window.location.port === '8081' || window.location.port === '8082');
+
+    if (isDevServer) {
+      return process.env.EXPO_PUBLIC_FRAPPE_URL || DEFAULT_FRAPPE_URL;
+    }
+
+    return configUrl || browserUrl || DEFAULT_FRAPPE_URL;
+  }
+
+  return process.env.EXPO_PUBLIC_FRAPPE_URL || DEFAULT_FRAPPE_URL;
+}
+
+async function fetchDoctypeOptions(doctype) {
+  const response = await frappeRequest(`/api/resource/${doctype}?fields=["name"]&limit_page_length=999`);
+  return (response.data || [])
+    .map((entry) => entry.name)
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+export async function getCountryOptions() {
+  return fetchDoctypeOptions("Country");
+}
+
+export async function getCurrencyOptions() {
+  return fetchDoctypeOptions("Currency");
+}
+
+function shouldUseTokenAuth(auth) {
+  return Platform.OS !== 'web' && auth && auth.api_key && auth.api_secret;
+}
 
 function isSessionInvalidMessage(message) {
   if (!message || typeof message !== 'string') {
@@ -36,8 +82,7 @@ function isSessionInvalidMessage(message) {
  */
 export async function frappeRequest(endpoint, options = {}, skipSessionCheck = false) {
   try {
-    const authData = await SecureStore.getItemAsync(AUTH_KEY);
-    const auth = authData ? JSON.parse(authData) : null;
+    const auth = await getJsonStorageItem(AUTH_KEY);
 
     const headers = {
       'Content-Type': 'application/json',
@@ -45,11 +90,11 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
       ...options.headers,
     };
 
-    if (auth && auth.api_key && auth.api_secret) {
+    if (shouldUseTokenAuth(auth)) {
       headers['Authorization'] = `token ${auth.api_key}:${auth.api_secret}`;
     }
 
-    const url = `${FRAPPE_URL}${endpoint}`;
+    const url = `${getFrappeUrl()}${endpoint}`;
     console.log('📡 Frappe Request:', options.method || 'GET', url);
 
     const response = await fetch(url, {
@@ -74,7 +119,7 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
         const responseText = typeof data === 'string' ? data : JSON.stringify(data || {});
         if (isSessionInvalidMessage(responseText)) {
           console.log('🔒 Session expired or invalid auth detected, logging out...');
-          await SecureStore.deleteItemAsync(AUTH_KEY);
+          await deleteStorageItem(AUTH_KEY);
 
           const sessionError = new Error('Your session has expired. Please login again.');
           sessionError.sessionExpired = true;
@@ -84,7 +129,7 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
 
       if (response.status === 401 && !skipSessionCheck) {
         console.log('🔒 Session expired, logging out...');
-        await SecureStore.deleteItemAsync(AUTH_KEY);
+        await deleteStorageItem(AUTH_KEY);
 
         // Throw a special error to indicate session expiry
         const sessionError = new Error('Your session has expired. Please login again.');
@@ -114,7 +159,7 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
           parsedError.includes('not implemented')
         )) {
           console.log('🔒 Session expired (Guest user/Not implemented detected), logging out...');
-          await SecureStore.deleteItemAsync(AUTH_KEY);
+          await deleteStorageItem(AUTH_KEY);
 
           const sessionError = new Error('Your session has expired. Please login again.');
           sessionError.sessionExpired = true;
@@ -131,7 +176,7 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
         data.message.includes('not implemented')
       )) {
         console.log('🔒 Session expired (Not implemented in message), logging out...');
-        await SecureStore.deleteItemAsync(AUTH_KEY);
+        await deleteStorageItem(AUTH_KEY);
 
         const sessionError = new Error('Your session has expired. Please login again.');
         sessionError.sessionExpired = true;
@@ -157,7 +202,7 @@ export async function frappeRequest(endpoint, options = {}, skipSessionCheck = f
       if (dataIsNotImplemented || checkMessage(data.message) || checkMessage(data.exception) || checkMessage(data._server_messages)) {
         console.log('🔒 Session expired (Not implemented detected), logging out...');
         console.log('🔍 Data type:', typeof data, 'Data:', data);
-        await SecureStore.deleteItemAsync(AUTH_KEY);
+        await deleteStorageItem(AUTH_KEY);
 
         const sessionError = new Error('Your session has expired. Please login again.');
         sessionError.sessionExpired = true;
@@ -192,7 +237,7 @@ export async function checkSession() {
   } catch (error) {
     if (error.sessionExpired || isSessionInvalidMessage(error.message)) {
       console.log('🔒 Actual session expiry detected');
-      await SecureStore.deleteItemAsync(AUTH_KEY);
+      await deleteStorageItem(AUTH_KEY);
       const sessionError = new Error('Your session has expired. Please login again.');
       sessionError.sessionExpired = true;
       throw sessionError;
@@ -264,7 +309,7 @@ export async function login(usr, pwd, providedKeys = null) {
 
     // Try to get API keys for token auth (only if not already provided)
     let apiKeys = providedKeys;
-    if (!apiKeys) {
+    if (!apiKeys && Platform.OS !== 'web') {
       try {
         const keysResponse = await frappeRequest('/api/method/frappe.core.doctype.user.user.generate_keys', {
           method: 'POST',
@@ -276,12 +321,12 @@ export async function login(usr, pwd, providedKeys = null) {
       }
     }
 
-    await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify({
+    await setJsonStorageItem(AUTH_KEY, {
       user: userDetails,
       logged_in: true,
       api_key: apiKeys?.api_key,
       api_secret: apiKeys?.api_secret,
-    }));
+    });
 
     return { success: true, user: userDetails };
   }
@@ -343,7 +388,7 @@ export async function logout() {
   } catch (error) {
     console.log('Logout error:', error);
   } finally {
-    await SecureStore.deleteItemAsync(AUTH_KEY);
+    await deleteStorageItem(AUTH_KEY);
   }
 }
 
@@ -354,7 +399,7 @@ export async function getCurrentUser() {
 
 export async function isAuthenticated() {
   try {
-    const authData = await SecureStore.getItemAsync(AUTH_KEY);
+    const authData = await getStorageItem(AUTH_KEY);
     if (!authData) return false;
     const user = await getCurrentUser();
     return user && user.message !== 'Guest';
@@ -454,6 +499,8 @@ export async function getShops() {
       address: shop.address || '',
       mobile_number: shop.mobile_number || '',
       email_address: shop.email_address || '',
+      country: shop.country || '',
+      currency: shop.currency || '',
       created_at: shop.creation,
       updated_at: shop.modified,
       item_count: shopItems.length,
@@ -472,6 +519,8 @@ export async function createShop(shopData) {
     address: shopData.address || '',
     mobile_number: shopData.mobile_number || '0700000000',
     email_address: shopData.email_address || 'shop@example.com',
+    country: shopData.country || '',
+    currency: shopData.currency || '',
     enabled: shopData.enabled ? 1 : 0, // Convert to 1/0 for Check field
   };
 
@@ -485,6 +534,8 @@ export async function createShop(shopData) {
       id: response.data.name,
       shop_name: response.data.shop_name,
       description: response.data.location,
+      country: response.data.country || '',
+      currency: response.data.currency || '',
       created_at: response.data.creation,
       enabled: response.data.enabled === 1 || response.data.enabled === true ? 1 : 0,
     }
@@ -500,6 +551,8 @@ export async function updateShop(shopId, shopData) {
   if (shopData.address) frappeData.address = shopData.address;
   if (shopData.mobile_number) frappeData.mobile_number = shopData.mobile_number;
   if (shopData.email_address) frappeData.email_address = shopData.email_address;
+  if (shopData.country) frappeData.country = shopData.country;
+  if (shopData.currency) frappeData.currency = shopData.currency;
   if (shopData.hasOwnProperty('enabled')) frappeData.enabled = shopData.enabled;
 
   const response = await frappeRequest(`/api/resource/Shop/${shopId}`, {
@@ -512,6 +565,8 @@ export async function updateShop(shopId, shopData) {
       id: response.data.name,
       shop_name: response.data.shop_name,
       description: response.data.location,
+      country: response.data.country || '',
+      currency: response.data.currency || '',
       enabled: response.data.enabled,
     }
   };
@@ -550,11 +605,12 @@ export async function getItems() {
       unit_price: item.selling_price || 0,
       cost_price: item.price || 0,
       current_stock: item.stock_quantity || 0,
-      low_stock_threshold: item.low_stock_threshold || 5,
+      low_stock_threshold: 5,
       shop: item.shop, // Add this for filtering in stock adjustment
       shop_id: item.shop,
       shop_name: item.shop_name,
       enabled: item.enabled === 1 || item.enabled === true, // Handle both numeric (1/0) and boolean (true/false) values from Frappe
+      track_stock: item.track_stock !== 0 && item.track_stock !== false,
       created_at: item.creation,
       updated_at: item.modified,
     }));
@@ -569,9 +625,9 @@ export async function createItem(itemData) {
     selling_price: itemData.unit_price || 0,
     shop: itemData.shop_id,
     stock_quantity: itemData.current_stock || 0,
-    low_stock_threshold: itemData.low_stock_threshold || 5,
     uom: 'Pcs',
     enabled: itemData.enabled ? 1 : 0,
+    track_stock: itemData.track_stock,
   };
 
   const response = await frappeRequest('/api/resource/Product', {
@@ -586,9 +642,10 @@ export async function createItem(itemData) {
       unit_price: response.data.selling_price,
       cost_price: response.data.price,
       current_stock: response.data.stock_quantity || itemData.current_stock || 0,
-      low_stock_threshold: response.data.low_stock_threshold || itemData.low_stock_threshold || 5,
+      low_stock_threshold: 5,
       shop_id: response.data.shop,
       enabled: response.data.enabled,
+      track_stock: response.data.track_stock,
     }
   };
 }
@@ -600,8 +657,8 @@ export async function updateItem(itemId, itemData) {
     selling_price: itemData.unit_price,
     shop: itemData.shop,
     stock_quantity: itemData.current_stock,
-    low_stock_threshold: itemData.low_stock_threshold,
     enabled: itemData.enabled ? 1 : 0,
+    track_stock: itemData.track_stock,
   };
 
   const response = await frappeRequest(`/api/resource/Product/${itemId}`, {
@@ -808,7 +865,7 @@ export async function cancelSale(saleId) {
 // ==================== PRODUCT STOCK DOCTYPE ====================
 
 export async function getStockTransactions() {
-  const response = await frappeRequest('/api/resource/Product Stock?fields=["*"]&limit_page_length=999&order_by=creation desc');
+  const response = await frappeRequest('/api/resource/Product Stock Transaction?fields=["*"]&limit_page_length=999&order_by=creation desc');
 
   // Debug: Log first transaction to see structure
   if (response.data && response.data.length > 0) {
@@ -821,12 +878,12 @@ export async function getStockTransactions() {
 
   try {
     const [stockItemsResponse, shopsResponse, itemsResponse] = await Promise.all([
-      frappeRequest('/api/resource/Tookio Product Stock Item?fields=["*"]&limit_page_length=9999'),
+      frappeRequest('/api/resource/Product Stock Item?fields=["*"]&limit_page_length=9999'),
       frappeRequest('/api/resource/Shop?fields=["name","shop_name"]&limit_page_length=999'),
       frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999'),
     ]);
 
-    // Create a map of stock items by parent (product stock)
+    // Create a map of stock items by parent (product stock transaction)
     (stockItemsResponse.data || []).forEach(item => {
       if (!stockItemsMap[item.parent]) {
         stockItemsMap[item.parent] = [];
@@ -888,7 +945,7 @@ export async function getStockTransactions() {
 
 export async function getStockTransactionById(transactionId) {
   // Fetch single stock transaction document - this will include child tables
-  const response = await frappeRequest(`/api/resource/Product Stock/${transactionId}`);
+  const response = await frappeRequest(`/api/resource/Product Stock Transaction/${transactionId}`);
 
   // Fetch product names for mapping
   const itemsResponse = await frappeRequest('/api/resource/Product?fields=["name","item_name"]&limit_page_length=999');
@@ -923,31 +980,30 @@ export async function createStockTransaction(transactionData) {
   const purpose = transactionData.transaction_type === 'in' ? 'Add Stock' : 'Remove Stock';
 
   const frappeData = {
-    doctype: 'Product Stock',
     shop: transactionData.shop_id,
-    date: new Date().toISOString().split('T')[0],
-    purpose: purpose,
+    adjustment_method: purpose,
     prodcuts: [{  // Note: Backend field name has typo "prodcuts" instead of "products"
-      doctype: 'Tookio Product Stock Item',  // Required for child table
+      doctype: 'Product Stock Item',  // Required for child table
       product: transactionData.item_id,
       quantity: Math.abs(parseFloat(transactionData.quantity) || 0),
     }],
   };
 
-  const response = await frappeRequest('/api/resource/Product Stock', {
-    method: 'POST',
+  // 1. Update the Tookio Stock Adjustment single document
+  await frappeRequest('/api/resource/Tookio Stock Adjustment/Tookio Stock Adjustment', {
+    method: 'PUT',
     body: JSON.stringify(frappeData),
   });
 
-  // Submit to apply stock changes
-  try {
-    await frappeRequest(`/api/resource/Product Stock/${response.data.name}`, {
-      method: 'PUT',
-      body: JSON.stringify({ docstatus: 1 }),
-    });
-  } catch (e) {
-    console.log('Could not auto-submit stock transaction:', e.message);
-  }
+  // 2. Call apply_adjustments method
+  const response = await frappeRequest('/api/method/run_doc_method', {
+    method: 'POST',
+    body: JSON.stringify({
+      dt: 'Tookio Stock Adjustment',
+      dn: 'Tookio Stock Adjustment',
+      method: 'apply_adjustments',
+    }),
+  });
 
   return response.data;
 }
@@ -955,10 +1011,8 @@ export async function createStockTransaction(transactionData) {
 export async function createBulkStockAdjustment(adjustmentData) {
   // adjustmentData: { shop, purpose, items: [{ product, quantity }] }
   const frappeData = {
-    doctype: 'Product Stock',
     shop: adjustmentData.shop,
-    date: new Date().toISOString().split('T')[0],
-    purpose: adjustmentData.purpose, // "Add Stock" or "Remove Stock"
+    adjustment_method: adjustmentData.purpose, // "Add Stock" or "Remove Stock"
     prodcuts: adjustmentData.items.map(item => ({
       doctype: 'Product Stock Item',  // Required for child table
       product: item.product,
@@ -966,20 +1020,21 @@ export async function createBulkStockAdjustment(adjustmentData) {
     })),
   };
 
-  const response = await frappeRequest('/api/resource/Product Stock', {
-    method: 'POST',
+  // 1. Update the Tookio Stock Adjustment single document
+  await frappeRequest('/api/resource/Tookio Stock Adjustment/Tookio Stock Adjustment', {
+    method: 'PUT',
     body: JSON.stringify(frappeData),
   });
 
-  // Submit to apply stock changes
-  try {
-    await frappeRequest(`/api/resource/Product Stock/${response.data.name}`, {
-      method: 'PUT',
-      body: JSON.stringify({ docstatus: 1 }),
-    });
-  } catch (e) {
-    console.log('Could not auto-submit stock adjustment:', e.message);
-  }
+  // 2. Call apply_adjustments method
+  const response = await frappeRequest('/api/method/run_doc_method', {
+    method: 'POST',
+    body: JSON.stringify({
+      dt: 'Tookio Stock Adjustment',
+      dn: 'Tookio Stock Adjustment',
+      method: 'apply_adjustments',
+    }),
+  });
 
   return response.data;
 }
@@ -1113,16 +1168,16 @@ export async function resetPassword(email) {
 // ==================== HELPER FUNCTIONS ====================
 
 export async function getAuth() {
-  const authData = await SecureStore.getItemAsync(AUTH_KEY);
+  const authData = await getStorageItem(AUTH_KEY);
   return authData ? JSON.parse(authData) : null;
 }
 
 export async function saveAuth(auth) {
-  await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(auth));
+  await setJsonStorageItem(AUTH_KEY, auth);
 }
 
 export async function clearAuth() {
-  await SecureStore.deleteItemAsync(AUTH_KEY);
+  await deleteStorageItem(AUTH_KEY);
 }
 
 // ==================== USER PROFILE FUNCTIONS ====================
@@ -1251,3 +1306,83 @@ export async function checkUserLimits() {
   const response = await frappeRequest('/api/method/tookio_shop.api.check_user_limits');
   return response.message;
 }
+
+// ==================== DASHBOARD & REPORTS ====================
+
+export async function getDashboardDetails(dashboardName) {
+  const response = await frappeRequest(`/api/resource/Dashboard/${encodeURIComponent(dashboardName)}`);
+  return response.data;
+}
+
+export async function getFrappeNumberCardValue(cardName) {
+  try {
+    // First, fetch the number card document
+    const cardDocResponse = await frappeRequest(`/api/resource/Number Card/${encodeURIComponent(cardName)}`);
+    const cardDoc = cardDocResponse.data;
+
+    // Then, execute it to get the result
+    const resultResponse = await frappeRequest('/api/method/frappe.desk.doctype.number_card.number_card.get_result', {
+      method: 'POST',
+      body: JSON.stringify({
+        doc: cardDoc,
+        filters: {}
+      })
+    });
+    
+    return {
+      card: cardDoc,
+      value: resultResponse.message || 0
+    };
+  } catch (error) {
+    console.error(`Error fetching number card ${cardName}:`, error);
+    return null;
+  }
+}
+
+export async function getDashboardChartData(chartName, timespan = 'Last Month') {
+  try {
+    const response = await frappeRequest('/api/method/frappe.desk.doctype.dashboard_chart.dashboard_chart.get', {
+      method: 'POST',
+      body: JSON.stringify({
+        chart_name: chartName,
+        refresh: 1,
+        time_tier: 'Daily',
+        timespan: timespan
+      })
+    });
+    return response.message;
+  } catch (error) {
+    console.error(`Error fetching chart ${chartName}:`, error);
+    return null;
+  }
+}
+
+export async function getFrappeReports() {
+  // We can fetch the standard reports for Tookio Shop
+  const reportNames = [
+    'Item Profit Analysis',
+    'Item Wise Sales',
+    'Profit And Loss',
+    'Shop Stock Balance',
+    'Time Period Sales'
+  ];
+  return reportNames;
+}
+
+export async function runFrappeReport(reportName, filters = {}) {
+  try {
+    const response = await frappeRequest('/api/method/frappe.desk.query_report.run', {
+      method: 'POST',
+      body: JSON.stringify({
+        report_name: reportName,
+        filters: filters,
+        ignore_prepared_report: 1
+      })
+    });
+    return response.message;
+  } catch (error) {
+    console.error(`Error running report ${reportName}:`, error);
+    throw error;
+  }
+}
+

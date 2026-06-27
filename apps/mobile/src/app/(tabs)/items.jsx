@@ -13,6 +13,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
+import { AppButton, FormField, FormSheet } from "@/components/frappe-ui";
 import {
   Package,
   Plus,
@@ -27,6 +28,7 @@ import {
   Edit3,
   Trash2,
   Check,
+  Info,
 } from "lucide-react-native";
 import { useState, useEffect } from "react";
 import {
@@ -73,11 +75,12 @@ export default function InventoryScreen() {
     current_stock: "0",
     low_stock_threshold: "5",
     enabled: true,
+    track_stock: true,
   });
 
   // Stock Adjustment
   const [adjustmentShop, setAdjustmentShop] = useState("");
-  const [adjustmentType, setAdjustmentType] = useState("Add Stock"); // Add Stock or Remove Stock
+  const [adjustmentType, setAdjustmentType] = useState("Adjust Stock"); // Adjust Stock, Add Stock, or Remove Stock
   const [adjustmentItems, setAdjustmentItems] = useState([]);
 
   useEffect(() => {
@@ -133,6 +136,7 @@ export default function InventoryScreen() {
         current_stock: parseInt(itemForm.current_stock) || 0,
         low_stock_threshold: parseInt(itemForm.low_stock_threshold) || 5,
         enabled: itemForm.enabled,
+        track_stock: itemForm.track_stock ? 1 : 0,
       });
 
       Alert.alert("Success", "Item added successfully");
@@ -159,26 +163,38 @@ export default function InventoryScreen() {
       return;
     }
 
-    try {
-      await createBulkStockAdjustment({
-        shop: adjustmentShop,
-        purpose: adjustmentType,
-        items: itemsWithQty.map(item => ({
-          product: item.product_id,
-          quantity: item.quantity,
-        })),
-      });
+    Alert.alert(
+      "Confirm Stock Adjustment",
+      `Are you sure you want to perform this stock adjustment (${adjustmentType})?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            try {
+              await createBulkStockAdjustment({
+                shop: adjustmentShop,
+                purpose: adjustmentType,
+                items: itemsWithQty.map(item => ({
+                  product: item.product_id,
+                  quantity: item.quantity,
+                })),
+              });
 
-      Alert.alert("Success", `Stock ${adjustmentType === "Add Stock" ? "added" : "removed"} successfully`);
-      setShowStockAdjustModal(false);
-      resetStockAdjustment();
-      await loadData();
-    } catch (error) {
-      console.error("Error adjusting stock:", error);
-      if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to adjust stock");
-      }
-    }
+              Alert.alert("Success", "Stock adjustment completed successfully");
+              setShowStockAdjustModal(false);
+              resetStockAdjustment();
+              await loadData();
+            } catch (error) {
+              console.error("Error adjusting stock:", error);
+              if (!handleApiError(error, signOut)) {
+                Alert.alert("Error", "Failed to adjust stock");
+              }
+            }
+          },
+        },
+      ]
+    );
   };
 
   const resetItemForm = () => {
@@ -191,6 +207,7 @@ export default function InventoryScreen() {
       current_stock: "0",
       low_stock_threshold: "5",
       enabled: true,
+      track_stock: true,
     });
   };
 
@@ -221,6 +238,7 @@ export default function InventoryScreen() {
       current_stock: selectedItem.current_stock?.toString() || "0",
       low_stock_threshold: selectedItem.low_stock_threshold?.toString() || "5",
       enabled: selectedItem.enabled !== false,
+      track_stock: selectedItem.track_stock !== false,
     });
 
     setShowItemActionsModal(false);
@@ -274,6 +292,7 @@ export default function InventoryScreen() {
         current_stock: parseInt(itemForm.current_stock) || 0,
         low_stock_threshold: parseInt(itemForm.low_stock_threshold) || 5,
         enabled: itemForm.enabled,
+        track_stock: itemForm.track_stock ? 1 : 0,
       });
 
       Alert.alert("Success", "Item updated successfully");
@@ -326,7 +345,8 @@ export default function InventoryScreen() {
     const matchesShop = !selectedShop || item.shop === selectedShop;
     const matchesSearch = !searchQuery ||
       item.item_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = enabledFilter === null || (enabledFilter ? item.enabled === 1 : item.enabled === 0);
+    const isItemEnabled = item.enabled !== false && item.enabled !== 0;
+    const matchesStatus = enabledFilter === null || (enabledFilter ? isItemEnabled : !isItemEnabled);
     return matchesShop && matchesSearch && matchesStatus;
   });
 
@@ -359,11 +379,7 @@ export default function InventoryScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-    >
-      <View style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}>
         <StatusBar style="dark" />
 
         {/* Header */}
@@ -371,18 +387,16 @@ export default function InventoryScreen() {
           style={{
             paddingHorizontal: 20,
             paddingVertical: 16,
-            backgroundColor: "#FFFFFF",
-            borderBottomWidth: 1,
-            borderBottomColor: "#F1F5F9",
+            backgroundColor: "#F7F7F7",
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
+              <Text style={{ fontSize: 24, fontWeight: "700", color: "#171717", letterSpacing: 0 }}>
                 Inventory
               </Text>
-              <Text style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
-                Items & Stock Management
+              <Text style={{ fontSize: 13, color: "#737373", marginTop: 4 }}>
+                Products and stock
               </Text>
             </View>
 
@@ -390,10 +404,10 @@ export default function InventoryScreen() {
               <Pressable
                 onPress={() => setShowStockAdjustModal(true)}
                 style={({ pressed }) => ({
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  borderRadius: 12,
-                  backgroundColor: pressed ? "#5B21B6" : "#6366F1",
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: pressed ? "#262626" : "#171717",
                   flexDirection: "row",
                   alignItems: "center",
                 })}
@@ -409,8 +423,8 @@ export default function InventoryScreen() {
                 style={({ pressed }) => ({
                   width: 40,
                   height: 40,
-                  borderRadius: 20,
-                  backgroundColor: pressed ? "#059669" : "#10B981",
+                  borderRadius: 10,
+                  backgroundColor: pressed ? "#262626" : "#171717",
                   alignItems: "center",
                   justifyContent: "center",
                 })}
@@ -423,40 +437,40 @@ export default function InventoryScreen() {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           {/* Search Bar - Inside ScrollView */}
-          <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-              <Search size={18} color="#94A3B8" strokeWidth={2} />
+          <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E5E5E5" }}>
+              <Search size={18} color="#A3A3A3" strokeWidth={2} />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search items..."
-                placeholderTextColor="#94A3B8"
-                style={{ flex: 1, marginLeft: 10, fontSize: 15, color: "#0F172A" }}
+                placeholderTextColor="#A3A3A3"
+                style={{ flex: 1, marginLeft: 10, fontSize: 15, color: "#171717" }}
               />
             </View>
           </View>
         {/* Stats Cards */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
-            <View style={{ flex: 1, backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
-                TOTAL VALUE
+            <View style={{ flex: 1, backgroundColor: "#FFFFFF", borderRadius: 10, padding: 16, borderWidth: 1, borderColor: "#E5E5E5" }}>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: "#737373", marginBottom: 4 }}>
+                Inventory value
               </Text>
-              <Text style={{ fontSize: 20, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
+              <Text style={{ fontSize: 20, fontWeight: "700", color: "#171717", letterSpacing: 0 }}>
                 {formatCurrency(totalInventoryValue, false)}
               </Text>
             </View>
 
-            <View style={{ flex: 1, backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginBottom: 4 }}>
-                LOW STOCK
+            <View style={{ flex: 1, backgroundColor: "#FFFFFF", borderRadius: 10, padding: 16, borderWidth: 1, borderColor: "#E5E5E5" }}>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: "#737373", marginBottom: 4 }}>
+                Low stock
               </Text>
-              <Text style={{ fontSize: 20, fontWeight: "800", color: lowStockItems.length > 0 ? "#EF4444" : "#0F172A", letterSpacing: -0.5 }}>
+              <Text style={{ fontSize: 20, fontWeight: "700", color: "#171717", letterSpacing: 0 }}>
                 {lowStockItems.length}
               </Text>
             </View>
@@ -470,31 +484,31 @@ export default function InventoryScreen() {
               <Pressable
                 onPress={() => setEnabledFilter(null)}
                 style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: enabledFilter === null ? "#6366F1" : "#FFFFFF",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 999,
+                  backgroundColor: enabledFilter === null ? "#171717" : "#FFFFFF",
                   borderWidth: 1,
-                  borderColor: enabledFilter === null ? "#6366F1" : "#E2E8F0",
+                  borderColor: enabledFilter === null ? "#171717" : "#E5E7EB",
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === null ? "#FFFFFF" : "#64748B" }}>
-                  All Items
+                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === null ? "#FFFFFF" : "#737373" }}>
+                  All items
                 </Text>
               </Pressable>
 
               <Pressable
                 onPress={() => setEnabledFilter(true)}
                 style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: enabledFilter === true ? "#10B981" : "#FFFFFF",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 999,
+                  backgroundColor: enabledFilter === true ? "#171717" : "#FFFFFF",
                   borderWidth: 1,
-                  borderColor: enabledFilter === true ? "#10B981" : "#E2E8F0",
+                  borderColor: enabledFilter === true ? "#171717" : "#E5E7EB",
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === true ? "#FFFFFF" : "#64748B" }}>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === true ? "#FFFFFF" : "#737373" }}>
                   Enabled
                 </Text>
               </Pressable>
@@ -502,15 +516,15 @@ export default function InventoryScreen() {
               <Pressable
                 onPress={() => setEnabledFilter(false)}
                 style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: enabledFilter === false ? "#EF4444" : "#FFFFFF",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 999,
+                  backgroundColor: enabledFilter === false ? "#171717" : "#FFFFFF",
                   borderWidth: 1,
-                  borderColor: enabledFilter === false ? "#EF4444" : "#E2E8F0",
+                  borderColor: enabledFilter === false ? "#171717" : "#E5E7EB",
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === false ? "#FFFFFF" : "#64748B" }}>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: enabledFilter === false ? "#FFFFFF" : "#737373" }}>
                   Disabled
                 </Text>
               </Pressable>
@@ -525,16 +539,16 @@ export default function InventoryScreen() {
               <Pressable
                 onPress={() => setSelectedShop("")}
                 style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: !selectedShop ? "#0F172A" : "#FFFFFF",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 999,
+                  backgroundColor: !selectedShop ? "#171717" : "#FFFFFF",
                   borderWidth: 1,
-                  borderColor: !selectedShop ? "#0F172A" : "#E2E8F0",
+                  borderColor: !selectedShop ? "#171717" : "#E5E7EB",
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: "600", color: !selectedShop ? "#FFFFFF" : "#64748B" }}>
-                  All Shops
+                <Text style={{ fontSize: 13, fontWeight: "600", color: !selectedShop ? "#FFFFFF" : "#737373" }}>
+                  All shops
                 </Text>
               </Pressable>
 
@@ -543,15 +557,15 @@ export default function InventoryScreen() {
                   key={shop.id}
                   onPress={() => setSelectedShop(shop.id)}
                   style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    backgroundColor: selectedShop === shop.id ? "#0F172A" : "#FFFFFF",
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 999,
+                    backgroundColor: selectedShop === shop.id ? "#171717" : "#FFFFFF",
                     borderWidth: 1,
-                    borderColor: selectedShop === shop.id ? "#0F172A" : "#E2E8F0",
+                    borderColor: selectedShop === shop.id ? "#171717" : "#E5E7EB",
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: selectedShop === shop.id ? "#FFFFFF" : "#64748B" }}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: selectedShop === shop.id ? "#FFFFFF" : "#737373" }}>
                     {shop.shop_name}
                   </Text>
                 </Pressable>
@@ -567,7 +581,7 @@ export default function InventoryScreen() {
               Items ({filteredItems.length})
             </Text>
             <Pressable onPress={() => setShowHistoryModal(true)}>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: "#6366F1" }}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "#404040" }}>
                 View History
               </Text>
             </Pressable>
@@ -589,8 +603,8 @@ export default function InventoryScreen() {
               }}
             >
               <Package size={48} color="#CBD5E1" strokeWidth={1.5} />
-              <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A", marginTop: 16 }}>
-                No Items Yet
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#171717", marginTop: 16 }}>
+                No items yet
               </Text>
               <Text style={{ fontSize: 14, color: "#64748B", textAlign: "center", marginTop: 8 }}>
                 Start by adding your first product
@@ -600,7 +614,7 @@ export default function InventoryScreen() {
             <View style={{ gap: 8 }}>
               {filteredItems.map(item => {
                 const isLowStock = item.current_stock <= (item.low_stock_threshold || 5);
-                const stockColor = item.current_stock === 0 ? "#EF4444" : isLowStock ? "#F59E0B" : "#10B981";
+                const stockColor = item.current_stock === 0 ? "#A3A3A3" : isLowStock ? "#D97706" : "#2563EB";
 
                 return (
                   <Pressable
@@ -625,45 +639,39 @@ export default function InventoryScreen() {
                         {/* Status Badge */}
                         <View
                           style={{
-                            backgroundColor: item.enabled !== false ? "#10B981" : "#EF4444",
+                            backgroundColor: (item.enabled !== false && item.enabled !== 0) ? "#EFF6FF" : "#FEE2E2",
+                            borderWidth: 1,
+                            borderColor: (item.enabled !== false && item.enabled !== 0) ? "#BFDBFE" : "#FCA5A5",
                             paddingHorizontal: 8,
                             paddingVertical: 4,
                             borderRadius: 6,
                           }}
                         >
-                          <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFFFFF" }}>
-                            {item.enabled !== false ? "ACTIVE" : "INACTIVE"}
-                          </Text>
-                        </View>
-                        {/* Stock Badge */}
-                        <View
-                          style={{
-                            backgroundColor: stockColor + "15",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Text style={{ fontSize: 10, fontWeight: "700", color: stockColor }}>
-                            {item.current_stock || 0} in stock
+                          <Text style={{ fontSize: 10, fontWeight: "700", color: (item.enabled !== false && item.enabled !== 0) ? "#2563EB" : "#DC2626" }}>
+                            {(item.enabled !== false && item.enabled !== 0) ? "Enabled" : "Disabled"}
                           </Text>
                         </View>
                       </View>
                     </View>
 
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
                       <View>
                         <Text style={{ fontSize: 13, color: "#64748B" }}>
                           {item.shop_name || item.shop}
                         </Text>
-                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#0F172A", marginTop: 2 }}>
-                          {formatCurrency(item.unit_price || 0, false)}
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: stockColor, marginTop: 2 }}>
+                          {item.current_stock || 0} in stock
                         </Text>
                       </View>
 
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
-                        Value: {formatCurrency((item.cost_price || 0) * (item.current_stock || 0), false)}
-                      </Text>
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Text style={{ fontSize: 12, color: "#64748B" }}>
+                          Buy: {formatCurrency(item.cost_price || 0, false)} | Sell: {formatCurrency(item.unit_price || 0, false)}
+                        </Text>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A", marginTop: 2 }}>
+                          Value: {formatCurrency((item.cost_price || 0) * (item.current_stock || 0), false)}
+                        </Text>
+                      </View>
                     </View>
                   </Pressable>
                 );
@@ -673,14 +681,146 @@ export default function InventoryScreen() {
         </View>
       </ScrollView>
 
-      {/* Add Item Modal */}
-      <Modal visible={showAddItemModal} transparent animationType="slide" onRequestClose={() => setShowAddItemModal(false)}>
+      <FormSheet
+        visible={showAddItemModal}
+        onClose={() => setShowAddItemModal(false)}
+        title="Add item"
+        insets={insets}
+        footer={<AppButton label="Save item" onPress={handleAddItem} />}
+      >
+        <Text style={{ fontSize: 13, fontWeight: "500", color: "#525252", marginBottom: 8 }}>Shop</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {shops.map((shop) => {
+              const active = itemForm.shop === shop.id;
+              return (
+                <Pressable
+                  key={shop.id}
+                  onPress={() => setItemForm({ ...itemForm, shop: shop.id })}
+                  style={{
+                    minHeight: 34,
+                    paddingHorizontal: 14,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: active ? "#2E69FF" : "#E2E2E2",
+                    backgroundColor: active ? "#EAF0FF" : "#FFFFFF",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "row",
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: active ? "#2E69FF" : "#525252", fontWeight: "500" }}>
+                    {shop.shop_name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+        <FormField label="Item name" value={itemForm.item_name} onChangeText={(text) => setItemForm({ ...itemForm, item_name: text })} placeholder="Enter item name" />
+        <FormField label="Description" value={itemForm.description} onChangeText={(text) => setItemForm({ ...itemForm, description: text })} placeholder="Additional details..." multiline />
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <FormField label="Buying price" value={itemForm.cost_price} onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })} placeholder="0.00" keyboardType="decimal-pad" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <FormField label="Selling price" value={itemForm.unit_price} onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })} placeholder="0.00" keyboardType="decimal-pad" />
+          </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <FormField label="Initial stock" value={itemForm.current_stock} onChangeText={(text) => setItemForm({ ...itemForm, current_stock: text })} placeholder="0" keyboardType="number-pad" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <FormField label="Low stock alert" value={itemForm.low_stock_threshold} onChangeText={(text) => setItemForm({ ...itemForm, low_stock_threshold: text })} placeholder="5" keyboardType="number-pad" />
+          </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Pressable
+            onPress={() => setItemForm({ ...itemForm, enabled: !itemForm.enabled })}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 14,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: "#E2E2E2",
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <View
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 6,
+                borderWidth: 1.5,
+                borderColor: itemForm.enabled ? "#3A3A3A" : "#B8B8B8",
+                backgroundColor: itemForm.enabled ? "#242424" : "#FFFFFF",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {itemForm.enabled ? <Check size={12} color="#FFFFFF" strokeWidth={2.4} /> : null}
+            </View>
+            <Text style={{ fontSize: 14, fontWeight: "500", color: "#242424" }}>Enabled</Text>
+          </Pressable>
+
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingHorizontal: 14,
+              paddingVertical: 14,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: "#E2E2E2",
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <Pressable
+              onPress={() => setItemForm({ ...itemForm, track_stock: !itemForm.track_stock })}
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}
+            >
+              <View
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 6,
+                  borderWidth: 1.5,
+                  borderColor: itemForm.track_stock ? "#3A3A3A" : "#B8B8B8",
+                  backgroundColor: itemForm.track_stock ? "#242424" : "#FFFFFF",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {itemForm.track_stock ? <Check size={12} color="#FFFFFF" strokeWidth={2.4} /> : null}
+              </View>
+              <Text style={{ fontSize: 14, fontWeight: "500", color: "#242424" }}>Track stock</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => Alert.alert("Track Stock", "Select if you want to manage stock of the item in the system.")}
+              style={{ padding: 4 }}
+            >
+              <Info size={15} color="#707070" />
+            </Pressable>
+          </View>
+        </View>
+      </FormSheet>
+
+      {/* Legacy Add Item Modal */}
+      <Modal visible={false && showAddItemModal} transparent animationType="slide" onRequestClose={() => setShowAddItemModal(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "90%", paddingBottom: insets.bottom + 20 }}>
             {/* Header - Outside KeyboardAvoidingView */}
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
-                Add New Item
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#171717" }}>
+                Add item
               </Text>
               <Pressable onPress={() => { setShowAddItemModal(false); resetItemForm(); }}>
                 <X size={24} color="#64748B" strokeWidth={2} />
@@ -890,8 +1030,8 @@ export default function InventoryScreen() {
                         height: 20,
                         borderRadius: 6,
                         borderWidth: 2,
-                        borderColor: itemForm.enabled ? "#10B981" : "#E2E8F0",
-                        backgroundColor: itemForm.enabled ? "#10B981" : "transparent",
+                        borderColor: itemForm.enabled ? "#2563EB" : "#E2E8F0",
+                        backgroundColor: itemForm.enabled ? "#2563EB" : "transparent",
                         alignItems: "center",
                         justifyContent: "center",
                         marginRight: 12,
@@ -901,8 +1041,8 @@ export default function InventoryScreen() {
                         <Text style={{ fontSize: 14, fontWeight: "bold", color: "#FFFFFF" }}>✓</Text>
                       )}
                     </View>
-                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
-                      Item is Enabled
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#171717" }}>
+                      Item is enabled
                     </Text>
                   </Pressable>
                 </View>
@@ -913,15 +1053,15 @@ export default function InventoryScreen() {
                 <Pressable
                   onPress={handleAddItem}
                   style={({ pressed }) => ({
-                    backgroundColor: "#10B981",
-                    borderRadius: 12,
+                    backgroundColor: "#171717",
+                    borderRadius: 10,
                     paddingVertical: 16,
                     alignItems: "center",
                     opacity: pressed ? 0.9 : 1,
                   })}
                 >
                   <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
-                    Add Item
+                    Save item
                   </Text>
                 </Pressable>
               </View>
@@ -930,14 +1070,168 @@ export default function InventoryScreen() {
         </View>
       </Modal>
 
-      {/* Bulk Stock Adjustment Modal */}
-      <Modal visible={showStockAdjustModal} transparent animationType="slide" onRequestClose={() => setShowStockAdjustModal(false)}>
+      <FormSheet
+        visible={showStockAdjustModal}
+        onClose={() => {
+          setShowStockAdjustModal(false);
+          resetStockAdjustment();
+        }}
+        title="Stock adjustment"
+        insets={insets}
+        height="90%"
+        footer={
+          adjustmentShop && adjustmentItems.length > 0 ? (
+            <AppButton label="Save adjustment" onPress={handleBulkStockAdjustment} />
+          ) : null
+        }
+      >
+        <Text style={{ fontSize: 13, fontWeight: "500", color: "#525252", marginBottom: 8 }}>Shop</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {shops.map((shop) => {
+              const active = adjustmentShop === shop.id;
+              return (
+                <Pressable
+                  key={shop.id}
+                  onPress={() => setAdjustmentShop(shop.id)}
+                  style={{
+                    minHeight: 34,
+                    paddingHorizontal: 14,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: active ? "#2E69FF" : "#E2E2E2",
+                    backgroundColor: active ? "#EAF0FF" : "#FFFFFF",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "row",
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: active ? "#2E69FF" : "#525252", fontWeight: "500" }}>
+                    {shop.shop_name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+        <Text style={{ fontSize: 13, fontWeight: "500", color: "#525252", marginBottom: 8 }}>Adjustment type</Text>
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+          {["Adjust Stock", "Add Stock", "Remove Stock"].map((type) => {
+            const active = adjustmentType === type;
+            let borderColor = "#E2E2E2";
+            let backgroundColor = "#FFFFFF";
+            let textColor = "#525252";
+
+            if (active) {
+              if (type === "Adjust Stock") {
+                borderColor = "#2E69FF";
+                backgroundColor = "#EAF0FF";
+                textColor = "#2E69FF";
+              } else if (type === "Add Stock") {
+                borderColor = "#1C7C45";
+                backgroundColor = "#EAF7EF";
+                textColor = "#1C7C45";
+              } else if (type === "Remove Stock") {
+                borderColor = "#C73A3A";
+                backgroundColor = "#FDEEEE";
+                textColor = "#C73A3A";
+              }
+            }
+
+            return (
+              <Pressable
+                key={type}
+                onPress={() => setAdjustmentType(type)}
+                style={{
+                  flex: 1,
+                  minHeight: 34,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: borderColor,
+                  backgroundColor: backgroundColor,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "500", color: textColor }}>{type}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <FormField label="Search items" value={itemSearchQuery} onChangeText={setItemSearchQuery} placeholder="Search items..." />
+        <View style={{ maxHeight: 220, borderWidth: 1, borderColor: "#E2E2E2", borderRadius: 8, overflow: "hidden", marginBottom: 16 }}>
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            {shopItems
+              .filter((product) =>
+                itemSearchQuery ? product.item_name.toLowerCase().includes(itemSearchQuery.toLowerCase()) : true
+              )
+              .map((product) => {
+                const isSelected = adjustmentItems.some((ai) => ai.product_id === product.id);
+                return (
+                  <Pressable
+                    key={product.id}
+                    onPress={() => toggleItemSelection(product)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#EDEDED",
+                      backgroundColor: isSelected ? "#F5F5F5" : "#FFFFFF",
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Text style={{ fontSize: 14, fontWeight: "500", color: "#171717" }}>{product.item_name}</Text>
+                      <Text style={{ fontSize: 12, color: "#707070", marginTop: 2 }}>Current stock: {product.current_stock}</Text>
+                    </View>
+                    {isSelected ? <Check size={14} color="#171717" strokeWidth={2.2} /> : null}
+                  </Pressable>
+                );
+              })}
+          </ScrollView>
+        </View>
+        {adjustmentItems.length > 0 ? (
+          <View style={{ gap: 10 }}>
+            {adjustmentItems.map((item) => (
+              <View key={item.product_id} style={{ borderWidth: 1, borderColor: "#EDEDED", borderRadius: 8, padding: 12, backgroundColor: "#FFFFFF" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "500", color: "#171717", flex: 1 }}>{item.product_name}</Text>
+                  <Pressable onPress={() => removeItemFromAdjustment(item.product_id)} style={{ padding: 4 }}>
+                    <X size={16} color="#707070" />
+                  </Pressable>
+                </View>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <FormField
+                      label="Qty"
+                      value={item.quantity.toString()}
+                      onChangeText={(text) => updateAdjustmentQuantity(item.product_id, text)}
+                      keyboardType="numeric"
+                      selectTextOnFocus
+                      containerStyle={{ marginBottom: 0 }}
+                    />
+                  </View>
+                  <View style={{ flex: 1, justifyContent: "flex-end", paddingBottom: 10 }}>
+                    <Text style={{ fontSize: 12, color: "#707070", marginBottom: 4 }}>Current stock</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "500", color: "#171717" }}>{item.current_stock}</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </FormSheet>
+
+      {/* Legacy Bulk Stock Adjustment Modal */}
+      <Modal visible={false && showStockAdjustModal} transparent animationType="slide" onRequestClose={() => setShowStockAdjustModal(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "90%", paddingBottom: insets.bottom + 20 }}>
             {/* Header - Outside KeyboardAvoidingView */}
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
-                Bulk Stock Adjustment
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#171717" }}>
+                Stock adjustment
               </Text>
               <Pressable onPress={() => { setShowStockAdjustModal(false); resetStockAdjustment(); }}>
                 <X size={24} color="#64748B" strokeWidth={2} />
@@ -967,12 +1261,12 @@ export default function InventoryScreen() {
                           padding: 12,
                           borderRadius: 12,
                           borderWidth: 2,
-                          borderColor: adjustmentShop === shop.id ? "#6366F1" : "#F1F5F9",
-                          backgroundColor: adjustmentShop === shop.id ? "#EEF2FF" : "#FFFFFF",
+                          borderColor: adjustmentShop === shop.id ? "#BFDBFE" : "#E5E7EB",
+                          backgroundColor: adjustmentShop === shop.id ? "#EFF6FF" : "#FFFFFF",
                         }}
                       >
-                        <Store size={18} color={adjustmentShop === shop.id ? "#6366F1" : "#64748B"} strokeWidth={2} />
-                        <Text style={{ fontSize: 15, fontWeight: "600", color: adjustmentShop === shop.id ? "#6366F1" : "#0F172A", marginLeft: 10 }}>
+                        <Store size={18} color={adjustmentShop === shop.id ? "#2563EB" : "#64748B"} strokeWidth={2} />
+                        <Text style={{ fontSize: 15, fontWeight: "600", color: adjustmentShop === shop.id ? "#2563EB" : "#171717", marginLeft: 10 }}>
                           {shop.shop_name}
                         </Text>
                       </Pressable>
@@ -996,12 +1290,12 @@ export default function InventoryScreen() {
                         padding: 14,
                         borderRadius: 12,
                         borderWidth: 2,
-                        borderColor: adjustmentType === "Add Stock" ? "#10B981" : "#F1F5F9",
-                        backgroundColor: adjustmentType === "Add Stock" ? "#ECFDF5" : "#FFFFFF",
+                        borderColor: adjustmentType === "Add Stock" ? "#BFDBFE" : "#E5E7EB",
+                        backgroundColor: adjustmentType === "Add Stock" ? "#EFF6FF" : "#FFFFFF",
                       }}
                     >
-                      <TrendingUp size={18} color={adjustmentType === "Add Stock" ? "#10B981" : "#64748B"} strokeWidth={2} />
-                      <Text style={{ fontSize: 15, fontWeight: "600", color: adjustmentType === "Add Stock" ? "#10B981" : "#0F172A", marginLeft: 8 }}>
+                      <TrendingUp size={18} color={adjustmentType === "Add Stock" ? "#2563EB" : "#64748B"} strokeWidth={2} />
+                      <Text style={{ fontSize: 15, fontWeight: "600", color: adjustmentType === "Add Stock" ? "#2563EB" : "#171717", marginLeft: 8 }}>
                         Add Stock
                       </Text>
                     </Pressable>
@@ -1054,13 +1348,13 @@ export default function InventoryScreen() {
 
                     {/* Available Items List */}
                     <View style={{
-                      maxHeight: 200,
+                      maxHeight: 220,
                       borderWidth: 1,
-                      borderColor: "#E2E8F0",
+                      borderColor: "#E5E7EB",
                       borderRadius: 8,
                       backgroundColor: "#FAFAFA",
                     }}>
-                      <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                      <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                         {shopItems
                           .filter((product) => {
                             const matchesSearch = itemSearchQuery
@@ -1081,14 +1375,14 @@ export default function InventoryScreen() {
                                   padding: 12,
                                   borderBottomWidth: 1,
                                   borderBottomColor: "#E2E8F0",
-                                  backgroundColor: isSelected ? "#EEF2FF" : "#fff",
+                                  backgroundColor: isSelected ? "#EFF6FF" : "#fff",
                                 }}
                               >
                                 <View style={{ flex: 1 }}>
                                   <Text style={{
                                     fontSize: 14,
                                     fontWeight: "600",
-                                    color: "#0F172A",
+                                    color: "#171717",
                                   }}>
                                     {product.item_name}
                                   </Text>
@@ -1105,7 +1399,7 @@ export default function InventoryScreen() {
                                     width: 20,
                                     height: 20,
                                     borderRadius: 10,
-                                    backgroundColor: "#6366F1",
+                                    backgroundColor: "#2563EB",
                                     alignItems: "center",
                                     justifyContent: "center",
                                   }}>
@@ -1130,10 +1424,12 @@ export default function InventoryScreen() {
                       <View
                         key={item.product_id}
                         style={{
-                          backgroundColor: "#F8FAFC",
+                          backgroundColor: "#FAFAFA",
                           borderRadius: 8,
                           padding: 12,
                           marginBottom: 8,
+                          borderWidth: 1,
+                          borderColor: "#E5E7EB",
                         }}
                       >
                         <View style={{
@@ -1145,7 +1441,7 @@ export default function InventoryScreen() {
                           <Text style={{
                             fontSize: 14,
                             fontWeight: "600",
-                            color: "#0F172A",
+                            color: "#171717",
                             flex: 1,
                           }}>
                             {item.product_name}
@@ -1154,7 +1450,7 @@ export default function InventoryScreen() {
                             onPress={() => removeItemFromAdjustment(item.product_id)}
                             style={{ padding: 4 }}
                           >
-                            <X size={16} color="#EF4444" />
+                            <X size={16} color="#525252" />
                           </Pressable>
                         </View>
                         <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
@@ -1213,15 +1509,15 @@ export default function InventoryScreen() {
                   <Pressable
                     onPress={handleBulkStockAdjustment}
                     style={({ pressed }) => ({
-                      backgroundColor: adjustmentType === "Add Stock" ? "#10B981" : "#EF4444",
-                      borderRadius: 12,
+                      backgroundColor: "#171717",
+                      borderRadius: 10,
                       paddingVertical: 16,
                       alignItems: "center",
                       opacity: pressed ? 0.9 : 1,
                     })}
                   >
                     <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
-                      {adjustmentType === "Add Stock" ? "Add Stock" : "Remove Stock"}
+                      Save adjustment
                     </Text>
                   </Pressable>
                 </View>
@@ -1234,10 +1530,10 @@ export default function InventoryScreen() {
       {/* Stock History Modal */}
       <Modal visible={showHistoryModal} transparent animationType="slide" onRequestClose={() => setShowHistoryModal(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom, maxHeight: "80%" }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: insets.bottom + 20, maxHeight: "84%" }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
-                Stock History
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#171717" }}>
+                Stock history
               </Text>
               <Pressable onPress={() => setShowHistoryModal(false)}>
                 <X size={24} color="#64748B" strokeWidth={2} />
@@ -1256,15 +1552,15 @@ export default function InventoryScreen() {
                       <View
                         key={transaction.id}
                         style={{
-                          backgroundColor: "#F8FAFC",
+                          backgroundColor: "#FAFAFA",
                           borderRadius: 12,
                           padding: 14,
                           borderLeftWidth: 4,
-                          borderLeftColor: transaction.purpose === "Add Stock" ? "#10B981" : transaction.purpose === "Remove Stock" ? "#EF4444" : "#6366F1",
+                          borderLeftColor: transaction.purpose === "Add Stock" ? "#2563EB" : transaction.purpose === "Remove Stock" ? "#525252" : "#A3A3A3",
                         }}
                       >
                         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-                          <Text style={{ fontSize: 14, fontWeight: "700", color: "#0F172A" }}>
+                          <Text style={{ fontSize: 14, fontWeight: "700", color: "#171717" }}>
                             {transaction.purpose}
                           </Text>
                           <Text style={{ fontSize: 12, color: "#64748B" }}>
@@ -1300,7 +1596,7 @@ export default function InventoryScreen() {
             }}
             onStartShouldSetResponder={() => true}
           >
-            <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A", marginBottom: 16, textAlign: "center" }}>
+            <Text style={{ fontSize: 18, fontWeight: "700", color: "#171717", marginBottom: 16, textAlign: "center" }}>
               {selectedItem?.item_name}
             </Text>
 
@@ -1311,13 +1607,15 @@ export default function InventoryScreen() {
                 alignItems: "center",
                 padding: 16,
                 borderRadius: 12,
-                backgroundColor: "#F8FAFC",
+                backgroundColor: "#FAFAFA",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
                 marginBottom: 12,
               }}
             >
-              <Edit3 size={20} color="#6366F1" strokeWidth={2} />
-              <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A", marginLeft: 12 }}>
-                Edit Item
+              <Edit3 size={20} color="#404040" strokeWidth={2} />
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#171717", marginLeft: 12 }}>
+                Edit item
               </Text>
             </Pressable>
 
@@ -1328,12 +1626,14 @@ export default function InventoryScreen() {
                 alignItems: "center",
                 padding: 16,
                 borderRadius: 12,
-                backgroundColor: "#FEF2F2",
+                backgroundColor: "#FAFAFA",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
               }}
             >
-              <Trash2 size={20} color="#EF4444" strokeWidth={2} />
-              <Text style={{ fontSize: 16, fontWeight: "600", color: "#EF4444", marginLeft: 12 }}>
-                Delete Item
+              <Trash2 size={20} color="#525252" strokeWidth={2} />
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#171717", marginLeft: 12 }}>
+                Delete item
               </Text>
             </Pressable>
 
@@ -1352,13 +1652,149 @@ export default function InventoryScreen() {
         </Pressable>
       </Modal>
 
-      {/* Edit Item Modal - reuses same structure as Add Item Modal */}
-      <Modal visible={showEditItemModal} transparent animationType="slide" onRequestClose={() => {setShowEditItemModal(false); resetItemForm();}}>
+      <FormSheet
+        visible={showEditItemModal}
+        onClose={() => {
+          setShowEditItemModal(false);
+          resetItemForm();
+          setSelectedItem(null);
+        }}
+        title="Edit item"
+        insets={insets}
+        footer={<AppButton label="Save changes" onPress={handleUpdateItem} />}
+      >
+        <Text style={{ fontSize: 13, fontWeight: "500", color: "#525252", marginBottom: 8 }}>Shop</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {shops.map((shop) => {
+              const active = itemForm.shop === shop.id;
+              return (
+                <Pressable
+                  key={shop.id}
+                  onPress={() => setItemForm({ ...itemForm, shop: shop.id })}
+                  style={{
+                    minHeight: 34,
+                    paddingHorizontal: 14,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: active ? "#2E69FF" : "#E2E2E2",
+                    backgroundColor: active ? "#EAF0FF" : "#FFFFFF",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "row",
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: active ? "#2E69FF" : "#525252", fontWeight: "500" }}>
+                    {shop.shop_name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+        <FormField label="Item name" value={itemForm.item_name} onChangeText={(text) => setItemForm({ ...itemForm, item_name: text })} placeholder="Enter item name" />
+        <FormField label="Description" value={itemForm.description} onChangeText={(text) => setItemForm({ ...itemForm, description: text })} placeholder="Additional details..." multiline />
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <FormField label="Buying price" value={itemForm.cost_price} onChangeText={(text) => setItemForm({ ...itemForm, cost_price: text })} placeholder="0.00" keyboardType="decimal-pad" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <FormField label="Selling price" value={itemForm.unit_price} onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })} placeholder="0.00" keyboardType="decimal-pad" />
+          </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <FormField label="Stock quantity" value={itemForm.current_stock} onChangeText={(text) => setItemForm({ ...itemForm, current_stock: text })} placeholder="0" keyboardType="number-pad" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <FormField label="Low stock alert" value={itemForm.low_stock_threshold} onChangeText={(text) => setItemForm({ ...itemForm, low_stock_threshold: text })} placeholder="5" keyboardType="number-pad" />
+          </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Pressable
+            onPress={() => setItemForm({ ...itemForm, enabled: !itemForm.enabled })}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 14,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: "#E2E2E2",
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <View
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 6,
+                borderWidth: 1.5,
+                borderColor: itemForm.enabled ? "#3A3A3A" : "#B8B8B8",
+                backgroundColor: itemForm.enabled ? "#242424" : "#FFFFFF",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {itemForm.enabled ? <Check size={12} color="#FFFFFF" strokeWidth={2.4} /> : null}
+            </View>
+            <Text style={{ fontSize: 14, fontWeight: "500", color: "#242424" }}>Enabled</Text>
+          </Pressable>
+
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingHorizontal: 14,
+              paddingVertical: 14,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: "#E2E2E2",
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <Pressable
+              onPress={() => setItemForm({ ...itemForm, track_stock: !itemForm.track_stock })}
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}
+            >
+              <View
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 6,
+                  borderWidth: 1.5,
+                  borderColor: itemForm.track_stock ? "#3A3A3A" : "#B8B8B8",
+                  backgroundColor: itemForm.track_stock ? "#242424" : "#FFFFFF",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {itemForm.track_stock ? <Check size={12} color="#FFFFFF" strokeWidth={2.4} /> : null}
+              </View>
+              <Text style={{ fontSize: 14, fontWeight: "500", color: "#242424" }}>Track stock</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => Alert.alert("Track Stock", "Select if you want to manage stock of the item in the system.")}
+              style={{ padding: 4 }}
+            >
+              <Info size={15} color="#707070" />
+            </Pressable>
+          </View>
+        </View>
+      </FormSheet>
+
+      {/* Legacy Edit Item Modal */}
+      <Modal visible={false && showEditItemModal} transparent animationType="slide" onRequestClose={() => {setShowEditItemModal(false); resetItemForm();}}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "90%", paddingBottom: insets.bottom + 20 }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
-                Edit Item
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#171717" }}>
+                Edit item
               </Text>
               <Pressable onPress={() => { setShowEditItemModal(false); resetItemForm(); setSelectedItem(null); }}>
                 <X size={24} color="#64748B" strokeWidth={2} />
@@ -1397,17 +1833,17 @@ export default function InventoryScreen() {
                             padding: 12,
                             borderRadius: 12,
                             borderWidth: 2,
-                            borderColor: itemForm.shop === shop.id ? "#6366F1" : "#E2E8F0",
-                            backgroundColor: itemForm.shop === shop.id ? "#EEF2FF" : "#FAFAFA",
+                            borderColor: itemForm.shop === shop.id ? "#BFDBFE" : "#E2E8F0",
+                            backgroundColor: itemForm.shop === shop.id ? "#EFF6FF" : "#FAFAFA",
                           }}
                         >
-                          <Store size={18} color={itemForm.shop === shop.id ? "#6366F1" : "#94A3B8"} strokeWidth={2} />
-                          <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#6366F1" : "#64748B", marginLeft: 10 }}>
+                          <Store size={18} color={itemForm.shop === shop.id ? "#2563EB" : "#94A3B8"} strokeWidth={2} />
+                          <Text style={{ fontSize: 15, fontWeight: "600", color: itemForm.shop === shop.id ? "#2563EB" : "#64748B", marginLeft: 10 }}>
                             {shop.shop_name}
                           </Text>
                           {itemForm.shop === shop.id && (
                             <View style={{ marginLeft: "auto" }}>
-                              <Check size={16} color="#6366F1" />
+                              <Check size={16} color="#2563EB" />
                             </View>
                           )}
                         </Pressable>
@@ -1568,8 +2004,8 @@ export default function InventoryScreen() {
                         height: 20,
                         borderRadius: 6,
                         borderWidth: 2,
-                        borderColor: itemForm.enabled ? "#10B981" : "#E2E8F0",
-                        backgroundColor: itemForm.enabled ? "#10B981" : "transparent",
+                        borderColor: itemForm.enabled ? "#2563EB" : "#E2E8F0",
+                        backgroundColor: itemForm.enabled ? "#2563EB" : "transparent",
                         alignItems: "center",
                         justifyContent: "center",
                         marginRight: 12,
@@ -1579,8 +2015,8 @@ export default function InventoryScreen() {
                         <Text style={{ fontSize: 14, fontWeight: "bold", color: "#FFFFFF" }}>✓</Text>
                       )}
                     </View>
-                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#0F172A" }}>
-                      Item is Enabled
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#171717" }}>
+                      Item is enabled
                     </Text>
                   </Pressable>
                 </View>
@@ -1590,15 +2026,15 @@ export default function InventoryScreen() {
                 <Pressable
                   onPress={handleUpdateItem}
                   style={({ pressed }) => ({
-                    backgroundColor: "#6366F1",
-                    borderRadius: 12,
+                    backgroundColor: "#171717",
+                    borderRadius: 10,
                     paddingVertical: 16,
                     alignItems: "center",
                     opacity: pressed ? 0.9 : 1,
                   })}
                 >
                   <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
-                    Update Item
+                    Save changes
                   </Text>
                 </Pressable>
               </View>
@@ -1606,10 +2042,8 @@ export default function InventoryScreen() {
           </View>
         </View>
       </Modal>
-      </View>
-
       {/* Slim Ad Banner */}
       <AdBanner variant="slim" context="items" />
-    </KeyboardAvoidingView>
+      </View>
   );
 }

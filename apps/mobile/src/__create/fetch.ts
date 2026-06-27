@@ -1,5 +1,5 @@
-import * as SecureStore from 'expo-secure-store';
 import { fetch as expoFetch } from 'expo/fetch';
+import { getStorageItem } from '../utils/authStorage';
 
 const originalFetch = fetch;
 const authKey = `${process.env.EXPO_PUBLIC_PROJECT_GROUP_ID}-jwt`;
@@ -71,7 +71,7 @@ const fetchToWeb = async function fetchWithHeaders(...args: Params) {
     }
   }
 
-  const auth = await SecureStore.getItemAsync(authKey)
+  const auth = await getStorageItem(authKey)
     .then((auth) => {
       return auth ? JSON.parse(auth) : null;
     })

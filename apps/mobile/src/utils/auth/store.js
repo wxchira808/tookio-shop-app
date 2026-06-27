@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import * as SecureStore from "expo-secure-store";
+import { deleteStorageItem, setJsonStorageItem } from "@/utils/authStorage";
 
 export const authKey = `tookio-frappe-auth`;
 
@@ -11,9 +11,9 @@ export const useAuthStore = create((set) => ({
   auth: null,
   setAuth: (auth) => {
     if (auth) {
-      SecureStore.setItemAsync(authKey, JSON.stringify(auth));
+      setJsonStorageItem(authKey, auth);
     } else {
-      SecureStore.deleteItemAsync(authKey);
+      deleteStorageItem(authKey);
     }
     set({ auth });
   },

@@ -24,6 +24,19 @@
         "EXPO_PUBLIC_APP_SCHEME": "tookioshop"
       }
     },
+    "local-apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_BASE_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_PROXY_BASE_URL": "https://shop.tookio.co.ke",
+        "EXPO_PUBLIC_APP_NAME": "Tookio Shop",
+        "EXPO_PUBLIC_APP_SCHEME": "tookioshop"
+      }
+    },
     "production": {
       "channel": "production",
       "env": {

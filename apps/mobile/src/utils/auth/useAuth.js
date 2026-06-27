@@ -1,10 +1,10 @@
 import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useMemo } from "react";
 import { create } from "zustand";
 import { Modal, View } from "react-native";
 import { useAuthModal, useAuthStore, authKey } from "./store";
 import { checkSession, logout as frappeLogout } from "@/utils/frappeApi";
+import { deleteStorageItem, getStorageItem } from "@/utils/authStorage";
 
 /**
  * This hook provides authentication functionality.
@@ -17,7 +17,7 @@ export const useAuth = () => {
   const { isOpen, close, open } = useAuthModal();
 
   const initiate = useCallback(() => {
-    SecureStore.getItemAsync(authKey).then((auth) => {
+    getStorageItem(authKey).then((auth) => {
       const parsedAuth = auth ? JSON.parse(auth) : null;
 
       if (!parsedAuth) {
@@ -34,7 +34,7 @@ export const useAuth = () => {
       });
 
       checkSession().catch(async () => {
-        await SecureStore.deleteItemAsync(authKey);
+        await deleteStorageItem(authKey);
         useAuthStore.setState({ auth: null, isReady: true });
         close();
         router.replace('/auth');

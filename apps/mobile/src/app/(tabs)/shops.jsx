@@ -15,10 +15,10 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
 import { AdBanner } from "@/components/AdBanner";
+import { AppButton, FormField, FormSheet, SelectField } from "@/components/frappe-ui";
 import {
   Store,
   Plus,
-  ChevronRight,
   X,
   Edit,
   Check,
@@ -33,6 +33,8 @@ import {
   deleteShop,
   getItems,
   checkSession,
+  getCountryOptions,
+  getCurrencyOptions,
 } from "@/utils/frappeApi";
 import {
   getActiveShop,
@@ -63,6 +65,10 @@ export default function Shops() {
   const [address, setAddress] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [emailAddress, setEmailAddress] = useState("");
+  const [country, setCountry] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [countryOptions, setCountryOptions] = useState([]);
+  const [currencyOptions, setCurrencyOptions] = useState([]);
   const [enabled, setEnabled] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -70,16 +76,29 @@ export default function Shops() {
     loadData();
   }, []);
 
+  const pickDefault = (options, preferred) => {
+    if (!options.length) return "";
+    const preferredMatch = preferred.find((value) => options.includes(value));
+    return preferredMatch || options[0] || "";
+  };
+
   const loadData = async () => {
     try {
       // Check session first
       await checkSession();
 
       setLoading(true);
-      const [shopsRes, activeId] = await Promise.all([
+      const [shopsRes, activeId, countriesRes, currenciesRes] = await Promise.all([
         getShops(),
         getActiveShop(),
+        getCountryOptions().catch(() => []),
+        getCurrencyOptions().catch(() => []),
       ]);
+
+      const normalizedCountries = (countriesRes || []).length > 0 ? countriesRes : ["Kenya"];
+      const normalizedCurrencies = (currenciesRes || []).length > 0 ? currenciesRes : ["KES"];
+      setCountryOptions(normalizedCountries);
+      setCurrencyOptions(normalizedCurrencies);
 
       if (shopsRes && shopsRes.shops) {
         setShops(shopsRes.shops);
@@ -123,6 +142,8 @@ export default function Shops() {
         address: address.trim() || null,
         mobile_number: mobileNumber.trim() || null,
         email_address: emailAddress.trim() || null,
+        country: country || null,
+        currency: currency || null,
         enabled: enabled ? 1 : 0, // Convert boolean to 1/0
       });
 
@@ -134,6 +155,8 @@ export default function Shops() {
         setAddress("");
         setMobileNumber("");
         setEmailAddress("");
+        setCountry("");
+        setCurrency("");
         setEnabled(true);
         setShowAddModal(false);
         
@@ -168,6 +191,8 @@ export default function Shops() {
         address: address.trim() || null,
         mobile_number: mobileNumber.trim() || null,
         email_address: emailAddress.trim() || null,
+        country: country || null,
+        currency: currency || null,
         enabled: enabled ? 1 : 0, // Convert boolean to 1/0
       });
 
@@ -179,6 +204,8 @@ export default function Shops() {
         setAddress("");
         setMobileNumber("");
         setEmailAddress("");
+        setCountry("");
+        setCurrency("");
         setEnabled(true);
         setShowEditModal(false);
         setEditingShop(null);
@@ -247,6 +274,8 @@ export default function Shops() {
     setAddress(shop.address || "");
     setMobileNumber(shop.mobile_number || "");
     setEmailAddress(shop.email_address || "");
+    setCountry(shop.country || pickDefault(countryOptions, ["Kenya"]));
+    setCurrency(shop.currency || pickDefault(currencyOptions, ["KES"]));
     setEnabled(shop.enabled === 1); // Convert 1 to true, anything else to false
     setShowEditModal(true);
   };
@@ -258,6 +287,8 @@ export default function Shops() {
     setAddress("");
     setMobileNumber("");
     setEmailAddress("");
+    setCountry(pickDefault(countryOptions, ["Kenya"]));
+    setCurrency(pickDefault(currencyOptions, ["KES"]));
     setEnabled(true);
     setShowAddModal(true);
   };
@@ -282,14 +313,14 @@ export default function Shops() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "#F8FAFC",
+          backgroundColor: "#F7F7F7",
           paddingTop: insets.top,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ActivityIndicator size="large" color="#357AFF" />
-        <Text style={{ fontSize: 16, color: "#6B7280", marginTop: 12 }}>
+        <ActivityIndicator size="large" color="#525252" />
+        <Text style={{ fontSize: 15, color: "#737373", marginTop: 12 }}>
           Loading shops...
         </Text>
       </View>
@@ -298,7 +329,7 @@ export default function Shops() {
 
   return (
     <View
-      style={{ flex: 1, backgroundColor: "#F8FAFC", paddingTop: insets.top }}
+      style={{ flex: 1, backgroundColor: "#F7F7F7", paddingTop: insets.top }}
     >
       <StatusBar style="dark" />
 
@@ -306,28 +337,29 @@ export default function Shops() {
       <View
         style={{
           paddingHorizontal: 20,
-          paddingVertical: 20,
-          backgroundColor: "#fff",
+          paddingTop: 18,
+          paddingBottom: 16,
+          backgroundColor: "#F7F7F7",
           flexDirection: "row",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <View>
-          <Text style={{ fontSize: 24, fontWeight: "bold", color: "#1F2937" }}>
-            My Shops
+          <Text style={{ fontSize: 24, fontWeight: "700", color: "#171717" }}>
+            Shops
           </Text>
-          <Text style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}>
+          <Text style={{ fontSize: 14, color: "#737373", marginTop: 4 }}>
             {shops.length} shop{shops.length !== 1 ? "s" : ""} •{" "}
-            {activeShopId ? "Active shop selected" : "No active shop"}
+            {activeShopId ? "one active" : "choose an active shop"}
           </Text>
         </View>
 
         <Pressable
           onPress={openAddModal}
           style={({ pressed }) => ({
-            backgroundColor: "#357AFF",
-            paddingHorizontal: 16,
+            backgroundColor: "#171717",
+            paddingHorizontal: 12,
             paddingVertical: 8,
             borderRadius: 8,
             flexDirection: "row",
@@ -344,7 +376,7 @@ export default function Shops() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -359,16 +391,11 @@ export default function Shops() {
                   key={shop.id}
                   style={{
                     backgroundColor: "#fff",
-                    borderRadius: 12,
+                    borderRadius: 10,
                     padding: 16,
                     marginBottom: 12,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 4,
-                    elevation: 2,
-                    borderWidth: isActive ? 2 : 0,
-                    borderColor: isActive ? "#357AFF" : "transparent",
+                    borderWidth: 1,
+                    borderColor: isActive ? "#93C5FD" : "#E5E5E5",
                   }}
                 >
                   <View
@@ -387,16 +414,18 @@ export default function Shops() {
                     >
                       <View
                         style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 12,
-                          backgroundColor: isActive ? "#357AFF" : "#357AFF15",
+                          width: 42,
+                          height: 42,
+                          borderRadius: 10,
+                          backgroundColor: "#F5F5F5",
+                          borderWidth: 1,
+                          borderColor: isActive ? "#BFDBFE" : "#E5E5E5",
                           alignItems: "center",
                           justifyContent: "center",
-                          marginRight: 16,
+                          marginRight: 14,
                         }}
                       >
-                        <Store size={24} color={isActive ? "#fff" : "#357AFF"} />
+                        <Store size={20} color={isActive ? "#2563EB" : "#525252"} />
                       </View>
 
                       <View style={{ flex: 1 }}>
@@ -411,7 +440,7 @@ export default function Shops() {
                             style={{
                               fontSize: 16,
                               fontWeight: "600",
-                              color: "#1F2937",
+                              color: "#171717",
                             }}
                           >
                             {shop.shop_name}
@@ -419,16 +448,18 @@ export default function Shops() {
                           {isActive && (
                             <View
                               style={{
-                                backgroundColor: "#10B981",
+                                backgroundColor: "#EFF6FF",
                                 paddingHorizontal: 8,
-                                paddingVertical: 2,
+                                paddingVertical: 3,
                                 borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: "#BFDBFE",
                               }}
                             >
                               <Text
                                 style={{
                                   fontSize: 10,
-                                  color: "#fff",
+                                  color: "#2563EB",
                                   fontWeight: "600",
                                 }}
                               >
@@ -441,23 +472,23 @@ export default function Shops() {
                         {/* Shop Details */}
                         <View style={{ marginTop: 8, gap: 4 }}>
                           {shop.location && (
-                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
-                              📍 {shop.location}
+                            <Text style={{ fontSize: 12, color: "#737373" }}>
+                              {shop.location}
                             </Text>
                           )}
                           {shop.address && (
-                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
-                              🏠 {shop.address}
+                            <Text style={{ fontSize: 12, color: "#737373" }}>
+                              {shop.address}
                             </Text>
                           )}
                           {shop.mobile_number && (
-                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
-                              📱 {shop.mobile_number}
+                            <Text style={{ fontSize: 12, color: "#737373" }}>
+                              {shop.mobile_number}
                             </Text>
                           )}
                           {shop.email_address && (
-                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
-                              ✉️ {shop.email_address}
+                            <Text style={{ fontSize: 12, color: "#737373" }}>
+                              {shop.email_address}
                             </Text>
                           )}
                         </View>
@@ -465,40 +496,42 @@ export default function Shops() {
                         <View style={{ flexDirection: "row", marginTop: 8, gap: 8, flexWrap: "wrap" }}>
                           <View
                             style={{
-                              backgroundColor: "#F3F4F6",
+                              backgroundColor: "#F5F5F5",
                               paddingHorizontal: 8,
                               paddingVertical: 4,
                               borderRadius: 6,
                             }}
                           >
-                            <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                            <Text style={{ fontSize: 12, color: "#737373" }}>
                               {shop.item_count || 0} items
                             </Text>
                           </View>
                           <View
                             style={{
-                              backgroundColor: "#F0FDF4",
+                              backgroundColor: "#FAFAFA",
                               paddingHorizontal: 8,
                               paddingVertical: 4,
                               borderRadius: 6,
+                              borderWidth: 1,
+                              borderColor: "#E5E7EB",
                             }}
                           >
-                            <Text style={{ fontSize: 12, color: "#16A34A" }}>
+                            <Text style={{ fontSize: 12, color: "#171717" }}>
                               {formatCurrency(shop.total_value || 0)}
                             </Text>
                           </View>
                           <Pressable
                             onPress={() => viewShopDetails(shop)}
                             style={{
-                              backgroundColor: "#357AFF15",
+                              backgroundColor: "#F5F5F5",
                               paddingHorizontal: 8,
                               paddingVertical: 4,
                               borderRadius: 6,
                               flexShrink: 1,
                             }}
                           >
-                            <Text style={{ fontSize: 12, color: "#357AFF", fontWeight: "500" }}>
-                              View Items →
+                            <Text style={{ fontSize: 12, color: "#404040", fontWeight: "500" }}>
+                              View items
                             </Text>
                           </Pressable>
                         </View>
@@ -514,7 +547,7 @@ export default function Shops() {
                       marginTop: 12,
                       paddingTop: 12,
                       borderTopWidth: 1,
-                      borderTopColor: "#F3F4F6",
+                      borderTopColor: "#F5F5F5",
                     }}
                   >
                     {/* Enabled Status Badge */}
@@ -524,7 +557,9 @@ export default function Shops() {
                         paddingVertical: 8,
                         paddingHorizontal: 12,
                         borderRadius: 8,
-                        backgroundColor: shop.enabled === 1 ? "#D1FAE515" : "#FEE2E215",
+                        backgroundColor: "#FAFAFA",
+                        borderWidth: 1,
+                        borderColor: "#E5E7EB",
                         flexDirection: "row",
                         alignItems: "center",
                         justifyContent: "center",
@@ -535,7 +570,7 @@ export default function Shops() {
                           width: 8,
                           height: 8,
                           borderRadius: 4,
-                          backgroundColor: shop.enabled === 1 ? "#10B981" : "#EF4444",
+                          backgroundColor: shop.enabled === 1 ? "#2563EB" : "#A3A3A3",
                           marginRight: 6,
                         }}
                       />
@@ -543,7 +578,7 @@ export default function Shops() {
                         style={{
                           fontSize: 12,
                           fontWeight: "600",
-                          color: shop.enabled === 1 ? "#10B981" : "#EF4444",
+                          color: shop.enabled === 1 ? "#2563EB" : "#525252",
                         }}
                       >
                         {shop.enabled === 1 ? "Enabled" : "Disabled"}
@@ -553,7 +588,9 @@ export default function Shops() {
                       onPress={() => openEditModal(shop)}
                       style={({ pressed }) => ({
                         flex: 1,
-                        backgroundColor: "#F59E0B15",
+                        backgroundColor: "#FAFAFA",
+                        borderWidth: 1,
+                        borderColor: "#E5E7EB",
                         paddingVertical: 8,
                         borderRadius: 8,
                         flexDirection: "row",
@@ -562,10 +599,10 @@ export default function Shops() {
                         opacity: pressed ? 0.7 : 1,
                       })}
                     >
-                      <Edit size={16} color="#F59E0B" />
+                      <Edit size={16} color="#404040" />
                       <Text
                         style={{
-                          color: "#F59E0B",
+                          color: "#404040",
                           marginLeft: 4,
                           fontWeight: "600",
                           fontSize: 14,
@@ -595,6 +632,8 @@ export default function Shops() {
                 height: 80,
                 borderRadius: 40,
                 backgroundColor: "#F3F4F6",
+                borderWidth: 1,
+                borderColor: "#E5E5E5",
                 alignItems: "center",
                 justifyContent: "center",
                 marginBottom: 24,
@@ -612,13 +651,13 @@ export default function Shops() {
                 marginBottom: 8,
               }}
             >
-              No Shops Yet
+              No shops yet
             </Text>
 
             <Text
               style={{
                 fontSize: 16,
-                color: "#6B7280",
+                color: "#737373",
                 textAlign: "center",
                 marginBottom: 32,
                 lineHeight: 24,
@@ -631,7 +670,7 @@ export default function Shops() {
             <Pressable
               onPress={openAddModal}
               style={({ pressed }) => ({
-                backgroundColor: "#357AFF",
+                backgroundColor: "#171717",
                 paddingHorizontal: 24,
                 paddingVertical: 12,
                 borderRadius: 8,
@@ -649,16 +688,151 @@ export default function Shops() {
                   fontSize: 16,
                 }}
               >
-                Create First Shop
+                Create shop
               </Text>
             </Pressable>
           </View>
         )}
       </ScrollView>
 
-      {/* Add/Edit Shop Modal */}
-      <Modal
+      <FormSheet
         visible={showAddModal || showEditModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setShowEditModal(false);
+          setEditingShop(null);
+        }}
+        title={showEditModal ? "Edit shop" : "Add shop"}
+        insets={insets}
+        footer={
+          showEditModal ? (
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <AppButton
+                label={submitting ? "Deleting..." : "Delete"}
+                onPress={handleDeleteShop}
+                disabled={submitting}
+                variant="outline"
+                theme="red"
+                icon={Trash2}
+                style={{ flex: 1 }}
+              />
+              <AppButton
+                label={submitting ? "Saving..." : "Save changes"}
+                onPress={handleEditShop}
+                disabled={submitting}
+                icon={Check}
+                style={{ flex: 1 }}
+              />
+            </View>
+          ) : (
+            <AppButton
+              label={submitting ? "Creating..." : "Create shop"}
+              onPress={handleAddShop}
+              disabled={submitting}
+            />
+          )
+        }
+      >
+        <FormField
+          label="Shop name"
+          value={shopName}
+          onChangeText={setShopName}
+          placeholder="Enter shop name"
+          helperText="Required"
+        />
+        <FormField
+          label="Description"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Tell people what this shop is for"
+          multiline
+        />
+        <FormField
+          label="Location"
+          value={location}
+          onChangeText={setLocation}
+          placeholder="Downtown, market, mall..."
+        />
+        <FormField
+          label="Address"
+          value={address}
+          onChangeText={setAddress}
+          placeholder="Full address"
+          multiline
+        />
+        <FormField
+          label="Mobile number"
+          value={mobileNumber}
+          onChangeText={setMobileNumber}
+          placeholder="07..."
+          keyboardType="phone-pad"
+        />
+        <FormField
+          label="Email address"
+          value={emailAddress}
+          onChangeText={setEmailAddress}
+          placeholder="shop@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <SelectField
+          label="Country"
+          value={country}
+          onValueChange={setCountry}
+          options={countryOptions.map((option) => ({ label: option, value: option }))}
+          placeholder="Choose country"
+          helperText="Linked to the Country doctype"
+        />
+        <SelectField
+          label="Currency"
+          value={currency}
+          onValueChange={setCurrency}
+          options={currencyOptions.map((option) => ({ label: option, value: option }))}
+          placeholder="Choose currency"
+          helperText="Linked to the Currency doctype"
+        />
+        <Pressable
+          onPress={() => setEnabled(!enabled)}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 14,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: "#E2E2E2",
+            backgroundColor: "#FFFFFF",
+          }}
+        >
+          <View
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 6,
+              borderWidth: 1.5,
+              borderColor: enabled ? "#3A3A3A" : "#B8B8B8",
+              backgroundColor: enabled ? "#242424" : "#FFFFFF",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {enabled ? <Check size={12} color="#FFFFFF" strokeWidth={2.4} /> : null}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: "500", color: "#242424" }}>
+              {enabled ? "Shop enabled" : "Shop disabled"}
+            </Text>
+            <Text style={{ fontSize: 12, color: "#707070", marginTop: 2 }}>
+              {enabled ? "Visible in sales and inventory" : "Hidden from sales and inventory"}
+            </Text>
+          </View>
+        </Pressable>
+      </FormSheet>
+
+      {/* Legacy Add/Edit Shop Modal */}
+      <Modal
+        visible={false && (showAddModal || showEditModal)}
         transparent={true}
         animationType="slide"
         onRequestClose={() => {
@@ -679,8 +853,8 @@ export default function Shops() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              height: "85%",
-              paddingBottom: insets.bottom,
+              maxHeight: "90%",
+              paddingBottom: insets.bottom + 20,
             }}
           >
             {/* Modal Header */}
@@ -1082,8 +1256,8 @@ export default function Shops() {
               backgroundColor: "#fff",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              height: "80%",
-              paddingBottom: insets.bottom,
+              maxHeight: "84%",
+              paddingBottom: insets.bottom + 20,
             }}
           >
             <View
@@ -1146,6 +1320,22 @@ export default function Shops() {
                           </Text>
                         </View>
                       )}
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                          Country:
+                        </Text>
+                        <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                          {selectedShop.country || "Not set"}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>
+                          Currency:
+                        </Text>
+                        <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, fontWeight: "500" }}>
+                          {selectedShop.currency || "Not set"}
+                        </Text>
+                      </View>
                       {selectedShop.address && (
                         <View style={{ flexDirection: "row", gap: 8 }}>
                           <Text style={{ fontSize: 14, color: "#6B7280", width: 80 }}>

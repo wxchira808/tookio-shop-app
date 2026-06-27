@@ -1,25 +1,48 @@
-import { View, Text, ScrollView, Pressable, Modal, TextInput, Alert, RefreshControl, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRequireAuth, useAuth, handleApiError } from "@/utils/auth/useAuth";
+import { AdBanner } from "@/components/AdBanner";
+import {
+  AppButton,
+  BottomSheet,
+  Card,
+  FormField,
+  FormSheet,
+  IconButton,
+} from "@/components/frappe-ui";
 import {
   Plus,
-  X,
   ShoppingCart,
-  Calendar,
   DollarSign,
-  FileText,
   Tag,
   Store,
-  ChevronRight,
   Edit3,
   Trash2,
-  Search,
   Check,
 } from "lucide-react-native";
-import { useState, useEffect } from "react";
-import { getPurchases, createPurchase, updatePurchase, deletePurchase, getShops, checkSession } from "@/utils/frappeApi";
+import { useState, useEffect, useCallback } from "react";
+import {
+  getPurchases,
+  createPurchase,
+  updatePurchase,
+  deletePurchase,
+  getShops,
+  checkSession,
+} from "@/utils/frappeApi";
 import { formatCurrency } from "@/utils/currency";
+import { colors, spacing, type } from "@/theme/frappeTheme";
 
 const CATEGORIES = [
   "Stock",
@@ -43,10 +66,15 @@ export default function PurchasesScreen() {
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Filters state
+  const [dateFilter, setDateFilter] = useState("all"); // all, today, week, month
+  const [selectedShop, setSelectedShop] = useState(""); // Shop ID filter
 
   // Form state
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split("T")[0],
     shop: "",
     description: "",
     amount: "",
@@ -59,9 +87,7 @@ export default function PurchasesScreen() {
 
   const loadPurchases = async () => {
     try {
-      // Check session first
       await checkSession();
-
       setLoading(true);
       const [purchasesRes, shopsRes] = await Promise.all([
         getPurchases(),
@@ -69,7 +95,7 @@ export default function PurchasesScreen() {
       ]);
 
       setPurchases(purchasesRes?.purchases || []);
-      setShops((shopsRes?.shops || []).filter(shop => shop.enabled === 1));
+      setShops((shopsRes?.shops || []).filter((shop) => shop.enabled === 1));
     } catch (error) {
       console.error("Error loading purchases:", error);
       if (!handleApiError(error, signOut)) {
@@ -88,10 +114,11 @@ export default function PurchasesScreen() {
 
   const handleAddPurchase = async () => {
     if (!formData.shop || !formData.amount || !formData.description) {
-      Alert.alert("Missing Fields", "Please fill in shop, description, and amount");
+      Alert.alert("Missing Fields", "Please select a shop and fill in description and amount.");
       return;
     }
 
+    setSubmitting(true);
     try {
       await createPurchase(formData);
       Alert.alert("Success", "Purchase recorded successfully");
@@ -103,12 +130,14 @@ export default function PurchasesScreen() {
       if (!handleApiError(error, signOut)) {
         Alert.alert("Error", "Failed to record purchase");
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const resetForm = () => {
     setFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       shop: "",
       description: "",
       amount: "",
@@ -116,17 +145,14 @@ export default function PurchasesScreen() {
     });
   };
 
-  // Handle purchase click - show actions modal
   const handlePurchaseClick = (purchase) => {
     setSelectedPurchase(purchase);
     setShowActionsModal(true);
   };
 
-  // Handle edit purchase
   const handleEditPurchase = () => {
     if (!selectedPurchase) return;
 
-    // Populate form with selected purchase data
     setFormData({
       date: selectedPurchase.date,
       shop: selectedPurchase.shop,
@@ -139,7 +165,6 @@ export default function PurchasesScreen() {
     setShowEditModal(true);
   };
 
-  // Handle delete purchase
   const handleDeletePurchase = () => {
     if (!selectedPurchase) return;
 
@@ -169,13 +194,13 @@ export default function PurchasesScreen() {
     );
   };
 
-  // Handle update purchase
   const handleUpdatePurchase = async () => {
     if (!selectedPurchase || !formData.shop || !formData.amount || !formData.description) {
       Alert.alert("Missing Fields", "Please fill in all required fields");
       return;
     }
 
+    setSubmitting(true);
     try {
       await updatePurchase(selectedPurchase.id, formData);
       Alert.alert("Success", "Purchase updated successfully");
@@ -188,27 +213,64 @@ export default function PurchasesScreen() {
       if (!handleApiError(error, signOut)) {
         Alert.alert("Error", "Failed to update purchase");
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const getCategoryColor = (category) => {
-    const colors = {
-      "Stock": "#10B981",
-      "Utilities": "#F59E0B",
-      "Rent": "#EF4444",
-      "Transport": "#F97316",
-      "Other": "#64748B",
+    const colorsMap = {
+      Stock: colors.green || "#10B981",
+      Utilities: colors.amber || "#F59E0B",
+      Rent: colors.red || "#EF4444",
+      Transport: "#F97316",
+      Other: "#64748B",
     };
-    return colors[category] || "#64748B";
+    return colorsMap[category] || "#64748B";
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
-  // Filter purchases by search query
+  // Filter purchases by date, shop, and search query
   const filteredPurchases = purchases.filter((purchase) => {
+    // Shop filtering
+    if (selectedShop && purchase.shop !== selectedShop) {
+      return false;
+    }
+
+    // Date filtering
+    if (dateFilter !== "all") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const purchaseDate = new Date(purchase.date || purchase.created_at);
+
+      if (dateFilter === "today") {
+        const purchaseDateOnly = new Date(
+          purchaseDate.getFullYear(),
+          purchaseDate.getMonth(),
+          purchaseDate.getDate()
+        );
+        if (purchaseDateOnly.getTime() !== today.getTime()) return false;
+      } else if (dateFilter === "week") {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        if (purchaseDate < weekAgo) return false;
+      } else if (dateFilter === "month") {
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(today.getMonth() - 1);
+        if (purchaseDate < monthAgo) return false;
+      }
+    }
+
+    // Search query filtering
     if (!searchQuery) return true;
 
     const query = searchQuery.toLowerCase();
@@ -220,644 +282,765 @@ export default function PurchasesScreen() {
     );
   });
 
-  const totalExpenses = filteredPurchases.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  const totalExpenses = filteredPurchases.reduce(
+    (sum, p) => sum + parseFloat(p.amount || 0),
+    0
+  );
+
+  const filters = [
+    { label: "All time", value: "all" },
+    { label: "Today", value: "today" },
+    { label: "7 days", value: "week" },
+    { label: "30 days", value: "month" },
+  ];
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
-      <View style={{ flex: 1, backgroundColor: "#FAFAFA", paddingTop: insets.top }}>
+      <View
+        style={{ flex: 1, backgroundColor: "#F7F7F7", paddingTop: insets.top }}
+      >
         <StatusBar style="dark" />
 
         {/* Header */}
         <View
           style={{
             paddingHorizontal: 20,
-            paddingVertical: 16,
-            backgroundColor: "#FFFFFF",
-            borderBottomWidth: 1,
-            borderBottomColor: "#F1F5F9",
+            paddingTop: 18,
+            paddingBottom: 16,
+            backgroundColor: "#F7F7F7",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 24, fontWeight: "800", color: "#0F172A", letterSpacing: -0.5 }}>
-                Purchases
-              </Text>
-              <Text style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
-                Track expenses and purchases
-              </Text>
-            </View>
-
-            <Pressable
-              onPress={() => setShowAddModal(true)}
-              style={({ pressed }) => ({
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: pressed ? "#5B21B6" : "#6366F1",
-                alignItems: "center",
-                justifyContent: "center",
-              })}
+          <View>
+            <Text
+              style={{ fontSize: 24, fontWeight: "700", color: "#171717" }}
             >
-              <Plus size={22} color="#FFFFFF" strokeWidth={2.5} />
-            </Pressable>
+              Expenses
+            </Text>
+            <Text style={{ fontSize: 14, color: "#737373", marginTop: 4 }}>
+              Track and manage business costs
+            </Text>
           </View>
+
+          <Pressable
+            onPress={() => setShowAddModal(true)}
+            style={({ pressed }) => ({
+              backgroundColor: "#171717",
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Plus size={16} color="#fff" />
+            <Text style={{ color: "#fff", marginLeft: 4, fontWeight: "600" }}>
+              New Expense
+            </Text>
+          </Pressable>
         </View>
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{ paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
           {/* Search Bar - Inside ScrollView */}
-          <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-              <Search size={18} color="#94A3B8" strokeWidth={2} />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search by description, shop, category..."
-                placeholderTextColor="#94A3B8"
-                style={{ flex: 1, marginLeft: 10, fontSize: 15, color: "#0F172A" }}
-              />
-            </View>
-          </View>
-
-          {/* Total Expenses Card */}
-          <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-            <View
+          <View style={{ paddingHorizontal: 20, paddingVertical: 8 }}>
+            <TextInput
               style={{
                 backgroundColor: "#FFFFFF",
-                borderRadius: 16,
-                padding: 20,
+                borderRadius: 8,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                fontSize: 15,
+                color: "#171717",
                 borderWidth: 1,
-                borderColor: "#F1F5F9",
+                borderColor: "#E5E5E5",
               }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+              placeholder="Search expenses by description, shop, or category..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#A3A3A3"
+              returnKeyType="search"
+            />
+          </View>
+
+          {/* Stats Cards */}
+          <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
+            <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: "#fff",
+                  borderRadius: 10,
+                  padding: 16,
+                  borderWidth: 1,
+                  borderColor: "#E5E5E5",
+                }}
+              >
                 <View
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    backgroundColor: "#FEF2F2",
+                    flexDirection: "row",
                     alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: 12,
+                    marginBottom: 8,
                   }}
                 >
-                  <DollarSign size={20} color="#EF4444" strokeWidth={2.5} />
+                  <DollarSign size={18} color="#525252" />
+                  <Text style={{ fontSize: 13, color: "#737373", marginLeft: 8 }}>
+                    Total Expenses
+                  </Text>
                 </View>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#64748B", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Total Expenses
+                <Text
+                  style={{ fontSize: 20, fontWeight: "700", color: "#171717" }}
+                >
+                  {formatCurrency(totalExpenses, false)}
                 </Text>
               </View>
-              <Text style={{ fontSize: 32, fontWeight: "800", color: "#0F172A", letterSpacing: -1 }}>
-                {formatCurrency(totalExpenses, false)}
-              </Text>
-              <Text style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>
-                {filteredPurchases.length} transaction{filteredPurchases.length !== 1 ? "s" : ""}
-              </Text>
+
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: "#fff",
+                  borderRadius: 10,
+                  padding: 16,
+                  borderWidth: 1,
+                  borderColor: "#E5E5E5",
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <ShoppingCart size={18} color="#525252" />
+                  <Text style={{ fontSize: 13, color: "#737373", marginLeft: 8 }}>
+                    Transactions
+                  </Text>
+                </View>
+                <Text
+                  style={{ fontSize: 20, fontWeight: "700", color: "#171717" }}
+                >
+                  {filteredPurchases.length}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Purchases List */}
-          <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
-            <Text
+          {/* Expenses List */}
+          <View style={{ paddingHorizontal: 20 }}>
+            <View
               style={{
-                fontSize: 12,
-                fontWeight: "700",
-                color: "#64748B",
-                textTransform: "uppercase",
-                letterSpacing: 1,
-                marginBottom: 16,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
               }}
             >
-              Recent Purchases
-            </Text>
+              <Text
+                style={{
+                  fontSize: 17,
+                  fontWeight: "600",
+                  color: "#171717",
+                }}
+              >
+                Recent expenses
+              </Text>
+            </View>
+
+            {/* Date Filter */}
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 8,
+                marginBottom: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              {filters.map((filter) => (
+                <Pressable
+                  key={filter.value}
+                  onPress={() => setDateFilter(filter.value)}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 999,
+                    backgroundColor:
+                      dateFilter === filter.value ? "#171717" : "#FFFFFF",
+                    borderWidth: 1,
+                    borderColor:
+                      dateFilter === filter.value ? "#171717" : "#E5E7EB",
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: dateFilter === filter.value ? "#fff" : "#737373",
+                    }}
+                  >
+                    {filter.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Shop Filter */}
+            <View style={{ marginBottom: 16 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    onPress={() => setSelectedShop("")}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                      backgroundColor: !selectedShop ? "#171717" : "#FFFFFF",
+                      borderWidth: 1,
+                      borderColor: !selectedShop ? "#171717" : "#E5E7EB",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: !selectedShop ? "#FFFFFF" : "#737373",
+                      }}
+                    >
+                      All shops
+                    </Text>
+                  </Pressable>
+                  {shops.map((shop) => (
+                    <Pressable
+                      key={shop.id}
+                      onPress={() => setSelectedShop(shop.id)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 999,
+                        backgroundColor:
+                          selectedShop === shop.id ? "#171717" : "#FFFFFF",
+                        borderWidth: 1,
+                        borderColor:
+                          selectedShop === shop.id ? "#171717" : "#E5E7EB",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: selectedShop === shop.id ? "#FFFFFF" : "#737373",
+                        }}
+                      >
+                        {shop.shop_name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
 
             {loading && purchases.length === 0 ? (
               <View style={{ alignItems: "center", paddingVertical: 48 }}>
-                <Text style={{ fontSize: 14, color: "#94A3B8" }}>Loading purchases...</Text>
+                <ActivityIndicator size="large" color={colors.inkGray6} />
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: colors.inkGray5,
+                    marginTop: spacing.md,
+                  }}
+                >
+                  Loading expenses...
+                </Text>
               </View>
             ) : filteredPurchases.length === 0 ? (
               <View
                 style={{
                   backgroundColor: "#FFFFFF",
-                  borderRadius: 16,
+                  borderRadius: 10,
                   padding: 32,
                   alignItems: "center",
                   borderWidth: 1,
-                  borderColor: "#F1F5F9",
+                  borderColor: "#E5E5E5",
                 }}
               >
                 <ShoppingCart size={48} color="#CBD5E1" strokeWidth={1.5} />
-                <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A", marginTop: 16 }}>
-                  {searchQuery ? "No matching purchases" : "No Purchases Yet"}
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#171717",
+                    marginTop: 16,
+                  }}
+                >
+                  {searchQuery ? "No matching expenses" : "No expenses yet"}
                 </Text>
-                <Text style={{ fontSize: 14, color: "#64748B", textAlign: "center", marginTop: 8 }}>
-                  {searchQuery ? "Try adjusting your search criteria" : "Start tracking your business expenses"}
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: "#737373",
+                    textAlign: "center",
+                    marginTop: 8,
+                  }}
+                >
+                  {searchQuery
+                    ? "Try adjusting your filters"
+                    : "Start tracking your business expenses"}
                 </Text>
               </View>
             ) : (
               <View style={{ gap: 12 }}>
                 {filteredPurchases.map((purchase) => (
-                <Pressable
-                  key={purchase.id}
-                  onPress={() => handlePurchaseClick(purchase)}
-                  style={({ pressed }) => ({
-                    backgroundColor: "#FFFFFF",
-                    borderRadius: 16,
-                    padding: 16,
-                    borderWidth: 1,
-                    borderColor: "#F1F5F9",
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <Pressable
+                    key={purchase.id}
+                    onPress={() => handlePurchaseClick(purchase)}
+                    style={({ pressed }) => ({
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: 10,
+                      padding: 16,
+                      borderWidth: 1,
+                      borderColor: "#E5E5E5",
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
                     <View
                       style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        backgroundColor: getCategoryColor(purchase.category) + "15",
+                        flexDirection: "row",
                         alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 14,
+                        justifyContent: "space-between",
                       }}
                     >
-                      <Tag size={20} color={getCategoryColor(purchase.category)} strokeWidth={2} />
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
-                        {purchase.description}
-                      </Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          flex: 1,
+                        }}
+                      >
                         <View
                           style={{
-                            backgroundColor: getCategoryColor(purchase.category) + "20",
-                            paddingHorizontal: 8,
-                            paddingVertical: 3,
+                            width: 32,
+                            height: 32,
                             borderRadius: 6,
+                            backgroundColor:
+                              getCategoryColor(purchase.category) + "15",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginRight: 8,
                           }}
                         >
-                          <Text style={{ fontSize: 11, fontWeight: "600", color: getCategoryColor(purchase.category) }}>
-                            {purchase.category}
-                          </Text>
+                          <Tag
+                            size={14}
+                            color={getCategoryColor(purchase.category)}
+                            strokeWidth={2}
+                          />
                         </View>
-                        <Text style={{ fontSize: 13, color: "#64748B" }}>
-                          {purchase.shop_name || purchase.shop}
+
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "600",
+                              color: "#171717",
+                            }}
+                          >
+                            {purchase.description}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: "#737373",
+                              marginTop: 1,
+                            }}
+                          >
+                            {purchase.shop_name || purchase.shop}
+                          </Text>
+
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              marginTop: 4,
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <View
+                              style={{
+                                backgroundColor: "#F5F5F5",
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 4,
+                                marginRight: 6,
+                                marginBottom: 2,
+                              }}
+                            >
+                              <Text style={{ fontSize: 11, color: "#737373" }}>
+                                {formatDate(purchase.date)}
+                              </Text>
+                            </View>
+
+                            <View
+                              style={{
+                                backgroundColor:
+                                  getCategoryColor(purchase.category) + "15",
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 4,
+                                marginRight: 6,
+                                marginBottom: 2,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: "600",
+                                  color: getCategoryColor(purchase.category),
+                                }}
+                              >
+                                {purchase.category}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "700",
+                            color: colors.red,
+                          }}
+                        >
+                          -{formatCurrency(purchase.amount, false)}
                         </Text>
                       </View>
-                      <Text style={{ fontSize: 12, color: "#94A3B8" }}>
-                        {formatDate(purchase.date)}
-                      </Text>
                     </View>
-
-                    <View style={{ alignItems: "flex-end" }}>
-                      <Text style={{ fontSize: 18, fontWeight: "800", color: "#EF4444", letterSpacing: -0.5 }}>
-                        {formatCurrency(purchase.amount, false)}
-                      </Text>
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Add Purchase Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
-            {/* Header */}
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
-                Record Purchase
-              </Text>
-              <Pressable onPress={() => { setShowAddModal(false); resetForm(); }} style={{ padding: 4 }}>
-                <X size={24} color="#64748B" strokeWidth={2} />
-              </Pressable>
-            </View>
-
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={{ flex: 1 }}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
-            >
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
-                  {/* Shop Selection */}
-                  <View>
-                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
-                        Shop
-                      </Text>
-                      <Text style={{ fontSize: 12, color: "#EF4444", marginLeft: 4 }}>*</Text>
-                      <Text style={{ fontSize: 11, color: "#EF4444", marginLeft: 2 }}>Required</Text>
-                    </View>
-                    {!formData.shop && (
-                      <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 8, fontStyle: "italic" }}>
-                        Please select a shop for this purchase
-                      </Text>
-                    )}
-                    <View style={{ gap: 8 }}>
-                      {shops.map((shop) => (
-                        <Pressable
-                          key={shop.id}
-                          onPress={() => setFormData({ ...formData, shop: shop.id })}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            padding: 12,
-                            borderRadius: 12,
-                            borderWidth: 2,
-                            borderColor: formData.shop === shop.id ? "#6366F1" : "#E2E8F0",
-                            backgroundColor: formData.shop === shop.id ? "#EEF2FF" : "#FAFAFA",
-                          }}
-                        >
-                          <Store size={18} color={formData.shop === shop.id ? "#6366F1" : "#94A3B8"} strokeWidth={2} />
-                          <Text style={{ fontSize: 15, fontWeight: "600", color: formData.shop === shop.id ? "#6366F1" : "#64748B", marginLeft: 10 }}>
-                            {shop.shop_name}
-                          </Text>
-                          {formData.shop === shop.id && (
-                            <View style={{ marginLeft: "auto" }}>
-                              <Check size={16} color="#6366F1" />
-                            </View>
-                          )}
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Category Selection */}
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Category
-                    </Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                      {CATEGORIES.map((category) => (
-                        <Pressable
-                          key={category}
-                          onPress={() => setFormData({ ...formData, category })}
-                          style={{
-                            paddingHorizontal: 14,
-                            paddingVertical: 8,
-                            borderRadius: 20,
-                            borderWidth: 2,
-                            borderColor: formData.category === category ? getCategoryColor(category) : "#F1F5F9",
-                            backgroundColor: formData.category === category ? getCategoryColor(category) + "15" : "#FFFFFF",
-                          }}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: "600", color: formData.category === category ? getCategoryColor(category) : "#64748B" }}>
-                            {category}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Description */}
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Description
-                    </Text>
-                    <TextInput
-                      value={formData.description}
-                      onChangeText={(text) => setFormData({ ...formData, description: text })}
-                      placeholder="What was purchased?"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                      multiline
-                      numberOfLines={3}
-                    />
-                  </View>
-
-                  {/* Amount */}
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Amount
-                    </Text>
-                    <TextInput
-                      value={formData.amount}
-                      onChangeText={(text) => setFormData({ ...formData, amount: text })}
-                      placeholder="0.00"
-                      keyboardType="decimal-pad"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                    />
-                  </View>
-
-                  {/* Date */}
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Date
-                    </Text>
-                    <TextInput
-                      value={formData.date}
-                      onChangeText={(text) => setFormData({ ...formData, date: text })}
-                      placeholder="YYYY-MM-DD"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                    />
-                  </View>
-                </View>
-              </ScrollView>
-
-              {/* Submit Button - Outside ScrollView but inside KeyboardAvoidingView */}
-              <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
-                <Pressable
-                  onPress={handleAddPurchase}
-                  style={({ pressed }) => ({
-                    backgroundColor: "#6366F1",
-                    borderRadius: 12,
-                    paddingVertical: 16,
-                    alignItems: "center",
-                    opacity: pressed ? 0.9 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
-                    Record Purchase
-                  </Text>
-                </Pressable>
+                  </Pressable>
+                ))}
               </View>
-            </KeyboardAvoidingView>
+            )}
           </View>
-        </View>
-      </Modal>
+        </ScrollView>
 
-      {/* Purchase Actions Modal */}
-      <Modal visible={showActionsModal} transparent animationType="fade" onRequestClose={() => setShowActionsModal(false)}>
-        <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}
-          onPress={() => setShowActionsModal(false)}
+        {/* Add Purchase Modal */}
+        <FormSheet
+          visible={showAddModal}
+          onClose={() => {
+            setShowAddModal(false);
+            resetForm();
+          }}
+          title="Record expense"
+          insets={insets}
+          height="90%"
+          footer={
+            <AppButton
+              label={submitting ? "Saving..." : "Record expense"}
+              onPress={handleAddPurchase}
+              disabled={submitting}
+            />
+          }
         >
-          <View
+          <Text
             style={{
-              backgroundColor: "#FFFFFF",
-              borderRadius: 20,
-              padding: 20,
-              width: "80%",
-              maxWidth: 300,
+              fontSize: 13,
+              fontWeight: "500",
+              color: "#525252",
+              marginBottom: 8,
             }}
-            onStartShouldSetResponder={() => true}
           >
-            <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A", marginBottom: 16, textAlign: "center" }}>
-              {selectedPurchase?.description}
-            </Text>
-
-            <Pressable
-              onPress={handleEditPurchase}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                padding: 16,
-                borderRadius: 12,
-                backgroundColor: "#F8FAFC",
-                marginBottom: 12,
-              }}
-            >
-              <Edit3 size={20} color="#6366F1" strokeWidth={2} />
-              <Text style={{ fontSize: 16, fontWeight: "600", color: "#0F172A", marginLeft: 12 }}>
-                Edit Purchase
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleDeletePurchase}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                padding: 16,
-                borderRadius: 12,
-                backgroundColor: "#FEF2F2",
-              }}
-            >
-              <Trash2 size={20} color="#EF4444" strokeWidth={2} />
-              <Text style={{ fontSize: 16, fontWeight: "600", color: "#EF4444", marginLeft: 12 }}>
-                Delete Purchase
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setShowActionsModal(false)}
-              style={{
-                padding: 16,
-                marginTop: 12,
-              }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#64748B", textAlign: "center" }}>
-                Cancel
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Edit Purchase Modal - Same structure as Add Modal */}
-      <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => {setShowEditModal(false); resetForm();}}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, height: "90%", paddingBottom: insets.bottom }}>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#0F172A" }}>
-                Edit Purchase
-              </Text>
-              <Pressable onPress={() => { setShowEditModal(false); resetForm(); setSelectedPurchase(null); }}>
-                <X size={24} color="#64748B" strokeWidth={2} />
-              </Pressable>
+            Shop
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 16 }}
+          >
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {shops.map((shop) => {
+                const active = formData.shop === shop.id.toString();
+                return (
+                  <Pressable
+                    key={shop.id}
+                    onPress={() =>
+                      setFormData({ ...formData, shop: shop.id.toString() })
+                    }
+                    style={{
+                      minHeight: 32,
+                      paddingHorizontal: 12,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: active ? "#2E69FF" : "#E2E2E2",
+                      backgroundColor: active ? "#EAF0FF" : "#FFFFFF",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: active ? "#2E69FF" : "#525252",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {shop.shop_name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
+          </ScrollView>
 
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={{ flex: 1 }}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
-            >
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <View style={{ padding: 20, gap: 20, paddingBottom: 40 }}>
-                  {/* Shop Selection */}
-                  <View>
-                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
-                        Shop
-                      </Text>
-                      <Text style={{ fontSize: 12, color: "#EF4444", marginLeft: 4 }}>*</Text>
-                      <Text style={{ fontSize: 11, color: "#EF4444", marginLeft: 2 }}>Required</Text>
-                    </View>
-                    {!formData.shop && (
-                      <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 8, fontStyle: "italic" }}>
-                        Please select a shop for this purchase
-                      </Text>
-                    )}
-                    <View style={{ gap: 8 }}>
-                      {shops.map((shop) => (
-                        <Pressable
-                          key={shop.id}
-                          onPress={() => setFormData({ ...formData, shop: shop.id })}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            padding: 12,
-                            borderRadius: 12,
-                            borderWidth: 2,
-                            borderColor: formData.shop === shop.id ? "#6366F1" : "#E2E8F0",
-                            backgroundColor: formData.shop === shop.id ? "#EEF2FF" : "#FAFAFA",
-                          }}
-                        >
-                          <Store size={18} color={formData.shop === shop.id ? "#6366F1" : "#94A3B8"} strokeWidth={2} />
-                          <Text style={{ fontSize: 15, fontWeight: "600", color: formData.shop === shop.id ? "#6366F1" : "#64748B", marginLeft: 10 }}>
-                            {shop.shop_name}
-                          </Text>
-                          {formData.shop === shop.id && (
-                            <View style={{ marginLeft: "auto" }}>
-                              <Check size={16} color="#6366F1" />
-                            </View>
-                          )}
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Category Selection */}
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Category
-                    </Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                      {CATEGORIES.map((category) => (
-                        <Pressable
-                          key={category}
-                          onPress={() => setFormData({ ...formData, category })}
-                          style={{
-                            paddingHorizontal: 14,
-                            paddingVertical: 8,
-                            borderRadius: 20,
-                            borderWidth: 2,
-                            borderColor: formData.category === category ? getCategoryColor(category) : "#F1F5F9",
-                            backgroundColor: formData.category === category ? getCategoryColor(category) + "15" : "#FFFFFF",
-                          }}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: "600", color: formData.category === category ? getCategoryColor(category) : "#64748B" }}>
-                            {category}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Description */}
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Description
-                    </Text>
-                    <TextInput
-                      value={formData.description}
-                      onChangeText={(text) => setFormData({ ...formData, description: text })}
-                      placeholder="What was purchased?"
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "500",
+              color: "#525252",
+              marginBottom: 8,
+            }}
+          >
+            Category
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 16 }}
+          >
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {CATEGORIES.map((category) => {
+                const active = formData.category === category;
+                const catColor = getCategoryColor(category);
+                return (
+                  <Pressable
+                    key={category}
+                    onPress={() => setFormData({ ...formData, category })}
+                    style={{
+                      minHeight: 32,
+                      paddingHorizontal: 12,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: active ? catColor : "#E2E2E2",
+                      backgroundColor: active ? catColor + "15" : "#FFFFFF",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
                       style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
+                        fontSize: 13,
+                        color: active ? catColor : "#525252",
+                        fontWeight: "500",
                       }}
-                      multiline
-                      numberOfLines={3}
-                    />
-                  </View>
-
-                  {/* Amount */}
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Amount
+                    >
+                      {category}
                     </Text>
-                    <TextInput
-                      value={formData.amount}
-                      onChangeText={(text) => setFormData({ ...formData, amount: text })}
-                      placeholder="0.00"
-                      keyboardType="decimal-pad"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                    />
-                  </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
 
-                  {/* Date */}
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B", marginBottom: 8 }}>
-                      Date
-                    </Text>
-                    <TextInput
-                      value={formData.date}
-                      onChangeText={(text) => setFormData({ ...formData, date: text })}
-                      placeholder="YYYY-MM-DD"
-                      style={{
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#E2E8F0",
-                        borderRadius: 12,
-                        padding: 14,
-                        fontSize: 15,
-                        color: "#0F172A",
-                      }}
-                    />
-                  </View>
-                </View>
-              </ScrollView>
+          <FormField
+            label="Description"
+            value={formData.description}
+            onChangeText={(text) =>
+              setFormData({ ...formData, description: text })
+            }
+            placeholder="What was purchased?"
+          />
 
-              <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" }}>
-                <Pressable
-                  onPress={handleUpdatePurchase}
-                  style={({ pressed }) => ({
-                    backgroundColor: "#6366F1",
-                    borderRadius: 12,
-                    paddingVertical: 16,
-                    alignItems: "center",
-                    opacity: pressed ? 0.9 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
-                    Update Purchase
-                  </Text>
-                </Pressable>
-              </View>
-            </KeyboardAvoidingView>
+          <FormField
+            label="Amount"
+            value={formData.amount}
+            onChangeText={(text) => setFormData({ ...formData, amount: text })}
+            placeholder="0.00"
+            keyboardType="decimal-pad"
+          />
+
+          <FormField
+            label="Date"
+            value={formData.date}
+            onChangeText={(text) => setFormData({ ...formData, date: text })}
+            placeholder="YYYY-MM-DD"
+          />
+        </FormSheet>
+
+        {/* Purchase Actions Modal */}
+        <BottomSheet
+          visible={showActionsModal}
+          onClose={() => setShowActionsModal(false)}
+          title="Expense Options"
+        >
+          <View style={{ padding: spacing.xl, gap: spacing.md }}>
+            <AppButton
+              label="Edit purchase"
+              onPress={handleEditPurchase}
+              variant="outline"
+            />
+            <AppButton
+              label="Delete purchase"
+              onPress={handleDeletePurchase}
+              variant="solid"
+              theme="red"
+            />
           </View>
-        </View>
-      </Modal>
+        </BottomSheet>
+
+        {/* Edit Purchase Modal */}
+        <FormSheet
+          visible={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            resetForm();
+            setSelectedPurchase(null);
+          }}
+          title="Edit expense"
+          insets={insets}
+          height="90%"
+          footer={
+            <AppButton
+              label={submitting ? "Saving..." : "Save changes"}
+              onPress={handleUpdatePurchase}
+              disabled={submitting}
+            />
+          }
+        >
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "500",
+              color: "#525252",
+              marginBottom: 8,
+            }}
+          >
+            Shop
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 16 }}
+          >
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {shops.map((shop) => {
+                const active = formData.shop === shop.id.toString();
+                return (
+                  <Pressable
+                    key={shop.id}
+                    onPress={() =>
+                      setFormData({ ...formData, shop: shop.id.toString() })
+                    }
+                    style={{
+                      minHeight: 32,
+                      paddingHorizontal: 12,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: active ? "#2E69FF" : "#E2E2E2",
+                      backgroundColor: active ? "#EAF0FF" : "#FFFFFF",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: active ? "#2E69FF" : "#525252",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {shop.shop_name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "500",
+              color: "#525252",
+              marginBottom: 8,
+            }}
+          >
+            Category
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 16 }}
+          >
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {CATEGORIES.map((category) => {
+                const active = formData.category === category;
+                const catColor = getCategoryColor(category);
+                return (
+                  <Pressable
+                    key={category}
+                    onPress={() => setFormData({ ...formData, category })}
+                    style={{
+                      minHeight: 32,
+                      paddingHorizontal: 12,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: active ? catColor : "#E2E2E2",
+                      backgroundColor: active ? catColor + "15" : "#FFFFFF",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: active ? catColor : "#525252",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {category}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          <FormField
+            label="Description"
+            value={formData.description}
+            onChangeText={(text) =>
+              setFormData({ ...formData, description: text })
+            }
+            placeholder="What was purchased?"
+          />
+
+          <FormField
+            label="Amount"
+            value={formData.amount}
+            onChangeText={(text) => setFormData({ ...formData, amount: text })}
+            placeholder="0.00"
+            keyboardType="decimal-pad"
+          />
+
+          <FormField
+            label="Date"
+            value={formData.date}
+            onChangeText={(text) => setFormData({ ...formData, date: text })}
+            placeholder="YYYY-MM-DD"
+          />
+        </FormSheet>
+        <AdBanner variant="slim" context="sales" />
       </View>
     </KeyboardAvoidingView>
   );

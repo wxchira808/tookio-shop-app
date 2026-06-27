@@ -3,13 +3,16 @@ import { AuthModal } from "@/utils/auth/useAuthModal";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initializeMobileAds } from "@/utils/ads/admobConfig";
 import { checkSession } from "@/utils/frappeApi";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
-SplashScreen.preventAutoHideAsync();
+if (Platform.OS !== "web") {
+  SplashScreen.preventAutoHideAsync();
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,8 +29,9 @@ export default function RootLayout() {
   const { initiate, isReady, auth, signOut } = useAuth();
 
   useEffect(() => {
-    // Initialize Mobile Ads on app start
-    initializeMobileAds();
+    if (Platform.OS !== "web") {
+      initializeMobileAds();
+    }
     initiate();
   }, [initiate]);
 
@@ -43,7 +47,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (isReady) {
-      SplashScreen.hideAsync();
+      if (Platform.OS !== "web") {
+        SplashScreen.hideAsync();
+      }
     }
   }, [isReady]);
 

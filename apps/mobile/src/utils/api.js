@@ -5,7 +5,7 @@
  * It automatically includes authentication headers and handles errors.
  */
 
-import * as SecureStore from 'expo-secure-store';
+import { deleteStorageItem, getStorageItem, setJsonStorageItem } from './authStorage';
 
 // Get the API URL from environment variables
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
@@ -20,7 +20,7 @@ const AUTH_KEY = 'tookio-shop-auth'; // Key for storing auth token
 export async function apiRequest(endpoint, options = {}) {
   try {
     // Get auth token from secure storage
-    const authData = await SecureStore.getItemAsync(AUTH_KEY);
+    const authData = await getStorageItem(AUTH_KEY);
     const auth = authData ? JSON.parse(authData) : null;
 
     // Build headers
@@ -204,14 +204,14 @@ export async function deleteItem(itemId) {
  * @param {object} auth - Auth data from login/signup
  */
 export async function saveAuth(auth) {
-  await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(auth));
+  await setJsonStorageItem(AUTH_KEY, auth);
 }
 
 /**
  * Get saved auth data
  */
 export async function getAuth() {
-  const authData = await SecureStore.getItemAsync(AUTH_KEY);
+  const authData = await getStorageItem(AUTH_KEY);
   return authData ? JSON.parse(authData) : null;
 }
 
@@ -219,5 +219,5 @@ export async function getAuth() {
  * Clear auth data (logout)
  */
 export async function clearAuth() {
-  await SecureStore.deleteItemAsync(AUTH_KEY);
+  await deleteStorageItem(AUTH_KEY);
 }

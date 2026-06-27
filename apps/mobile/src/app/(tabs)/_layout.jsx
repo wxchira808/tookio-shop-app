@@ -8,9 +8,10 @@ import {
   Package,
   BarChart3,
   DollarSign,
-  ShoppingCart,
+  ReceiptText,
   User,
 } from "lucide-react-native";
+import { colors } from "@/theme/frappeTheme";
 
 export default function TabLayout() {
   const { isAuthenticated, isReady } = useAuth();
@@ -20,7 +21,7 @@ export default function TabLayout() {
   if (!isReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.inkGray6} />
       </View>
     );
   }
@@ -34,27 +35,21 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          backgroundColor: "#fff",
+          backgroundColor: colors.surfaceBase,
           borderTopWidth: 1,
-          borderColor: "#E5E7EB",
-          paddingTop: 15,
-          paddingBottom: insets.bottom + 60,
-          marginBottom: 0,
-          bottom: 0,
-          paddingHorizontal: 10,
+          borderColor: colors.outlineGray1,
+          paddingTop: 8,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          minHeight: insets.bottom > 0 ? 56 + insets.bottom : 60,
         },
-        tabBarActiveTintColor: "#357AFF",
-        tabBarInactiveTintColor: "#6B6B6B",
-        tabBarShowLabel: true,
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-          marginTop: 5,
-          color: '#000',
-        },
+        tabBarActiveTintColor: colors.inkGray8,
+        tabBarInactiveTintColor: colors.inkGray4,
+        tabBarShowLabel: false, // Commented out / disabled icon labels
         tabBarItemStyle: {
-          paddingVertical: 8,
+          justifyContent: "center",
+          alignItems: "center",
         },
       }}
     >
@@ -62,30 +57,28 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => <Home color={color} size={32} />,
+          tabBarIcon: ({ color }) => <Home color={color} size={26} />,
         }}
       />
       <Tabs.Screen
         name="shops"
         options={{
           title: "Shops",
-          tabBarIcon: ({ color, size }) => <Store color={color} size={32} />,
+          tabBarIcon: ({ color }) => <Store color={color} size={26} />,
         }}
       />
       <Tabs.Screen
         name="items"
         options={{
           title: "Inventory",
-          tabBarIcon: ({ color, size}) => <Package color={color} size={32} />,
+          tabBarIcon: ({ color}) => <Package color={color} size={26} />,
         }}
       />
       <Tabs.Screen
         name="purchases"
         options={{
-          title: "Purchases",
-          tabBarIcon: ({ color, size }) => (
-            <ShoppingCart color={color} size={32} />
-          ),
+          title: "Expenses",
+          tabBarIcon: ({ color }) => <ReceiptText color={color} size={26} />,
         }}
       />
       <Tabs.Screen
@@ -93,8 +86,8 @@ export default function TabLayout() {
         options={{
           title: "Stock",
           href: null, // Hidden - stock management moved to Inventory tab
-          tabBarIcon: ({ color, size }) => (
-            <BarChart3 color={color} size={32} />
+          tabBarIcon: ({ color }) => (
+            <BarChart3 color={color} size={26} />
           ),
         }}
       />
@@ -102,8 +95,8 @@ export default function TabLayout() {
         name="sales"
         options={{
           title: "Sales",
-          tabBarIcon: ({ color, size }) => (
-            <DollarSign color={color} size={32} />
+          tabBarIcon: ({ color }) => (
+            <DollarSign color={color} size={26} />
           ),
         }}
       />
@@ -111,8 +104,9 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <User color={color} size={32} />
+          href: null,
+          tabBarIcon: ({ color }) => (
+            <User color={color} size={26} />
           ),
         }}
       />

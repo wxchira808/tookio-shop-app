@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useShowAds } from '../utils/ads/useAdsManager';
 import { router } from 'expo-router';
+import { colors, radius, spacing } from '@/theme/frappeTheme';
 
 /**
  * Banner Ad Component
@@ -89,10 +90,10 @@ export const AdBanner = ({ style = {}, variant = 'default', context = 'dashboard
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.surfaceElevation2,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    padding: 12,
+    borderTopColor: colors.outlineGray1,
+    padding: spacing.md,
     marginTop: 10,
   },
   adContent: {
@@ -106,34 +107,34 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: '600',
+    color: colors.inkGray8,
     marginBottom: 4,
   },
   description: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.inkGray5,
     lineHeight: 16,
   },
   ctaButton: {
     marginTop: 8,
-    backgroundColor: '#357AFF',
+    backgroundColor: colors.inkGray8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: radius.sm,
     alignSelf: 'flex-start',
   },
   ctaText: {
-    color: '#fff',
+    color: colors.inkWhite,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 
   // Slim variant styles
   slimContainer: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.surfaceGray1,
     borderBottomWidth: 1,
-    borderBottomColor: '#FCD34D',
+    borderBottomColor: colors.outlineGray1,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -148,19 +149,19 @@ const styles = StyleSheet.create({
   },
   slimTitle: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#92400E',
+    fontWeight: '500',
+    color: colors.inkGray7,
   },
   slimCtaButton: {
-    backgroundColor: '#357AFF',
+    backgroundColor: colors.inkGray8,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 4,
+    borderRadius: radius.sm,
   },
   slimCtaText: {
-    color: '#fff',
+    color: colors.inkWhite,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   slimClose: {
     padding: 4,

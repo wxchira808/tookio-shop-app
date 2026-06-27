@@ -1,53 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
   ActivityIndicator,
+  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  Modal,
-  Image,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { useAuth } from '@/utils/auth/useAuth';
-import { login, signup, resetPassword } from '@/utils/frappeApi';
-import { Eye, EyeOff } from 'lucide-react-native';
+  Pressable,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import { Eye, EyeOff } from "lucide-react-native";
+import { useAuth } from "@/utils/auth/useAuth";
+import { login, resetPassword, signup } from "@/utils/frappeApi";
+import {
+  AppButton,
+  BottomSheet,
+  Card,
+  FormField,
+} from "@/components/frappe-ui";
+import { colors, radius, spacing, type } from "@/theme/frappeTheme";
+
+const showAlert = (title, message, buttons) => {
+  if (Platform.OS === "web") {
+    alert(`${title}: ${message}`);
+    if (buttons && buttons.length > 0 && typeof buttons[0].onPress === "function") {
+      buttons[0].onPress();
+    }
+  } else {
+    Alert.alert(title, message, buttons);
+  }
+};
 
 export default function AuthScreen() {
-  const [mode, setMode] = useState('signin'); // 'signin' or 'signup'
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [mode, setMode] = useState("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
+  const [resetEmail, setResetEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { setAuth } = useAuth();
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert("Missing details", "Enter your email and password.");
       return;
     }
 
     setLoading(true);
     try {
       const result = await login(email, password);
-      setAuth({
-        user: result.user,
-        logged_in: true,
-      });
-      router.replace('/(tabs)');
+      setAuth({ user: result.user, logged_in: true });
+      router.replace("/(tabs)");
     } catch (error) {
-      Alert.alert('Login Failed', error.message || 'Invalid credentials');
+      console.error("Login failed error:", error);
+      showAlert("Login failed", error.message || "Check your details and try again.");
     } finally {
       setLoading(false);
     }
@@ -55,30 +65,21 @@ export default function AuthScreen() {
 
   const handleSignUp = async () => {
     if (!email || !fullName) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert("Missing details", "Enter your full name and email.");
       return;
     }
 
     setLoading(true);
     try {
       const result = await signup(email, fullName);
-
-      Alert.alert(
-        'Check Your Email',
-        result.message || 'We sent you a verification link. Open it to set your password, then return here to sign in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setMode('signin');
-              setPassword('');
-              setConfirmPassword('');
-            },
-          },
-        ]
+      showAlert(
+        "Check your email",
+        result.message || "Open the link we sent, set your password, then come back and sign in.",
+        [{ text: "OK", onPress: () => setMode("signin") }]
       );
     } catch (error) {
-      Alert.alert('Signup Failed', error.message || 'Could not create account');
+      console.error("Signup failed error:", error);
+      showAlert("Signup failed", error.message || "We could not create your account.");
     } finally {
       setLoading(false);
     }
@@ -86,328 +87,147 @@ export default function AuthScreen() {
 
   const handleResetPassword = async () => {
     if (!resetEmail) {
-      Alert.alert('Error', 'Please enter your email');
+      showAlert("Missing email", "Enter the email for your account.");
       return;
     }
 
     setLoading(true);
     try {
       await resetPassword(resetEmail);
-      Alert.alert('Success', 'Reset password link sent to your email');
+      showAlert("Reset link sent", "Check your email for the reset link.");
       setResetMode(false);
-      setResetEmail('');
+      setResetEmail("");
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to send reset email');
+      console.error("Reset password failed error:", error);
+      showAlert("Reset failed", error.message || "We could not send the reset link.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.surfaceBase }}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+        <View
+          style={{
+            flex: 1,
+            paddingHorizontal: spacing.xl,
+            justifyContent: "center",
+            backgroundColor: colors.surfaceBase,
+          }}
         >
-          <View style={styles.content}>
+          <View style={{ alignItems: "center", marginBottom: spacing.xl }}>
             <Image
-              source={require('@/assets/images/icon.png')}
-              style={styles.logo}
-              resizeMode="contain"
+              source={require("../../assets/images/logo.png")}
+              style={{ width: 180, height: 48, resizeMode: "contain", marginBottom: spacing.sm }}
             />
-            <Text style={styles.subtitle}>
-              {mode === 'signin' ? 'Sign in to continue' : 'Create your account'}
+            <Text style={[type.bodyMuted, { fontSize: 13, textAlign: "center", paddingHorizontal: 20 }]}>
+              {mode === "signin"
+                ? "Sign in to manage your shops, stock, and sales."
+                : "Create your account to start selling with Tookio Shop."}
             </Text>
+          </View>
 
-            {mode === 'signup' && (
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fullName}
-                  onChangeText={setFullName}
-                  autoCapitalize="words"
-                  editable={!loading}
-                  returnKeyType="next"
-                />
-              </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>{mode === 'signup' ? 'Email' : 'Email or Username'}</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!loading}
-                returnKeyType="next"
+          <Card style={{ padding: spacing.xl, borderRadius: radius.md }}>
+            {mode === "signup" ? (
+              <FormField
+                label="Full name"
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Jane Wanjiku"
               />
+            ) : null}
+
+            <FormField
+              label={mode === "signin" ? "Email or username" : "Email"}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+            />
+
+            {mode === "signin" ? (
+              <FormField
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter password"
+                secureTextEntry={!showPassword}
+                right={
+                  <Pressable onPress={() => setShowPassword((current) => !current)}>
+                    {showPassword ? (
+                      <EyeOff size={18} color={colors.inkGray5} strokeWidth={1.8} />
+                    ) : (
+                      <Eye size={18} color={colors.inkGray5} strokeWidth={1.8} />
+                    )}
+                  </Pressable>
+                }
+              />
+            ) : null}
+
+            <AppButton
+              label={loading ? "Please wait" : mode === "signin" ? "Sign in" : "Send verification email"}
+              onPress={mode === "signin" ? handleSignIn : handleSignUp}
+              theme="blue"
+              disabled={loading}
+              style={{ marginTop: spacing.sm }}
+            />
+
+            {loading ? (
+              <View style={{ paddingTop: spacing.md }}>
+                <ActivityIndicator color={colors.inkGray6} />
+              </View>
+            ) : null}
+
+            {mode === "signin" ? (
+              <Pressable
+                onPress={() => setResetMode(true)}
+                style={{ alignSelf: "flex-end", marginTop: spacing.sm }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "500", color: "#64748B" }}>
+                  Forgot password?
+                </Text>
+              </Pressable>
+            ) : null}
+
+            <View style={{ flexDirection: "row", alignItems: "center", marginVertical: spacing.lg }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: "#E2E8F0" }} />
+              <Text style={{ marginHorizontal: 12, fontSize: 11, fontWeight: "600", color: "#94A3B8" }}>
+                OR
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: "#E2E8F0" }} />
             </View>
 
-            {mode === 'signin' && (
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Password</Text>
-                <View style={styles.inputWithIcon}>
-                  <TextInput
-                    style={styles.inputInContainer}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    editable={!loading}
-                    returnKeyType="done"
-                  />
-                  <TouchableOpacity
-                    style={styles.eyeIcon}
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={mode === 'signin' ? handleSignIn : handleSignUp}
+            <AppButton
+              label={mode === "signin" ? "Create an account" : "Sign in to your account"}
+              onPress={() => setMode(mode === "signin" ? "signup" : "signin")}
+              theme="blue"
+              variant="outline"
               disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>
-                  {mode === 'signin' ? 'Sign In' : 'Sign Up'}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.switchButton, loading && styles.buttonDisabled]}
-              onPress={() => {
-                setMode(mode === 'signin' ? 'signup' : 'signin');
-                setPassword('');
-                setConfirmPassword('');
-                setShowPassword(false);
-                setShowConfirmPassword(false);
-              }}
-              disabled={loading}
-            >
-              <Text style={styles.switchButtonText}>
-                {mode === 'signin'
-                  ? "Don't have an account? Sign Up"
-                  : 'Already have an account? Sign In'}
-              </Text>
-            </TouchableOpacity>
-
-            {mode === 'signin' && (
-              <TouchableOpacity
-                onPress={() => setResetMode(true)}
-                disabled={loading}
-                style={styles.resetLink}
-              >
-                <Text style={styles.resetText}>Forgot Password?</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </ScrollView>
+            />
+          </Card>
+        </View>
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={resetMode}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setResetMode(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Reset Password</Text>
-            <Text style={styles.modalSubtitle}>Enter your email to receive reset link</Text>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={resetEmail}
-                onChangeText={setResetEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!loading}
-                returnKeyType="done"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleResetPassword}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Send Reset Link</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setResetMode(false)}
-              disabled={loading}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+      <BottomSheet visible={resetMode} onClose={() => setResetMode(false)} title="Reset password">
+        <View style={{ padding: spacing.xl }}>
+          <FormField
+            label="Email"
+            value={resetEmail}
+            onChangeText={setResetEmail}
+            placeholder="you@example.com"
+            keyboardType="email-address"
+          />
+          <AppButton
+            label={loading ? "Sending" : "Send reset link"}
+            onPress={handleResetPassword}
+            disabled={loading}
+          />
         </View>
-      </Modal>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  content: {
-    padding: 24,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 32,
-    color: '#666',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: '#fff',
-    color: '#000',
-  },
-  inputWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputInContainer: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: '#fff',
-    color: '#000',
-  },
-  eyeIcon: {
-    position: 'absolute',
-    right: 12,
-    padding: 4,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  switchButton: {
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  switchButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resetLink: {
-    marginTop: 16,
-  },
-  resetText: {
-    textAlign: 'center',
-    color: '#007AFF',
-    fontSize: 14,
-    textDecorationLine: 'underline',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#333',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 24,
-    color: '#666',
-  },
-  cancelText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
-    marginTop: 16,
-  },
-});
