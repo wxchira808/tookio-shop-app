@@ -18,24 +18,20 @@ const DEFAULT_FRAPPE_URL = 'https://shop.tookio.co.ke';
 const AUTH_KEY = 'tookio-frappe-auth';
 
 function getFrappeUrl() {
-  if (Platform.OS === 'web') {
-    const configUrl = globalThis?.tookioShopConfig?.siteUrl;
-    const browserUrl = typeof window !== 'undefined' ? window.location.origin : null;
-    
-    // In local development, window.location.origin will point to the Metro dev server (usually localhost:8081 or 8082).
-    // In that case, we should use process.env.EXPO_PUBLIC_FRAPPE_URL or DEFAULT_FRAPPE_URL instead of the local dev server origin.
-    const isDevServer = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-      (window.location.port === '8081' || window.location.port === '8082');
-
-    if (isDevServer) {
-      return process.env.EXPO_PUBLIC_FRAPPE_URL || DEFAULT_FRAPPE_URL;
-    }
-
-    return configUrl || browserUrl || DEFAULT_FRAPPE_URL;
+  const envUrl = process.env.EXPO_PUBLIC_FRAPPE_URL || process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_BASE_URL;
+  
+  if (envUrl) {
+    return envUrl;
   }
 
-  return process.env.EXPO_PUBLIC_FRAPPE_URL || DEFAULT_FRAPPE_URL;
+  if (Platform.OS === 'web') {
+    const configUrl = globalThis?.tookioShopConfig?.siteUrl;
+    // We remove the automatic browserUrl fallback because it breaks when hosted on Vercel.
+    // We only use the explicitly defined backend URL.
+    return configUrl || DEFAULT_FRAPPE_URL;
+  }
+
+  return DEFAULT_FRAPPE_URL;
 }
 
 async function fetchDoctypeOptions(doctype) {
