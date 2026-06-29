@@ -1,3 +1,4 @@
+import { crossAlert } from '@/utils/crossAlert';
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { useAuthStore } from './store';
@@ -46,7 +47,7 @@ export function SessionMonitor() {
               setAuth(null);
 
               // Show alert
-              Alert.alert(
+              crossAlert(
                 'Session Expired',
                 'Your session has expired. Please login again.',
                 [

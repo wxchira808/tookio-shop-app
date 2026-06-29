@@ -1,6 +1,6 @@
+import { crossAlert } from '@/utils/crossAlert';
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   Text,
   View,
@@ -193,7 +193,7 @@ export default function SubscriptionScreen() {
     } catch (error) {
       console.error("Error loading subscription data:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to load subscription data");
+        crossAlert("Error", "Failed to load subscription data");
       }
     } finally {
       setLoading(false);
@@ -253,7 +253,7 @@ export default function SubscriptionScreen() {
           setPhoneNumber("");
           setPaymentMessage("");
           setProcessing(false);
-          Alert.alert("Success", "Your subscription has been updated successfully.");
+          crossAlert("Success", "Your subscription has been updated successfully.");
           return;
         }
 
@@ -261,7 +261,7 @@ export default function SubscriptionScreen() {
           clearPolling();
           setProcessing(false);
           setPaymentMessage("");
-          Alert.alert(
+          crossAlert(
             "Payment Failed",
             statusResult?.result_desc || "Payment was not successful. Please try again."
           );
@@ -275,7 +275,7 @@ export default function SubscriptionScreen() {
       clearPolling();
       setProcessing(false);
       setPaymentMessage("");
-      Alert.alert(
+      crossAlert(
         "Payment Timeout",
         "Payment confirmation timed out. Please check the subscription again or contact support."
       );
@@ -300,12 +300,12 @@ export default function SubscriptionScreen() {
     const currentIsExpired = normalizeText(currentSubscription?.status) === "expired";
 
     if (currentSubscription?.name && currentSubscriptionName === plan.name && !currentIsExpired) {
-      Alert.alert("Same plan", "You already have this subscription plan.");
+      crossAlert("Same plan", "You already have this subscription plan.");
       return;
     }
 
     if (currentIsActive && !currentPlanIsFree && selectedIsFree) {
-      Alert.alert(
+      crossAlert(
         "Downgrade not allowed",
         "Your current subscription stays active until it expires. You can switch to the free plan after expiry."
       );
@@ -319,7 +319,7 @@ export default function SubscriptionScreen() {
 
         if (result?.success) {
           await refreshUserState();
-          Alert.alert("Success", "You have successfully switched to the Free Plan!", [
+          crossAlert("Success", "You have successfully switched to the Free Plan!", [
             { text: "OK", onPress: loadData },
           ]);
         } else {
@@ -327,7 +327,7 @@ export default function SubscriptionScreen() {
         }
       } catch (error) {
         console.error("Error switching to free plan:", error);
-        Alert.alert("Error", error.message || "Failed to switch to free plan");
+        crossAlert("Error", error.message || "Failed to switch to free plan");
       } finally {
         setProcessing(false);
       }
@@ -338,7 +338,7 @@ export default function SubscriptionScreen() {
       const currentPlan = plans.find((item) => item.name === currentSubscriptionName);
 
       if (currentPlan && Number(plan.price) < Number(currentPlan.price)) {
-        Alert.alert(
+        crossAlert(
           "Downgrade not allowed",
           "You cannot downgrade from your current active plan. Wait until it expires before choosing a lower-priced plan."
         );
@@ -356,7 +356,7 @@ export default function SubscriptionScreen() {
 
     const phoneResult = normalizeKenyanPhoneNumber(phoneNumber);
     if (!phoneResult.isValid) {
-      Alert.alert("Invalid phone number", phoneResult.message);
+      crossAlert("Invalid phone number", phoneResult.message);
       return;
     }
 
@@ -373,7 +373,7 @@ export default function SubscriptionScreen() {
       const creditAmount = Number(costInfo?.credit_from_old_plan || 0);
       const daysRemaining = Number(costInfo?.days_remaining || 0);
 
-      Alert.alert(
+      crossAlert(
         "Confirm STK Push",
         `Plan: ${selectedPlan.subscription_name}\nAmount: ${currency} ${amountToPay.toLocaleString()}${creditAmount > 0 ? `\nCredit: -${currency} ${creditAmount.toLocaleString()} (${daysRemaining} days remaining)` : ""}\nPhone: ${normalizedPhone}\n\nProceed to send the M-Pesa STK push?`,
         [
@@ -394,7 +394,7 @@ export default function SubscriptionScreen() {
                 if (paymentResult?.success && paymentResult?.transaction_id) {
                   setPaymentMessage("STK push sent. Complete the prompt on your phone.");
                   startStatusPolling(paymentResult.transaction_id);
-                  Alert.alert(
+                  crossAlert(
                     "STK Push Sent",
                     paymentResult?.message || "Check your phone and enter your M-Pesa PIN to complete payment."
                   );
@@ -406,7 +406,7 @@ export default function SubscriptionScreen() {
                 console.error("Error initiating subscription payment:", error);
                 setProcessing(false);
                 setPaymentMessage("");
-                Alert.alert("Error", error.message || "Failed to initiate payment");
+                crossAlert("Error", error.message || "Failed to initiate payment");
               }
             },
           },
@@ -416,7 +416,7 @@ export default function SubscriptionScreen() {
       console.error("Error preparing subscription payment:", error);
       setProcessing(false);
       setPaymentMessage("");
-      Alert.alert("Error", error.message || "Failed to prepare payment");
+      crossAlert("Error", error.message || "Failed to prepare payment");
     }
   };
 

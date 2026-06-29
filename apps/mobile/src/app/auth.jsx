@@ -1,7 +1,7 @@
+import { crossAlert } from '@/utils/crossAlert';
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -29,7 +29,7 @@ const showAlert = (title, message, buttons) => {
       buttons[0].onPress();
     }
   } else {
-    Alert.alert(title, message, buttons);
+    crossAlert(title, message, buttons);
   }
 };
 

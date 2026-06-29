@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Pressable, Alert, Image } from "react-native";
+import { crossAlert } from '@/utils/crossAlert';
+import { View, Text, ScrollView, Pressable, Image } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowLeft, Heart, CreditCard, Copy, Smartphone } from "lucide-react-native";
@@ -14,16 +15,16 @@ export default function DonateScreen() {
       // Open PayPal donation page
       await WebBrowser.openBrowserAsync('https://www.paypal.com/donate?hosted_button_id=642Y6XCHLBJFE');
     } catch (error) {
-      Alert.alert("Error", "Unable to open PayPal. Please try again.");
+      crossAlert("Error", "Unable to open PayPal. Please try again.");
     }
   };
 
   const handleCopyMpesaNumber = async () => {
     try {
       await Clipboard.setStringAsync('0743169908');
-      Alert.alert("Copied!", "M-Pesa number copied to clipboard");
+      crossAlert("Copied!", "M-Pesa number copied to clipboard");
     } catch (error) {
-      Alert.alert("Error", "Failed to copy number");
+      crossAlert("Error", "Failed to copy number");
     }
   };
 

@@ -1,3 +1,4 @@
+import { crossAlert } from '@/utils/crossAlert';
 import React, { useState } from 'react';
 import {
   View,
@@ -7,7 +8,6 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -26,7 +26,7 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      crossAlert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -43,9 +43,9 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
       // Close modal
       onClose();
 
-      Alert.alert('Success', 'Logged in successfully!');
+      crossAlert('Success', 'Logged in successfully!');
     } catch (error) {
-      Alert.alert('Login Failed', error.message || 'Invalid credentials');
+      crossAlert('Login Failed', error.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
 
   const handleSignUp = async () => {
     if (!email || !fullName) {
-      Alert.alert('Error', 'Please fill in all fields');
+      crossAlert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -61,7 +61,7 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
     try {
       const result = await signup(email, fullName);
 
-      Alert.alert(
+      crossAlert(
         'Check Your Email',
         result.message || 'We sent you a verification link. Open it to set your password, then return here to sign in.',
         [
@@ -75,7 +75,7 @@ export const FrappeAuthModal = ({ visible, onClose, mode = 'signin' }) => {
         ]
       );
     } catch (error) {
-      Alert.alert('Signup Failed', error.message || 'Could not create account');
+      crossAlert('Signup Failed', error.message || 'Could not create account');
     } finally {
       setLoading(false);
     }
