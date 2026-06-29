@@ -68,8 +68,12 @@
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png",
       "display": "standalone",
+      "name": "Tookio Shop",
+      "shortName": "Tookio",
+      "description": "Tookio Shop Point of Sale and Inventory Management",
       "themeColor": "#242424",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#FFFFFF",
+      "startUrl": "/"
     },
     "experiments": {
       "typedRoutes": true
