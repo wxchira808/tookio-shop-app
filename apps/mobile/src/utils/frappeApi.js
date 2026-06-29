@@ -51,7 +51,7 @@ export async function getCurrencyOptions() {
 }
 
 function shouldUseTokenAuth(auth) {
-  return Platform.OS !== 'web' && auth && auth.api_key && auth.api_secret;
+  return auth && auth.api_key && auth.api_secret;
 }
 
 function isSessionInvalidMessage(message) {
@@ -305,7 +305,7 @@ export async function login(usr, pwd, providedKeys = null) {
 
     // Try to get API keys for token auth (only if not already provided)
     let apiKeys = providedKeys;
-    if (!apiKeys && Platform.OS !== 'web') {
+    if (!apiKeys) {
       try {
         const keysResponse = await frappeRequest('/api/method/frappe.core.doctype.user.user.generate_keys', {
           method: 'POST',
