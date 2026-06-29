@@ -1,21 +1,26 @@
 {
   "short_name": "Tookio",
   "name": "Tookio Shop App",
+  "description": "Tookio Shop Point of Sale and Inventory Management",
   "icons": [
     {
       "src": "/logo.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "/logo.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": "/?source=pwa",
+  "start_url": "/",
   "background_color": "#ffffff",
   "display": "standalone",
+  "orientation": "portrait",
   "scope": "/",
-  "theme_color": "#242424"
+  "theme_color": "#242424",
+  "categories": ["business", "productivity"]
 }
