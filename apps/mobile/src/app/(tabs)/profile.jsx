@@ -1,4 +1,5 @@
-import { View, Text, Alert, RefreshControl, ActivityIndicator, BackHandler, ScrollView } from "react-native";
+import { crossAlert } from '@/utils/crossAlert';
+import { View, Text, RefreshControl, ActivityIndicator, BackHandler, ScrollView } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, handleApiError } from "@/utils/auth/useAuth";
@@ -62,7 +63,7 @@ export default function Profile() {
     } catch (error) {
       console.error("Error refreshing user details:", error);
       if (!handleApiError(error, signOut) && showSpinner) {
-        Alert.alert("Error", "Failed to refresh account details.");
+        crossAlert("Error", "Failed to refresh account details.");
       }
     } finally {
       setLoadingSubscription(false);
@@ -94,7 +95,7 @@ export default function Profile() {
   }, []);
 
   const handleSignOut = () => {
-    Alert.alert("Sign out", "Are you sure you want to sign out?", [
+    crossAlert("Sign out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       { text: "Sign out", style: "destructive", onPress: () => signOut() },
     ]);

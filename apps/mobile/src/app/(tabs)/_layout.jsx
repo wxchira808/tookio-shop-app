@@ -1,6 +1,6 @@
 import { Tabs, Redirect } from "expo-router";
 import { useAuth } from "@/utils/auth/useAuth";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
@@ -41,8 +41,11 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderColor: colors.outlineGray1,
           paddingTop: 8,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-          minHeight: insets.bottom > 0 ? 56 + insets.bottom : 60,
+          // On web the safe area insets are 0 even on phones with home bars.
+          // Use env(safe-area-inset-bottom) via paddingBottom for web,
+          // and the real inset on native.
+          paddingBottom: Platform.OS === 'web' ? 16 : (insets.bottom > 0 ? insets.bottom : 8),
+          minHeight: Platform.OS === 'web' ? 68 : (insets.bottom > 0 ? 56 + insets.bottom : 60),
         },
         tabBarActiveTintColor: colors.inkGray8,
         tabBarInactiveTintColor: colors.inkGray4,

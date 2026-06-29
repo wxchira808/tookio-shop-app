@@ -1,9 +1,9 @@
+import { crossAlert } from '@/utils/crossAlert';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
-  Alert,
   TextInput,
   Modal,
   RefreshControl,
@@ -107,7 +107,7 @@ export default function InventoryScreen() {
     } catch (error) {
       console.error("Error loading data:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to load inventory data");
+        crossAlert("Error", "Failed to load inventory data");
       }
     } finally {
       setLoading(false);
@@ -122,7 +122,7 @@ export default function InventoryScreen() {
 
   const handleAddItem = async () => {
     if (!itemForm.shop || !itemForm.item_name || !itemForm.unit_price || !itemForm.cost_price) {
-      Alert.alert("Missing Fields", "Please fill in shop, name, and prices");
+      crossAlert("Missing Fields", "Please fill in shop, name, and prices");
       return;
     }
 
@@ -139,31 +139,31 @@ export default function InventoryScreen() {
         track_stock: itemForm.track_stock ? 1 : 0,
       });
 
-      Alert.alert("Success", "Item added successfully");
+      crossAlert("Success", "Item added successfully");
       setShowAddItemModal(false);
       resetItemForm();
       await loadData();
     } catch (error) {
       console.error("Error creating item:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to create item");
+        crossAlert("Error", "Failed to create item");
       }
     }
   };
 
   const handleBulkStockAdjustment = async () => {
     if (!adjustmentShop) {
-      Alert.alert("Missing Shop", "Please select a shop");
+      crossAlert("Missing Shop", "Please select a shop");
       return;
     }
 
     const itemsWithQty = adjustmentItems.filter(item => item.quantity > 0);
     if (itemsWithQty.length === 0) {
-      Alert.alert("No Items", "Please add at least one item with quantity");
+      crossAlert("No Items", "Please add at least one item with quantity");
       return;
     }
 
-    Alert.alert(
+    crossAlert(
       "Confirm Stock Adjustment",
       `Are you sure you want to perform this stock adjustment (${adjustmentType})?`,
       [
@@ -181,14 +181,14 @@ export default function InventoryScreen() {
                 })),
               });
 
-              Alert.alert("Success", "Stock adjustment completed successfully");
+              crossAlert("Success", "Stock adjustment completed successfully");
               setShowStockAdjustModal(false);
               resetStockAdjustment();
               await loadData();
             } catch (error) {
               console.error("Error adjusting stock:", error);
               if (!handleApiError(error, signOut)) {
-                Alert.alert("Error", "Failed to adjust stock");
+                crossAlert("Error", "Failed to adjust stock");
               }
             }
           },
@@ -249,7 +249,7 @@ export default function InventoryScreen() {
   const handleDeleteItem = () => {
     if (!selectedItem) return;
 
-    Alert.alert(
+    crossAlert(
       "Delete Item",
       `Are you sure you want to delete "${selectedItem.item_name}"? This action cannot be undone.`,
       [
@@ -261,12 +261,12 @@ export default function InventoryScreen() {
             try {
               setShowItemActionsModal(false);
               await deleteItem(selectedItem.id);
-              Alert.alert("Success", "Item deleted successfully");
+              crossAlert("Success", "Item deleted successfully");
               await loadData();
             } catch (error) {
               console.error("Error deleting item:", error);
               if (!handleApiError(error, signOut)) {
-                Alert.alert("Error", "Failed to delete item");
+                crossAlert("Error", "Failed to delete item");
               }
             }
           },
@@ -278,7 +278,7 @@ export default function InventoryScreen() {
   // Handle update item
   const handleUpdateItem = async () => {
     if (!selectedItem || !itemForm.item_name || !itemForm.shop) {
-      Alert.alert("Error", "Please fill in all required fields");
+      crossAlert("Error", "Please fill in all required fields");
       return;
     }
 
@@ -295,7 +295,7 @@ export default function InventoryScreen() {
         track_stock: itemForm.track_stock ? 1 : 0,
       });
 
-      Alert.alert("Success", "Item updated successfully");
+      crossAlert("Success", "Item updated successfully");
       setShowEditItemModal(false);
       resetItemForm();
       setSelectedItem(null);
@@ -303,7 +303,7 @@ export default function InventoryScreen() {
     } catch (error) {
       console.error("Error updating item:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to update item");
+        crossAlert("Error", "Failed to update item");
       }
     }
   };
@@ -804,7 +804,7 @@ export default function InventoryScreen() {
             </Pressable>
 
             <Pressable
-              onPress={() => Alert.alert("Track Stock", "Select if you want to manage stock of the item in the system.")}
+              onPress={() => crossAlert("Track Stock", "Select if you want to manage stock of the item in the system.")}
               style={{ padding: 4 }}
             >
               <Info size={15} color="#707070" />
@@ -1779,7 +1779,7 @@ export default function InventoryScreen() {
             </Pressable>
 
             <Pressable
-              onPress={() => Alert.alert("Track Stock", "Select if you want to manage stock of the item in the system.")}
+              onPress={() => crossAlert("Track Stock", "Select if you want to manage stock of the item in the system.")}
               style={{ padding: 4 }}
             >
               <Info size={15} color="#707070" />

@@ -1,4 +1,5 @@
-import { ActivityIndicator, Alert, Linking, Text, View } from "react-native";
+import { crossAlert } from '@/utils/crossAlert';
+import { ActivityIndicator, Linking, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, handleApiError } from "@/utils/auth/useAuth";
@@ -72,7 +73,7 @@ export default function AccountDetails() {
 
   const handleUpdateProfile = useCallback(async () => {
     if (!fullName.trim()) {
-      Alert.alert("Missing name", "Enter your full name first.");
+      crossAlert("Missing name", "Enter your full name first.");
       return;
     }
 
@@ -81,16 +82,16 @@ export default function AccountDetails() {
       const result = await updateUserProfile({ first_name: fullName.trim() });
 
       if (!result.success) {
-        Alert.alert("Could not update profile", result.error || "Please try again.");
+        crossAlert("Could not update profile", result.error || "Please try again.");
         return;
       }
 
       await persistRefreshedAuth();
-      Alert.alert("Profile updated", "Your account details have been saved.");
+      crossAlert("Profile updated", "Your account details have been saved.");
     } catch (error) {
       console.error("Error updating profile:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Could not update profile", "Please try again.");
+        crossAlert("Could not update profile", "Please try again.");
       }
     } finally {
       setUpdating(false);
@@ -99,22 +100,22 @@ export default function AccountDetails() {
 
   const handleChangePassword = useCallback(async () => {
     if (!currentPassword) {
-      Alert.alert("Missing password", "Enter your current password.");
+      crossAlert("Missing password", "Enter your current password.");
       return;
     }
 
     if (!newPassword) {
-      Alert.alert("Missing password", "Enter a new password.");
+      crossAlert("Missing password", "Enter a new password.");
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert("Weak password", "Your new password should be at least 6 characters.");
+      crossAlert("Weak password", "Your new password should be at least 6 characters.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert("Passwords don't match", "Please confirm the same new password.");
+      crossAlert("Passwords don't match", "Please confirm the same new password.");
       return;
     }
 
@@ -126,18 +127,18 @@ export default function AccountDetails() {
       });
 
       if (!result.success) {
-        Alert.alert("Could not change password", result.error || "Please try again.");
+        crossAlert("Could not change password", result.error || "Please try again.");
         return;
       }
 
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      Alert.alert("Password updated", "Your password has been changed.");
+      crossAlert("Password updated", "Your password has been changed.");
     } catch (error) {
       console.error("Error changing password:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Could not change password", "Please try again.");
+        crossAlert("Could not change password", "Please try again.");
       }
     } finally {
       setChangingPassword(false);
@@ -146,7 +147,7 @@ export default function AccountDetails() {
 
   const handleDeleteAccount = useCallback(() => {
     Linking.openURL("https://shop.tookio.co.ke/account-deletion-request").catch(() => {
-      Alert.alert("Could not open page", "Please try again in a moment.");
+      crossAlert("Could not open page", "Please try again in a moment.");
     });
   }, []);
 

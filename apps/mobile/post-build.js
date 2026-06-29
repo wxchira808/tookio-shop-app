@@ -17,6 +17,28 @@ if (!fs.existsSync(indexPath)) {
 
 let html = fs.readFileSync(indexPath, 'utf-8');
 
+// --- 0. Fix viewport to match native Expo Go behavior ---
+// Replace the default viewport (which allows iOS zoom-on-focus) with a locked one.
+// We also inject a CSS rule to ensure all inputs have font-size >= 16px,
+// which is the cleanest iOS-compatible way to prevent zoom without breaking accessibility.
+const pwaViewportFix = `
+  <!-- PWA: fixed viewport - prevents zoom on input focus, matches native Expo Go behaviour -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <style>
+    /* Prevent iOS Safari zoom on input focus without hurting accessibility */
+    input, textarea, select {
+      font-size: max(16px, 1em) !important;
+    }
+  </style>`;
+
+// Remove the old viewport meta and replace with our fixed one
+html = html.replace(
+  /<meta[^>]*name="viewport"[^>]*>/,
+  pwaViewportFix
+);
+console.log('✅ Fixed viewport (prevents zoom-on-input-focus)');
+
+
 // --- 1. Inject manifest + apple PWA meta tags into <head> ---
 const pwaHeadTags = `
   <link rel="manifest" href="/manifest.json" />

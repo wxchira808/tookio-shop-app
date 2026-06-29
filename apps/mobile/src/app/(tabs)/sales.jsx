@@ -1,9 +1,9 @@
+import { crossAlert } from '@/utils/crossAlert';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
-  Alert,
   TextInput,
   Modal,
   RefreshControl,
@@ -88,7 +88,7 @@ export default function Sales() {
     } catch (error) {
       console.error("Error loading sales:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to load sales data");
+        crossAlert("Error", "Failed to load sales data");
       }
     } finally {
       setLoading(false);
@@ -173,7 +173,7 @@ export default function Sales() {
     } catch (error) {
       console.error('Error fetching sale details:', error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert('Error', 'Failed to load sale details. Please try again.');
+        crossAlert('Error', 'Failed to load sale details. Please try again.');
       }
     }
   };
@@ -181,7 +181,7 @@ export default function Sales() {
   const handleCancelSale = async () => {
     if (!selectedSale) return;
 
-    Alert.alert(
+    crossAlert(
       "Cancel Sale",
       `Are you sure you want to cancel this sale? This action cannot be undone.`,
       [
@@ -192,14 +192,14 @@ export default function Sales() {
           onPress: async () => {
             try {
               await cancelSale(selectedSale.id);
-              Alert.alert("Success", "Sale cancelled successfully");
+              crossAlert("Success", "Sale cancelled successfully");
               setShowDetailsModal(false);
               setSelectedSale(null);
               await loadData(); // Reload sales list
             } catch (error) {
               console.error("Error cancelling sale:", error);
               if (!handleApiError(error, signOut)) {
-                Alert.alert("Error", "Failed to cancel sale");
+                crossAlert("Error", "Failed to cancel sale");
               }
             }
           },
@@ -210,26 +210,26 @@ export default function Sales() {
 
   const handleAddSale = async () => {
     if (!selectedShopId) {
-      Alert.alert("Error", "Please select a shop");
+      crossAlert("Error", "Please select a shop");
       return;
     }
 
     if (saleItems.length === 0) {
-      Alert.alert("Error", "Please select at least one item");
+      crossAlert("Error", "Please select at least one item");
       return;
     }
 
     if (!customerName.trim()) {
-      Alert.alert("Error", "Please enter customer name");
+      crossAlert("Error", "Please enter customer name");
       return;
     }
 
     if (!customerMobile.trim()) {
-      Alert.alert("Error", "Please enter customer mobile number");
+      crossAlert("Error", "Please enter customer mobile number");
       return;
     }
 
-    Alert.alert(
+    crossAlert(
       "Confirm Sale",
       "Are you sure you want to record this sale?",
       [
@@ -255,7 +255,7 @@ export default function Sales() {
               });
 
               if (result && result.sale) {
-                Alert.alert(
+                crossAlert(
                   "Success",
                   "Sale recorded successfully! Stock levels have been updated."
                 );
@@ -272,7 +272,7 @@ export default function Sales() {
             } catch (error) {
               console.error("Error adding sale:", error);
               if (!handleApiError(error, signOut)) {
-                Alert.alert("Error", error.message || "Failed to record sale");
+                crossAlert("Error", error.message || "Failed to record sale");
               }
             } finally {
               setSubmitting(false);

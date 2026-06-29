@@ -1,9 +1,9 @@
+import { crossAlert } from '@/utils/crossAlert';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
-  Alert,
   TextInput,
   Modal,
   RefreshControl,
@@ -73,7 +73,7 @@ export default function Stock() {
     } catch (error) {
       console.error("Error loading stock data:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to load stock transactions");
+        crossAlert("Error", "Failed to load stock transactions");
       }
     } finally {
       setLoading(false);
@@ -97,19 +97,19 @@ export default function Stock() {
 
   const handleStockTransaction = async () => {
     if (!selectedItemId) {
-      Alert.alert("Error", "Please select an item");
+      crossAlert("Error", "Please select an item");
       return;
     }
 
     if (!quantity || parseInt(quantity) <= 0) {
-      Alert.alert("Error", "Please enter a valid quantity");
+      crossAlert("Error", "Please enter a valid quantity");
       return;
     }
 
     // Find the selected item to get its shop_id
     const selectedItem = items.find(item => item.id.toString() === selectedItemId);
     if (!selectedItem) {
-      Alert.alert("Error", "Selected item not found");
+      crossAlert("Error", "Selected item not found");
       return;
     }
 
@@ -128,7 +128,7 @@ export default function Stock() {
       });
 
       if (result) {
-        Alert.alert("Success", "Stock transaction recorded successfully!");
+        crossAlert("Success", "Stock transaction recorded successfully!");
         setShowModal(false);
         setSelectedItemId("");
         setQuantity("");
@@ -138,7 +138,7 @@ export default function Stock() {
     } catch (error) {
       console.error("Error recording stock transaction:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", error.message || "Failed to record transaction");
+        crossAlert("Error", error.message || "Failed to record transaction");
       }
     } finally {
       setSubmitting(false);
@@ -322,7 +322,7 @@ export default function Stock() {
                     setShowDetailsModal(true);
                   } catch (error) {
                     console.error('Error fetching transaction details:', error);
-                    Alert.alert('Error', 'Failed to load transaction details. Please try again.');
+                    crossAlert('Error', 'Failed to load transaction details. Please try again.');
                   }
                 }}
                 style={({ pressed }) => ({

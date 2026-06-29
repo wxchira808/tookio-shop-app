@@ -1,9 +1,9 @@
+import { crossAlert } from '@/utils/crossAlert';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
-  Alert,
   TextInput,
   Modal,
   RefreshControl,
@@ -114,7 +114,7 @@ export default function Shops() {
     } catch (error) {
       console.error("Error loading shops:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to load shops. Please try again.");
+        crossAlert("Error", "Failed to load shops. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ export default function Shops() {
 
   const handleAddShop = async () => {
     if (!shopName.trim()) {
-      Alert.alert("Error", "Please enter a shop name");
+      crossAlert("Error", "Please enter a shop name");
       return;
     }
 
@@ -148,7 +148,7 @@ export default function Shops() {
       });
 
       if (result && result.shop) {
-        Alert.alert("Success", "Shop created successfully!");
+        crossAlert("Success", "Shop created successfully!");
         setShopName("");
         setDescription("");
         setLocation("");
@@ -170,7 +170,7 @@ export default function Shops() {
       }
     } catch (error) {
       console.error("Error creating shop:", error);
-      Alert.alert("Error", error.message || "Failed to create shop");
+      crossAlert("Error", error.message || "Failed to create shop");
     } finally {
       setSubmitting(false);
     }
@@ -178,7 +178,7 @@ export default function Shops() {
 
   const handleEditShop = async () => {
     if (!shopName.trim()) {
-      Alert.alert("Error", "Please enter a shop name");
+      crossAlert("Error", "Please enter a shop name");
       return;
     }
 
@@ -197,7 +197,7 @@ export default function Shops() {
       });
 
       if (result && result.shop) {
-        Alert.alert("Success", "Shop updated successfully!");
+        crossAlert("Success", "Shop updated successfully!");
         setShopName("");
         setDescription("");
         setLocation("");
@@ -213,7 +213,7 @@ export default function Shops() {
       }
     } catch (error) {
       console.error("Error updating shop:", error);
-      Alert.alert("Error", error.message || "Failed to update shop");
+      crossAlert("Error", error.message || "Failed to update shop");
     } finally {
       setSubmitting(false);
     }
@@ -222,7 +222,7 @@ export default function Shops() {
   const handleDeleteShop = async () => {
     if (!editingShop) return;
 
-    Alert.alert(
+    crossAlert(
       "Delete Shop",
       `Are you sure you want to delete "${editingShop.shop_name}"? This action cannot be undone and will also delete all items in this shop.`,
       [
@@ -244,13 +244,13 @@ export default function Shops() {
                 await saveActiveShop(null);
               }
 
-              Alert.alert("Success", "Shop deleted successfully!");
+              crossAlert("Success", "Shop deleted successfully!");
               setShowEditModal(false);
               setEditingShop(null);
               await loadData();
             } catch (error) {
               console.error("Error deleting shop:", error);
-              Alert.alert("Error", error.message || "Failed to delete shop");
+              crossAlert("Error", error.message || "Failed to delete shop");
             } finally {
               setSubmitting(false);
             }
@@ -263,7 +263,7 @@ export default function Shops() {
   const handleSetActiveShop = async (shopId) => {
     setActiveShopId(shopId);
     await saveActiveShop(shopId);
-    Alert.alert("Success", "Active shop updated!");
+    crossAlert("Success", "Active shop updated!");
   };
 
   const openEditModal = (shop) => {

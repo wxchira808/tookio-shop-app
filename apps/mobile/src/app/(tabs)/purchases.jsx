@@ -1,10 +1,10 @@
+import { crossAlert } from '@/utils/crossAlert';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
   TextInput,
-  Alert,
   RefreshControl,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -99,7 +99,7 @@ export default function PurchasesScreen() {
     } catch (error) {
       console.error("Error loading purchases:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to load purchases");
+        crossAlert("Error", "Failed to load purchases");
       }
     } finally {
       setLoading(false);
@@ -114,21 +114,21 @@ export default function PurchasesScreen() {
 
   const handleAddPurchase = async () => {
     if (!formData.shop || !formData.amount || !formData.description) {
-      Alert.alert("Missing Fields", "Please select a shop and fill in description and amount.");
+      crossAlert("Missing Fields", "Please select a shop and fill in description and amount.");
       return;
     }
 
     setSubmitting(true);
     try {
       await createPurchase(formData);
-      Alert.alert("Success", "Purchase recorded successfully");
+      crossAlert("Success", "Purchase recorded successfully");
       setShowAddModal(false);
       resetForm();
       await loadPurchases();
     } catch (error) {
       console.error("Error creating purchase:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to record purchase");
+        crossAlert("Error", "Failed to record purchase");
       }
     } finally {
       setSubmitting(false);
@@ -168,7 +168,7 @@ export default function PurchasesScreen() {
   const handleDeletePurchase = () => {
     if (!selectedPurchase) return;
 
-    Alert.alert(
+    crossAlert(
       "Delete Purchase",
       `Are you sure you want to delete this purchase? This action cannot be undone.`,
       [
@@ -180,12 +180,12 @@ export default function PurchasesScreen() {
             try {
               setShowActionsModal(false);
               await deletePurchase(selectedPurchase.id);
-              Alert.alert("Success", "Purchase deleted successfully");
+              crossAlert("Success", "Purchase deleted successfully");
               await loadPurchases();
             } catch (error) {
               console.error("Error deleting purchase:", error);
               if (!handleApiError(error, signOut)) {
-                Alert.alert("Error", "Failed to delete purchase");
+                crossAlert("Error", "Failed to delete purchase");
               }
             }
           },
@@ -196,14 +196,14 @@ export default function PurchasesScreen() {
 
   const handleUpdatePurchase = async () => {
     if (!selectedPurchase || !formData.shop || !formData.amount || !formData.description) {
-      Alert.alert("Missing Fields", "Please fill in all required fields");
+      crossAlert("Missing Fields", "Please fill in all required fields");
       return;
     }
 
     setSubmitting(true);
     try {
       await updatePurchase(selectedPurchase.id, formData);
-      Alert.alert("Success", "Purchase updated successfully");
+      crossAlert("Success", "Purchase updated successfully");
       setShowEditModal(false);
       resetForm();
       setSelectedPurchase(null);
@@ -211,7 +211,7 @@ export default function PurchasesScreen() {
     } catch (error) {
       console.error("Error updating purchase:", error);
       if (!handleApiError(error, signOut)) {
-        Alert.alert("Error", "Failed to update purchase");
+        crossAlert("Error", "Failed to update purchase");
       }
     } finally {
       setSubmitting(false);
