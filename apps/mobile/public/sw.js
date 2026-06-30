@@ -2,7 +2,7 @@
 // Caches core app shell to satisfy PWA installability requirements
 // and provide offline capability.
 
-const CACHE_NAME = 'tookio-shop-v1';
+const CACHE_NAME = 'tookio-shop-v2';
 
 // Core app shell files to pre-cache
 const APP_SHELL = [
@@ -44,6 +44,12 @@ self.addEventListener('activate', (event) => {
 // ---- Fetch: network-first for API calls, cache-first for static assets ----
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // Skip cross-origin requests entirely — let the browser handle them natively.
+  // This prevents ERR_FAILED on requests to other domains (e.g. Google Analytics, fonts).
+  if (url.origin !== self.location.origin) {
+    return;
+  }
 
   // Always go to network for API calls to Frappe
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/files/')) {

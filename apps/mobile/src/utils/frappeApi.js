@@ -18,20 +18,17 @@ const DEFAULT_FRAPPE_URL = 'https://shop.tookio.co.ke';
 const AUTH_KEY = 'tookio-frappe-auth';
 
 function getFrappeUrl() {
+  // On web, always use the same origin the user is on.
+  // Both tookio.app and tookio.shop proxy /api/ to Frappe via Nginx,
+  // so using window.location.origin means API calls are always same-origin
+  // (no CORS, no cross-origin service worker failures).
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+
+  // On native, use the env var or fall back to the direct Frappe URL
   const envUrl = process.env.EXPO_PUBLIC_FRAPPE_URL || process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_BASE_URL;
-  
-  if (envUrl) {
-    return envUrl;
-  }
-
-  if (Platform.OS === 'web') {
-    const configUrl = globalThis?.tookioShopConfig?.siteUrl;
-    // We remove the automatic browserUrl fallback because it breaks when hosted on Vercel.
-    // We only use the explicitly defined backend URL.
-    return configUrl || DEFAULT_FRAPPE_URL;
-  }
-
-  return DEFAULT_FRAPPE_URL;
+  return envUrl || DEFAULT_FRAPPE_URL;
 }
 
 async function fetchDoctypeOptions(doctype) {
