@@ -77,5 +77,27 @@ if (!html.includes("serviceWorker.register('/sw.js')")) {
   console.log('ℹ️  Service worker registration already present, skipping');
 }
 
+// --- 3. Inject Google Analytics 4 (GA4) ---
+const GA_ID = 'G-EMMNPY523C';
+const gaScript = `
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '${GA_ID}', {
+      page_title: document.title,
+      page_location: window.location.href,
+    });
+  </script>`;
+
+if (!html.includes(GA_ID)) {
+  html = html.replace('</head>', `${gaScript}\n</head>`);
+  console.log('✅ Injected Google Analytics 4 (' + GA_ID + ')');
+} else {
+  console.log('ℹ️  Google Analytics already present, skipping');
+}
+
 fs.writeFileSync(indexPath, html, 'utf-8');
 console.log('✅ post-build.js complete — dist/index.html updated for PWA');
