@@ -1,4 +1,5 @@
 import { crossAlert } from '@/utils/crossAlert';
+import { useShopStore } from "@/utils/auth/store";
 import {
   View,
   Text,
@@ -102,6 +103,7 @@ export default function Shops() {
 
       if (shopsRes && shopsRes.shops) {
         setShops(shopsRes.shops);
+        useShopStore.getState().setShops(shopsRes.shops);
         // If no active shop set but shops exist, set the first one as active
         if (!activeId && shopsRes.shops.length > 0) {
           const firstShopId = shopsRes.shops[0].id;

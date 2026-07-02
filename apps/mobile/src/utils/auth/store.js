@@ -28,3 +28,13 @@ export const useAuthModal = create((set) => ({
   open: (options) => set({ isOpen: true, mode: options?.mode || "signup" }),
   close: () => set({ isOpen: false }),
 }));
+
+/**
+ * This store manages the user's shops state globally.
+ */
+export const useShopStore = create((set) => ({
+  shops: [],
+  hasLoaded: false,
+  setShops: (shops) => set({ shops: shops || [], hasLoaded: true }),
+  clearShops: () => set({ shops: [], hasLoaded: false }),
+}));

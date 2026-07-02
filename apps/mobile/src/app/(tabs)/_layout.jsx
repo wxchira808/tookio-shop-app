@@ -1,7 +1,10 @@
-import { Tabs, Redirect } from "expo-router";
+import { Tabs, Redirect, usePathname, router } from "expo-router";
 import { useAuth } from "@/utils/auth/useAuth";
 import { View, ActivityIndicator, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect, useState } from "react";
+import { useShopStore } from "@/utils/auth/store";
+import { getShops } from "@/utils/frappeApi";
 import {
   Home,
   Store,
@@ -16,9 +19,45 @@ import { colors } from "@/theme/frappeTheme";
 export default function TabLayout() {
   const { isAuthenticated, isReady } = useAuth();
   const insets = useSafeAreaInsets();
+  const { shops, hasLoaded, setShops, clearShops } = useShopStore();
+  const pathname = usePathname();
+  const [fetching, setFetching] = useState(false);
 
-  // Show loading while checking auth state
-  if (!isReady) {
+  useEffect(() => {
+    if (!isAuthenticated) {
+      clearShops();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && !hasLoaded && !fetching) {
+      setFetching(true);
+      getShops()
+        .then((res) => {
+          setShops(res?.shops || []);
+        })
+        .catch((err) => {
+          console.error("Error fetching shops in layout:", err);
+        })
+        .finally(() => {
+          setFetching(false);
+        });
+    }
+  }, [isAuthenticated, hasLoaded, fetching]);
+
+  const enabledShops = shops.filter((s) => s.enabled === 1);
+  const hasNoShop = hasLoaded && enabledShops.length === 0;
+
+  useEffect(() => {
+    if (isReady && isAuthenticated && hasNoShop) {
+      if (pathname !== "/shops") {
+        router.replace("/shops");
+      }
+    }
+  }, [isReady, isAuthenticated, hasNoShop, pathname]);
+
+  // Show loading while checking auth state or loading shops
+  if (!isReady || (isAuthenticated && !hasLoaded)) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={colors.inkGray6} />
@@ -60,6 +99,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
+          href: hasNoShop ? null : undefined,
           tabBarIcon: ({ color }) => <Home color={color} size={26} />,
         }}
       />
@@ -74,6 +114,7 @@ export default function TabLayout() {
         name="items"
         options={{
           title: "Inventory",
+          href: hasNoShop ? null : undefined,
           tabBarIcon: ({ color}) => <Package color={color} size={26} />,
         }}
       />
@@ -81,6 +122,7 @@ export default function TabLayout() {
         name="purchases"
         options={{
           title: "Expenses",
+          href: hasNoShop ? null : undefined,
           tabBarIcon: ({ color }) => <ReceiptText color={color} size={26} />,
         }}
       />
@@ -98,6 +140,7 @@ export default function TabLayout() {
         name="sales"
         options={{
           title: "Sales",
+          href: hasNoShop ? null : undefined,
           tabBarIcon: ({ color }) => (
             <DollarSign color={color} size={26} />
           ),
